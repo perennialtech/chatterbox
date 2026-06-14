@@ -1,6 +1,4 @@
 from pathlib import Path
-import time
-from contextlib import contextmanager
 
 import librosa
 import torch
@@ -9,6 +7,7 @@ from safetensors.torch import load_file
 
 from .models.s3tokenizer import S3_SR
 from .models.s3gen import S3GEN_SR, S3Gen
+from .timing import InferenceTimer
 
 REPO_ID = "ResembleAI/chatterbox-turbo"
 
@@ -33,21 +32,6 @@ class ChatterboxVC:
                 k: v.to(device) if torch.is_tensor(v) else v
                 for k, v in ref_dict.items()
             }
-
-    def _sync(self):
-        device_type = str(self.device).lower()
-        if "cuda" in device_type and torch.cuda.is_available():
-            torch.cuda.synchronize()
-        elif "mps" in device_type and torch.backends.mps.is_available():
-            torch.mps.synchronize()
-
-    @contextmanager
-    def _track_time(self, timings_dict, key):
-        self._sync()
-        start = time.perf_counter()
-        yield
-        self._sync()
-        timings_dict[key] = time.perf_counter() - start
 
     @classmethod
     def from_local(cls, ckpt_dir, device) -> "ChatterboxVC":
@@ -108,10 +92,11 @@ class ChatterboxVC:
         target_voice_path=None,
     ):
         timings = {}
+        timer = InferenceTimer(timings, self.device)
 
-        with self._track_time(timings, "total"):
+        with timer.track("total"):
             if target_voice_path:
-                with self._track_time(timings, "target_voice_setup"):
+                with timer.track("target_voice_setup"):
                     self.set_target_voice(target_voice_path)
             else:
                 assert (
@@ -119,23 +104,37 @@ class ChatterboxVC:
                 ), "Please `prepare_conditionals` first or specify `target_voice_path`"
 
             with torch.inference_mode():
-                with self._track_time(timings, "audio_load"):
+                with timer.track("audio_load"):
                     audio_16, _ = librosa.load(audio, sr=S3_SR)
                     audio_16 = torch.from_numpy(audio_16).float().to(self.device)[None,]
 
-                with self._track_time(timings, "tokenize"):
+                with timer.track("tokenize"):
                     s3_tokens, _ = self.s3gen.tokenizer(audio_16)
 
-                with self._track_time(timings, "flow_inference"):
+                with timer.track("flow_inference"):
                     output_mels = self.s3gen.flow_inference(
-                        speech_tokens=s3_tokens, ref_dict=self.ref_dict, finalize=True
+                        speech_tokens=s3_tokens,
+                        ref_dict=self.ref_dict,
+                        finalize=True,
+                        timer=timer.child("flow"),
                     )
 
-                with self._track_time(timings, "vocoder_inference"):
-                    output_mels = output_mels.to(dtype=self.s3gen.dtype)
-                    output_wavs, _ = self.s3gen.hift_inference(output_mels, None)
-                    output_wavs[:, : len(self.s3gen.trim_fade)] *= self.s3gen.trim_fade
-                    wav = output_wavs.squeeze(0).detach().cpu().numpy()
+                with timer.track("vocoder_inference"):
+                    with timer.track("vocoder.prepare_mels"):
+                        output_mels = output_mels.to(dtype=self.s3gen.dtype)
+
+                    with timer.track("vocoder.hift_inference"):
+                        output_wavs, _ = self.s3gen.hift_inference(
+                            output_mels, None, timer=timer.child("vocoder")
+                        )
+
+                    with timer.track("vocoder.trim_fade"):
+                        output_wavs[
+                            :, : len(self.s3gen.trim_fade)
+                        ] *= self.s3gen.trim_fade
+
+                    with timer.track("vocoder.to_cpu"):
+                        wav = output_wavs.squeeze(0).detach().cpu().numpy()
 
         audio_duration = wav.shape[-1] / self.sr
         timings["audio_duration_sec"] = audio_duration

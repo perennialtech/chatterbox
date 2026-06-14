@@ -29,6 +29,7 @@ from torch.nn.utils.parametrizations import weight_norm
 from torch.distributions.uniform import Uniform
 from torch import nn, sin, pow
 from torch.nn import Parameter
+from ...timing import ensure_timer
 
 
 class Snake(nn.Module):
@@ -100,8 +101,8 @@ def init_weights(m, mean=0.0, std=0.01):
 """hifigan based generator implementation.
 
 This code is modified from https://github.com/jik876/hifi-gan
- ,https://github.com/kan-bayashi/ParallelWaveGAN and
- https://github.com/NVIDIA/BigVGAN
+,https://github.com/kan-bayashi/ParallelWaveGAN and
+https://github.com/NVIDIA/BigVGAN
 
 """
 
@@ -460,41 +461,52 @@ class HiFTGenerator(nn.Module):
         return inverse_transform
 
     def decode(
-        self, x: torch.Tensor, s: torch.Tensor = torch.zeros(1, 1, 0)
+        self, x: torch.Tensor, s: torch.Tensor = torch.zeros(1, 1, 0), timer=None
     ) -> torch.Tensor:
-        s_stft_real, s_stft_imag = self._stft(s.squeeze(1))
-        s_stft = torch.cat([s_stft_real, s_stft_imag], dim=1)
+        timer = ensure_timer(timer)
+        with timer.track("decode.source_stft"):
+            s_stft_real, s_stft_imag = self._stft(s.squeeze(1))
+            s_stft = torch.cat([s_stft_real, s_stft_imag], dim=1)
 
-        x = self.conv_pre(x)
+        with timer.track("decode.conv_pre"):
+            x = self.conv_pre(x)
+
         for i in range(self.num_upsamples):
-            x = F.leaky_relu(x, self.lrelu_slope)
-            x = self.ups[i](x)
+            with timer.track(f"decode.upsample_{i}"):
+                x = F.leaky_relu(x, self.lrelu_slope)
+                x = self.ups[i](x)
 
-            if i == self.num_upsamples - 1:
-                x = self.reflection_pad(x)
+                if i == self.num_upsamples - 1:
+                    x = self.reflection_pad(x)
 
             # fusion
-            si = self.source_downs[i](s_stft)
-            si = self.source_resblocks[i](si)
-            x = x + si
+            with timer.track(f"decode.source_fusion_{i}"):
+                si = self.source_downs[i](s_stft)
+                si = self.source_resblocks[i](si)
+                x = x + si
 
-            xs = None
-            for j in range(self.num_kernels):
-                if xs is None:
-                    xs = self.resblocks[i * self.num_kernels + j](x)
-                else:
-                    xs += self.resblocks[i * self.num_kernels + j](x)
-            x = xs / self.num_kernels
+            with timer.track(f"decode.resblocks_{i}"):
+                xs = None
+                for j in range(self.num_kernels):
+                    if xs is None:
+                        xs = self.resblocks[i * self.num_kernels + j](x)
+                    else:
+                        xs += self.resblocks[i * self.num_kernels + j](x)
+                x = xs / self.num_kernels
 
-        x = F.leaky_relu(x)
-        x = self.conv_post(x)
-        magnitude = torch.exp(x[:, : self.istft_params["n_fft"] // 2 + 1, :])
-        phase = torch.sin(
-            x[:, self.istft_params["n_fft"] // 2 + 1 :, :]
-        )  # actually, sin is redundancy
+        with timer.track("decode.projection"):
+            x = F.leaky_relu(x)
+            x = self.conv_post(x)
+            magnitude = torch.exp(x[:, : self.istft_params["n_fft"] // 2 + 1, :])
+            phase = torch.sin(
+                x[:, self.istft_params["n_fft"] // 2 + 1 :, :]
+            )  # actually, sin is redundancy
 
-        x = self._istft(magnitude, phase)
-        x = torch.clamp(x, -self.audio_limit, self.audio_limit)
+        with timer.track("decode.istft"):
+            x = self._istft(magnitude, phase)
+
+        with timer.track("decode.clamp"):
+            x = torch.clamp(x, -self.audio_limit, self.audio_limit)
         return x
 
     def forward(
@@ -518,15 +530,26 @@ class HiFTGenerator(nn.Module):
         self,
         speech_feat: torch.Tensor,
         cache_source: torch.Tensor = torch.zeros(1, 1, 0),
+        timer=None,
     ) -> torch.Tensor:
+        timer = ensure_timer(timer)
         # mel->f0
-        f0 = self.f0_predictor(speech_feat)
+        with timer.track("f0_predictor"):
+            f0 = self.f0_predictor(speech_feat)
+
         # f0->source
-        s = self.f0_upsamp(f0[:, None]).transpose(1, 2)  # bs,n,t
-        s, _, _ = self.m_source(s)
-        s = s.transpose(1, 2)
+        with timer.track("source_upsample"):
+            s = self.f0_upsamp(f0[:, None]).transpose(1, 2)  # bs,n,t
+
+        with timer.track("source_module"):
+            s, _, _ = self.m_source(s)
+            s = s.transpose(1, 2)
+
         # use cache_source to avoid glitch
         if cache_source.shape[2] != 0:
-            s[:, :, : cache_source.shape[2]] = cache_source
-        generated_speech = self.decode(x=speech_feat, s=s)
+            with timer.track("cache_source"):
+                s[:, :, : cache_source.shape[2]] = cache_source
+
+        with timer.track("decode"):
+            generated_speech = self.decode(x=speech_feat, s=s, timer=timer)
         return generated_speech, s
