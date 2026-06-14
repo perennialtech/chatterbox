@@ -11,6 +11,8 @@ from .timing import InferenceTimer
 
 REPO_ID = "ResembleAI/chatterbox-turbo"
 
+import torch.nn.utils.parametrize as parametrize
+
 
 class ChatterboxVC:
     ENC_COND_LEN = 6 * S3_SR
@@ -54,7 +56,10 @@ class ChatterboxVC:
         )
         s3gen.to(device).eval()
 
-        s3gen.mel2wav.remove_weight_norm()
+        # strip weight_norm from every layer
+        for module in s3gen.mel2wav.modules():
+            if parametrize.is_parametrized(module, "weight"):
+                parametrize.remove_parametrizations(module, "weight")
 
         return cls(s3gen, device, ref_dict=ref_dict)
 
