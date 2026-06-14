@@ -184,7 +184,6 @@ class S3Token2Mel(torch.nn.Module):
         finalize: bool = False,
         speech_token_lens=None,
         noised_mels=None,
-        cfg_rate=None,
     ):
         """
         Generate waveforms from S3 speech tokens and a reference waveform, which the speaker timbre is inferred from.
@@ -210,14 +209,11 @@ class S3Token2Mel(torch.nn.Module):
             ref_dict = self.embed_ref(ref_wav, ref_sr)
         else:
             # type/device casting (all values will be numpy if it's from a prod API call)
-            cast_ref_dict = {}
-            for rk, rv in ref_dict.items():
-                if isinstance(rv, np.ndarray):
-                    rv = torch.from_numpy(rv)
-                if torch.is_tensor(rv):
-                    rv = rv.to(device=self.device, dtype=self.dtype)
-                cast_ref_dict[rk] = rv
-            ref_dict = cast_ref_dict
+            for rk in list(ref_dict):
+                if isinstance(ref_dict[rk], np.ndarray):
+                    ref_dict[rk] = torch.from_numpy(ref_dict[rk])
+                if torch.is_tensor(ref_dict[rk]):
+                    ref_dict[rk] = ref_dict[rk].to(device=self.device, dtype=self.dtype)
 
         speech_tokens = torch.atleast_2d(speech_tokens)
 
@@ -234,7 +230,6 @@ class S3Token2Mel(torch.nn.Module):
             noised_mels=noised_mels,
             n_timesteps=n_cfm_timesteps,
             meanflow=self.meanflow,
-            cfg_rate=cfg_rate,
             **ref_dict,
         )
         return output_mels
@@ -284,7 +279,6 @@ class S3Token2Wav(S3Token2Mel):
         skip_vocoder=False,
         n_cfm_timesteps=None,
         noised_mels=None,
-        cfg_rate=None,
     ):
         """
         Generate waveforms from S3 speech tokens and a reference waveform, which the speaker timbre is inferred from.
@@ -299,7 +293,6 @@ class S3Token2Wav(S3Token2Mel):
             finalize=finalize,
             n_cfm_timesteps=n_cfm_timesteps,
             noised_mels=noised_mels,
-            cfg_rate=cfg_rate,
         )
 
         if skip_vocoder:
@@ -330,7 +323,6 @@ class S3Token2Wav(S3Token2Mel):
         n_cfm_timesteps=None,
         finalize: bool = False,
         speech_token_lens=None,
-        cfg_rate=None,
     ):
         n_cfm_timesteps = n_cfm_timesteps or (2 if self.meanflow else 10)
         noise = None
@@ -347,7 +339,6 @@ class S3Token2Wav(S3Token2Mel):
             n_cfm_timesteps=n_cfm_timesteps,
             finalize=finalize,
             noised_mels=noise,
-            cfg_rate=cfg_rate,
         )
         return output_mels
 
@@ -372,7 +363,6 @@ class S3Token2Wav(S3Token2Mel):
         drop_invalid_tokens=True,
         n_cfm_timesteps=None,
         speech_token_lens=None,
-        cfg_rate=None,
     ):
         # hallucination prevention, drop special tokens
         # if drop_invalid_tokens:
@@ -386,7 +376,6 @@ class S3Token2Wav(S3Token2Mel):
             ref_dict=ref_dict,
             n_cfm_timesteps=n_cfm_timesteps,
             finalize=True,
-            cfg_rate=cfg_rate,
         )
         output_mels = output_mels.to(
             dtype=self.dtype

@@ -165,7 +165,6 @@ class CausalMaskedDiffWithXvec(torch.nn.Module):
         n_timesteps=10,
         noised_mels=None,
         meanflow=False,
-        cfg_rate=None,
     ):
         # token: (B, n_toks)
         # token_len: (B,)
@@ -227,7 +226,6 @@ class CausalMaskedDiffWithXvec(torch.nn.Module):
             n_timesteps=n_timesteps,
             noised_mels=noised_mels,
             meanflow=meanflow,
-            cfg_rate=cfg_rate,
         )
         feat = feat[:, :, mel_len1:]
         assert feat.shape[2] == mel_len2
