@@ -65,7 +65,9 @@ class ChatterboxVC:
             ref_dict = states["gen"]
 
         s3gen = S3Gen(meanflow=True)
-        s3gen.load_state_dict(load_file(ckpt_dir / "s3gen_meanflow.safetensors"), strict=False)
+        s3gen.load_state_dict(
+            load_file(ckpt_dir / "s3gen_meanflow.safetensors"), strict=False
+        )
         s3gen.to(device).eval()
 
         return cls(s3gen, device, ref_dict=ref_dict)
