@@ -11,8 +11,6 @@ from .timing import InferenceTimer
 
 REPO_ID = "ResembleAI/chatterbox-turbo"
 
-import torch.nn.utils.parametrize as parametrize
-
 
 class ChatterboxVC:
     ENC_COND_LEN = 6 * S3_SR
@@ -56,13 +54,14 @@ class ChatterboxVC:
         )
         s3gen.to(device).eval()
 
-        # strip weight_norm from every layer
-        for module in s3gen.mel2wav.modules():
-            if parametrize.is_parametrized(module, "weight"):
-                parametrize.remove_parametrizations(module, "weight")
+        s3gen.mel2wav.optimize_for_inference()
 
-        s3gen.flow = torch.compile(s3gen.flow, mode="reduce-overhead")
-        s3gen.mel2wav = torch.compile(s3gen.mel2wav, mode="reduce-overhead")
+        if str(device).startswith("cuda"):
+            s3gen.flow = torch.compile(s3gen.flow, mode="reduce-overhead")
+            s3gen.mel2wav._decode_fast = torch.compile(
+                s3gen.mel2wav._decode_fast,
+                mode="reduce-overhead",
+            )
 
         return cls(s3gen, device, ref_dict=ref_dict)
 
@@ -133,7 +132,10 @@ class ChatterboxVC:
 
                     with timer.track("vocoder.hift_inference"):
                         output_wavs, _ = self.s3gen.hift_inference(
-                            output_mels, None, timer=timer.child("vocoder")
+                            output_mels,
+                            None,
+                            timer=timer.child("vocoder"),
+                            # output_mels, None, timer=None
                         )
 
                     with timer.track("vocoder.trim_fade"):
@@ -144,6 +146,7 @@ class ChatterboxVC:
                     with timer.track("vocoder.to_cpu"):
                         wav = output_wavs.squeeze(0).detach().cpu().numpy()
 
+        timer.finalize()
         audio_duration = wav.shape[-1] / self.sr
         timings["audio_duration_sec"] = audio_duration
         timings["rtf"] = timings["total"] / audio_duration if audio_duration > 0 else 0
