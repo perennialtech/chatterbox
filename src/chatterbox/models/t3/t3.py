@@ -1,7 +1,7 @@
 # Copyright (c) 2025 Resemble AI
 # MIT License
 import logging
-from typing import Union, Optional, List
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -26,14 +26,17 @@ from .llama_configs import LLAMA_CONFIGS
 from .inference.t3_hf_backend import T3HuggingfaceBackend
 from ..utils import AttrDict
 
-
 logger = logging.getLogger(__name__)
 
 
 def _ensure_BOT_EOT(text_tokens: Tensor, hp):
     B = text_tokens.size(0)
-    assert (text_tokens == hp.start_text_token).int().sum() >= B, "missing start_text_token"
-    assert (text_tokens == hp.stop_text_token).int().sum() >= B, "missing stop_text_token"
+    assert (
+        text_tokens == hp.start_text_token
+    ).int().sum() >= B, "missing start_text_token"
+    assert (
+        text_tokens == hp.stop_text_token
+    ).int().sum() >= B, "missing stop_text_token"
 
 
 class T3(nn.Module):
@@ -81,8 +84,12 @@ class T3(nn.Module):
             self.speech_pos_emb = LearnedPositionEmbeddings(max_mel_seq_len, self.dim)
 
         # logit projection
-        self.text_head = nn.Linear(self.cfg.hidden_size, hp.text_tokens_dict_size, bias=False)
-        self.speech_head = nn.Linear(self.cfg.hidden_size, hp.speech_tokens_dict_size, bias=self.is_gpt)
+        self.text_head = nn.Linear(
+            self.cfg.hidden_size, hp.text_tokens_dict_size, bias=False
+        )
+        self.speech_head = nn.Linear(
+            self.cfg.hidden_size, hp.speech_tokens_dict_size, bias=self.is_gpt
+        )
         self.compiled = False
 
     @property
@@ -93,10 +100,17 @@ class T3(nn.Module):
         """
         Token cond data needs to be embedded, so that needs to be here instead of in `T3CondEnc`.
         """
-        if t3_cond.cond_prompt_speech_tokens is not None and t3_cond.cond_prompt_speech_emb is None:
-            t3_cond.cond_prompt_speech_emb = self.speech_emb(t3_cond.cond_prompt_speech_tokens)
+        if (
+            t3_cond.cond_prompt_speech_tokens is not None
+            and t3_cond.cond_prompt_speech_emb is None
+        ):
+            t3_cond.cond_prompt_speech_emb = self.speech_emb(
+                t3_cond.cond_prompt_speech_tokens
+            )
             if not self.is_gpt:
-                t3_cond.cond_prompt_speech_emb += self.speech_pos_emb(t3_cond.cond_prompt_speech_tokens)
+                t3_cond.cond_prompt_speech_emb += self.speech_pos_emb(
+                    t3_cond.cond_prompt_speech_tokens
+                )
         return self.cond_enc(t3_cond)  # (B, len_cond, dim)
 
     def prepare_input_embeds(
@@ -120,13 +134,15 @@ class T3(nn.Module):
         len_cond = cond_emb.size(1)
 
         if cond_emb.size(0) != text_emb.size(0):
-             cond_emb = cond_emb.expand(text_emb.size(0), -1, -1)
+            cond_emb = cond_emb.expand(text_emb.size(0), -1, -1)
 
         # concat
-        embeds = torch.stack([
-            torch.cat((ce, te, se))
-            for ce, te, se in zip(cond_emb, text_emb, speech_emb)
-        ])  # (B, length, dim)
+        embeds = torch.stack(
+            [
+                torch.cat((ce, te, se))
+                for ce, te, se in zip(cond_emb, text_emb, speech_emb)
+            ]
+        )  # (B, length, dim)
         return embeds, len_cond
 
     def forward(
@@ -157,7 +173,9 @@ class T3(nn.Module):
             return_dict=True,
             use_cache=(not training),
         )
-        hidden_states = tfmr_out.hidden_states[-1]  # final tfmr layer output, (B, seq, dim)
+        hidden_states = tfmr_out.hidden_states[
+            -1
+        ]  # final tfmr layer output, (B, seq, dim)
 
         # post-processing: splice out text and speech parts of hidden states
         len_text = text_tokens.size(1)
@@ -171,8 +189,8 @@ class T3(nn.Module):
             text_end = len_cond + ttl[i].item()
             speech_start = len_cond + text_tokens.size(1)
             speech_end = speech_start + stl[i].item()
-            text_latents[i, :ttl[i]] = hidden_states[i, len_cond:text_end]
-            speech_latents[i, :stl[i]] = hidden_states[i, speech_start:speech_end]
+            text_latents[i, : ttl[i]] = hidden_states[i, len_cond:text_end]
+            speech_latents[i, : stl[i]] = hidden_states[i, speech_start:speech_end]
 
         # logit projection
         text_logits = self.text_head(text_latents)
@@ -213,12 +231,20 @@ class T3(nn.Module):
         # Calc CCE losses
         IGNORE_ID = -100
         device = out.text_logits.device
-        mask_text = torch.arange(len_text, device=device)[None] >= text_token_lens[:, None]  # (B, len_text)
-        mask_speech = torch.arange(len_speech, device=device)[None] >= speech_token_lens[:, None]  # (B, len_speech)
+        mask_text = (
+            torch.arange(len_text, device=device)[None] >= text_token_lens[:, None]
+        )  # (B, len_text)
+        mask_speech = (
+            torch.arange(len_speech, device=device)[None] >= speech_token_lens[:, None]
+        )  # (B, len_speech)
         masked_text = text_tokens.masked_fill(mask_text, IGNORE_ID)
         masked_speech = speech_tokens.masked_fill(mask_speech, IGNORE_ID)
-        loss_text = F.cross_entropy(out.text_logits, masked_text, ignore_index=IGNORE_ID)
-        loss_speech = F.cross_entropy(out.speech_logits, masked_speech, ignore_index=IGNORE_ID)
+        loss_text = F.cross_entropy(
+            out.text_logits, masked_text, ignore_index=IGNORE_ID
+        )
+        loss_speech = F.cross_entropy(
+            out.speech_logits, masked_speech, ignore_index=IGNORE_ID
+        )
 
         return loss_text, loss_speech
 
@@ -228,11 +254,9 @@ class T3(nn.Module):
         *,
         t3_cond: T3Cond,
         text_tokens: Tensor,
-        initial_speech_tokens: Optional[Tensor]=None,
-
+        initial_speech_tokens: Optional[Tensor] = None,
         # misc conditioning
-        prepend_prompt_speech_tokens: Optional[Tensor]=None,
-
+        prepend_prompt_speech_tokens: Optional[Tensor] = None,
         # HF generate args
         num_return_sequences=1,
         max_new_tokens=None,
@@ -252,11 +276,15 @@ class T3(nn.Module):
         # Validate / sanitize inputs
         assert prepend_prompt_speech_tokens is None, "not implemented"
         _ensure_BOT_EOT(text_tokens, self.hp)
-        text_tokens = torch.atleast_2d(text_tokens).to(dtype=torch.long, device=self.device)
+        text_tokens = torch.atleast_2d(text_tokens).to(
+            dtype=torch.long, device=self.device
+        )
 
         # Default initial speech to a single start-of-speech token
         if initial_speech_tokens is None:
-            initial_speech_tokens = self.hp.start_speech_token * torch.ones_like(text_tokens[:, :1])
+            initial_speech_tokens = self.hp.start_speech_token * torch.ones_like(
+                text_tokens[:, :1]
+            )
 
         # Prepare custom input embeds
         embeds, len_cond = self.prepare_input_embeds(
@@ -302,7 +330,9 @@ class T3(nn.Module):
 
         device = embeds.device
 
-        bos_token = torch.tensor([[self.hp.start_speech_token]], dtype=torch.long, device=device)
+        bos_token = torch.tensor(
+            [[self.hp.start_speech_token]], dtype=torch.long, device=device
+        )
         bos_embed = self.speech_emb(bos_token)  # shape: (B, 1, embed_dim)
         bos_embed = bos_embed + self.speech_pos_emb.get_fixed_embedding(0)
 
@@ -320,7 +350,9 @@ class T3(nn.Module):
         top_p_warper = TopPLogitsWarper(top_p=top_p)
         min_p_warper = MinPLogitsWarper(min_p=min_p)
         top_p_warper = TopPLogitsWarper(top_p=top_p)
-        repetition_penalty_processor = RepetitionPenaltyLogitsProcessor(penalty=float(repetition_penalty))
+        repetition_penalty_processor = RepetitionPenaltyLogitsProcessor(
+            penalty=float(repetition_penalty)
+        )
 
         # ---- Initial Forward Pass (no kv_cache yet) ----
         output = self.patched_model(
@@ -338,19 +370,19 @@ class T3(nn.Module):
         for i in tqdm(range(max_new_tokens), desc="Sampling", dynamic_ncols=True):
             logits_step = output.logits[:, -1, :]
             # CFG combine  → (1, V)
-            cond   = logits_step[0:1, :]
+            cond = logits_step[0:1, :]
             uncond = logits_step[1:2, :]
             cfg = torch.as_tensor(cfg_weight, device=cond.device, dtype=cond.dtype)
             logits = cond + cfg * (cond - uncond)
-            
+
             # Apply repetition penalty
-            ids_for_proc = generated_ids[:1, ...]   # batch = 1
+            ids_for_proc = generated_ids[:1, ...]  # batch = 1
             logits = repetition_penalty_processor(ids_for_proc, logits)  # expects (B,V)
-            
+
             # Apply temperature scaling.
             if temperature != 1.0:
                 logits = logits / temperature
-                
+
             # Apply min_p and top_p filtering
             logits = min_p_warper(ids_for_proc, logits)
             logits = top_p_warper(ids_for_proc, logits)
@@ -369,7 +401,9 @@ class T3(nn.Module):
 
             # Get embedding for the new token.
             next_token_embed = self.speech_emb(next_token)
-            next_token_embed = next_token_embed + self.speech_pos_emb.get_fixed_embedding(i + 1)
+            next_token_embed = (
+                next_token_embed + self.speech_pos_emb.get_fixed_embedding(i + 1)
+            )
 
             #  For CFG
             next_token_embed = torch.cat([next_token_embed, next_token_embed])
@@ -390,8 +424,16 @@ class T3(nn.Module):
         return predicted_tokens
 
     @torch.inference_mode()
-    def inference_turbo(self, t3_cond, text_tokens, temperature=0.8, top_k=1000, top_p=0.95, repetition_penalty=1.2,
-                        max_gen_len=1000):
+    def inference_turbo(
+        self,
+        t3_cond,
+        text_tokens,
+        temperature=0.8,
+        top_k=1000,
+        top_p=0.95,
+        repetition_penalty=1.2,
+        max_gen_len=1000,
+    ):
 
         logits_processors = LogitsProcessorList()
         if temperature > 0 and temperature != 1.0:
@@ -401,10 +443,13 @@ class T3(nn.Module):
         if top_p < 1.0:
             logits_processors.append(TopPLogitsWarper(top_p))
         if repetition_penalty != 1.0:
-            logits_processors.append(RepetitionPenaltyLogitsProcessor(repetition_penalty))
+            logits_processors.append(
+                RepetitionPenaltyLogitsProcessor(repetition_penalty)
+            )
 
-
-        speech_start_token = self.hp.start_speech_token * torch.ones_like(text_tokens[:, :1])
+        speech_start_token = self.hp.start_speech_token * torch.ones_like(
+            text_tokens[:, :1]
+        )
         embeds, _ = self.prepare_input_embeds(
             t3_cond=t3_cond,
             text_tokens=text_tokens,
@@ -414,10 +459,7 @@ class T3(nn.Module):
 
         generated_speech_tokens = []
 
-        llm_outputs = self.tfmr(
-            inputs_embeds=embeds,
-            use_cache=True
-        )
+        llm_outputs = self.tfmr(inputs_embeds=embeds, use_cache=True)
 
         hidden_states = llm_outputs[0]
         past_key_values = llm_outputs.past_key_values
@@ -425,7 +467,9 @@ class T3(nn.Module):
         speech_hidden = hidden_states[:, -1:]
         speech_logits = self.speech_head(speech_hidden)
 
-        processed_logits = logits_processors(speech_start_token, speech_logits[:, -1, :])
+        processed_logits = logits_processors(
+            speech_start_token, speech_logits[:, -1, :]
+        )
         probs = F.softmax(processed_logits, dim=-1)
         next_speech_token = torch.multinomial(probs, num_samples=1)
 
@@ -438,7 +482,7 @@ class T3(nn.Module):
             llm_outputs = self.tfmr(
                 inputs_embeds=current_speech_embed,
                 past_key_values=past_key_values,
-                use_cache=True
+                use_cache=True,
             )
 
             hidden_states = llm_outputs[0]

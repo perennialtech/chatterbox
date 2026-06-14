@@ -20,9 +20,7 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 from .utils.mask import make_pad_mask
-from .configs import CFM_PARAMS
 from omegaconf import DictConfig
-
 
 logger = logging.getLogger(__name__)
 
@@ -41,29 +39,54 @@ def _repeat_batch_dim(tnsr, B, ndim):
 
 
 class CausalMaskedDiffWithXvec(torch.nn.Module):
-    def __init__(self,
-                 input_size: int = 512,
-                 output_size: int = 80,
-                 spk_embed_dim: int = 192,
-                 output_type: str = "mel",
-                 vocab_size: int = 6561,
-                 input_frame_rate: int = 25,
-                 only_mask_loss: bool = True,
-                 token_mel_ratio: int = 2,
-                 pre_lookahead_len: int = 3,
-                 encoder: torch.nn.Module = None,
-                 decoder: torch.nn.Module = None,
-                 decoder_conf: Dict = {'in_channels': 240, 'out_channel': 80, 'spk_emb_dim': 80, 'n_spks': 1,
-                                       'cfm_params': DictConfig(
-                                           {'sigma_min': 1e-06, 'solver': 'euler', 't_scheduler': 'cosine',
-                                            'training_cfg_rate': 0.2, 'inference_cfg_rate': 0.7,
-                                            'reg_loss_type': 'l1'}),
-                                       'decoder_params': {'channels': [256, 256], 'dropout': 0.0,
-                                                          'attention_head_dim': 64,
-                                                          'n_blocks': 4, 'num_mid_blocks': 12, 'num_heads': 8,
-                                                          'act_fn': 'gelu'}},
-                 mel_feat_conf: Dict = {'n_fft': 1024, 'num_mels': 80, 'sampling_rate': 22050,
-                                        'hop_size': 256, 'win_size': 1024, 'fmin': 0, 'fmax': 8000}):
+    def __init__(
+        self,
+        input_size: int = 512,
+        output_size: int = 80,
+        spk_embed_dim: int = 192,
+        output_type: str = "mel",
+        vocab_size: int = 6561,
+        input_frame_rate: int = 25,
+        only_mask_loss: bool = True,
+        token_mel_ratio: int = 2,
+        pre_lookahead_len: int = 3,
+        encoder: torch.nn.Module = None,
+        decoder: torch.nn.Module = None,
+        decoder_conf: Dict = {
+            "in_channels": 240,
+            "out_channel": 80,
+            "spk_emb_dim": 80,
+            "n_spks": 1,
+            "cfm_params": DictConfig(
+                {
+                    "sigma_min": 1e-06,
+                    "solver": "euler",
+                    "t_scheduler": "cosine",
+                    "training_cfg_rate": 0.2,
+                    "inference_cfg_rate": 0.7,
+                    "reg_loss_type": "l1",
+                }
+            ),
+            "decoder_params": {
+                "channels": [256, 256],
+                "dropout": 0.0,
+                "attention_head_dim": 64,
+                "n_blocks": 4,
+                "num_mid_blocks": 12,
+                "num_heads": 8,
+                "act_fn": "gelu",
+            },
+        },
+        mel_feat_conf: Dict = {
+            "n_fft": 1024,
+            "num_mels": 80,
+            "sampling_rate": 22050,
+            "hop_size": 256,
+            "win_size": 1024,
+            "fmin": 0,
+            "fmax": 8000,
+        },
+    ):
         super().__init__()
         self.input_size = input_size
         self.output_size = output_size
@@ -84,15 +107,15 @@ class CausalMaskedDiffWithXvec(torch.nn.Module):
 
     # NOTE: copied in from cosyvoice repo
     def compute_loss(
-            self,
-            batch: dict,
-            device: torch.device,
+        self,
+        batch: dict,
+        device: torch.device,
     ) -> Dict[str, Optional[torch.Tensor]]:
-        token = batch['speech_token'].to(device)
-        token_len = batch['speech_token_len'].to(device)
-        feat = batch['speech_feat'].to(device)  # (B, 80, T)
-        feat_len = batch['speech_feat_len'].to(device)
-        embedding = batch['embedding'].to(device)
+        token = batch["speech_token"].to(device)
+        token_len = batch["speech_token_len"].to(device)
+        feat = batch["speech_feat"].to(device)  # (B, 80, T)
+        feat_len = batch["speech_feat_len"].to(device)
+        embedding = batch["embedding"].to(device)
 
         # NOTE unified training, static_chunk_size > 0 or = 0
         # streaming = True if random.random() < 0.5 else False
@@ -126,21 +149,23 @@ class CausalMaskedDiffWithXvec(torch.nn.Module):
             cond=conds,
             # streaming=streaming,
         )
-        return {'loss': loss}
+        return {"loss": loss}
 
     @torch.inference_mode()
-    def inference(self,
-                  token,
-                  token_len,
-                  prompt_token,
-                  prompt_token_len,
-                  prompt_feat,
-                  prompt_feat_len,
-                  embedding,
-                  finalize,
-                  n_timesteps=10,
-                  noised_mels=None,
-                  meanflow=False):
+    def inference(
+        self,
+        token,
+        token_len,
+        prompt_token,
+        prompt_token_len,
+        prompt_feat,
+        prompt_feat_len,
+        embedding,
+        finalize,
+        n_timesteps=10,
+        noised_mels=None,
+        meanflow=False,
+    ):
         # token: (B, n_toks)
         # token_len: (B,)
         B = token.size(0)
@@ -153,29 +178,38 @@ class CausalMaskedDiffWithXvec(torch.nn.Module):
         # adjust shapes (batching logic)
         prompt_token = _repeat_batch_dim(prompt_token, B, ndim=2)  # (B, n_prompt)
         prompt_token_len = _repeat_batch_dim(prompt_token_len, B, ndim=1)  # (B,)
-        prompt_feat = _repeat_batch_dim(prompt_feat, B, ndim=3)  # (B, n_feat, feat_dim=80)
+        prompt_feat = _repeat_batch_dim(
+            prompt_feat, B, ndim=3
+        )  # (B, n_feat, feat_dim=80)
         prompt_feat_len = _repeat_batch_dim(prompt_feat_len, B, ndim=1)  # (B,) or None
         embedding = _repeat_batch_dim(embedding, B, ndim=2)  # (B, emb_dim)
 
         # concat text and prompt_text
-        token, token_len = torch.concat([prompt_token, token], dim=1), prompt_token_len + token_len
+        token, token_len = (
+            torch.concat([prompt_token, token], dim=1),
+            prompt_token_len + token_len,
+        )
         mask = (~make_pad_mask(token_len)).unsqueeze(-1).to(embedding)
 
         if (token >= self.vocab_size).any():
-            logger.error(f"{token.max()}>{self.vocab_size}\n out-of-range special tokens found in flow, fix inputs!")
+            logger.error(
+                f"{token.max()}>{self.vocab_size}\n out-of-range special tokens found in flow, fix inputs!"
+            )
         token = self.input_embedding(token.long()) * mask
 
         # text encode
         h, h_masks = self.encoder(token, token_len)
         if finalize is False:
-            h = h[:, :-self.pre_lookahead_len * self.token_mel_ratio]
+            h = h[:, : -self.pre_lookahead_len * self.token_mel_ratio]
 
         h_lengths = h_masks.sum(dim=-1).squeeze(dim=-1)
         mel_len1, mel_len2 = prompt_feat.shape[1], h.shape[1] - prompt_feat.shape[1]
         h = self.encoder_proj(h)
 
         # # get conditions
-        conds = torch.zeros([B, mel_len1 + mel_len2, self.output_size], device=token.device).to(h.dtype)
+        conds = torch.zeros(
+            [B, mel_len1 + mel_len2, self.output_size], device=token.device
+        ).to(h.dtype)
         conds[:, :mel_len1] = prompt_feat
         conds = conds.transpose(1, 2)
 

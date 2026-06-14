@@ -33,4 +33,6 @@ if Path(AUDIO_PROMPT_PATH).exists():
     wav = model.generate(text, audio_prompt_path=AUDIO_PROMPT_PATH)
     ta.save("test-3.wav", wav, model.sr)
 else:
-    print(f"Warning: audio prompt file '{AUDIO_PROMPT_PATH}' not found, skipping voice cloning example.")
+    print(
+        f"Warning: audio prompt file '{AUDIO_PROMPT_PATH}' not found, skipping voice cloning example."
+    )

@@ -25,7 +25,7 @@ LLAMA_520M_CONFIG_DICT = dict(
         high_freq_factor=4.0,
         low_freq_factor=1.0,
         original_max_position_embeddings=8192,
-        rope_type="llama3"
+        rope_type="llama3",
     ),
     rope_theta=500000.0,
     torch_dtype="bfloat16",
@@ -33,38 +33,31 @@ LLAMA_520M_CONFIG_DICT = dict(
 )
 
 GPT2_MEDIUM_CONFIG = {
-  "activation_function": "gelu_new",
-  "architectures": [
-    "GPT2LMHeadModel"
-  ],
-  "attn_pdrop": 0.1,
-  "bos_token_id": 50256,
-  "embd_pdrop": 0.1,
-  "eos_token_id": 50256,
-  "initializer_range": 0.02,
-  "layer_norm_epsilon": 1e-05,
-  "model_type": "gpt2",
-  "n_ctx": 8196,
-  "n_embd": 1024,
-  "hidden_size": 1024,
-  "n_head": 16,
-  "n_layer": 24,
-  "n_positions": 8196,
-  "n_special": 0,
-  "predict_special_tokens": True,
-  "resid_pdrop": 0.1,
-  "summary_activation": None,
-  "summary_first_dropout": 0.1,
-  "summary_proj_to_labels": True,
-  "summary_type": "cls_index",
-  "summary_use_proj": True,
-  "task_specific_params": {
-    "text-generation": {
-      "do_sample": True,
-      "max_length": 50
-    }
-  },
-  "vocab_size": 50276,
+    "activation_function": "gelu_new",
+    "architectures": ["GPT2LMHeadModel"],
+    "attn_pdrop": 0.1,
+    "bos_token_id": 50256,
+    "embd_pdrop": 0.1,
+    "eos_token_id": 50256,
+    "initializer_range": 0.02,
+    "layer_norm_epsilon": 1e-05,
+    "model_type": "gpt2",
+    "n_ctx": 8196,
+    "n_embd": 1024,
+    "hidden_size": 1024,
+    "n_head": 16,
+    "n_layer": 24,
+    "n_positions": 8196,
+    "n_special": 0,
+    "predict_special_tokens": True,
+    "resid_pdrop": 0.1,
+    "summary_activation": None,
+    "summary_first_dropout": 0.1,
+    "summary_proj_to_labels": True,
+    "summary_type": "cls_index",
+    "summary_use_proj": True,
+    "task_specific_params": {"text-generation": {"do_sample": True, "max_length": 50}},
+    "vocab_size": 50276,
 }
 
 LLAMA_CONFIGS = {

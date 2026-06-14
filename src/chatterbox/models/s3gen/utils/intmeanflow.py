@@ -3,7 +3,7 @@ import torch.nn as nn
 
 
 def get_intmeanflow_time_mixer(dims):
-    """"
+    """ "
     Diagonal init as described in 3.3 https://arxiv.org/pdf/2510.07979
     """
     layer = nn.Linear(dims * 2, dims, bias=False)
@@ -15,7 +15,8 @@ def get_intmeanflow_time_mixer(dims):
 
     return layer
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
 
     D_example = 6
 
@@ -23,8 +24,8 @@ if __name__ == '__main__':
 
     print(f"Layer weight (AFTER init):\n{W_layer.weight.data}\n")
 
-    e_t = torch.tensor([0., 1., 2., 3., 4., 5.])
-    e_r = torch.tensor([6., 7., 8., 9., 10., 11.])
+    e_t = torch.tensor([0.0, 1.0, 2.0, 3.0, 4.0, 5.0])
+    e_r = torch.tensor([6.0, 7.0, 8.0, 9.0, 10.0, 11.0])
     e_concat = torch.cat([e_t, e_r]).unsqueeze(0)  # Shape (1, 12)
 
     output = W_layer(e_concat)

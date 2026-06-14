@@ -1,5 +1,4 @@
 import torchaudio as ta
-import torch
 from chatterbox.tts_turbo import ChatterboxTurboTTS
 
 # Load the Turbo model
