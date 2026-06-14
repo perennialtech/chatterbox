@@ -11,7 +11,7 @@ from safetensors.torch import load_file
 from .models.s3tokenizer import S3_SR
 from .models.s3gen import S3GEN_SR, S3Gen
 
-REPO_ID = "ResembleAI/chatterbox"
+REPO_ID = "ResembleAI/chatterbox-turbo"
 
 
 class ChatterboxVC:
@@ -66,8 +66,8 @@ class ChatterboxVC:
             states = torch.load(builtin_voice, map_location=map_location)
             ref_dict = states["gen"]
 
-        s3gen = S3Gen()
-        s3gen.load_state_dict(load_file(ckpt_dir / "s3gen.safetensors"), strict=False)
+        s3gen = S3Gen(meanflow=True)
+        s3gen.load_state_dict(load_file(ckpt_dir / "s3gen_meanflow.safetensors"), strict=False)
         s3gen.to(device).eval()
 
         return cls(s3gen, device, ref_dict=ref_dict)
@@ -86,7 +86,7 @@ class ChatterboxVC:
                 )
             device = "cpu"
 
-        for fpath in ["s3gen.safetensors", "conds.pt"]:
+        for fpath in ["s3gen_meanflow.safetensors", "conds.pt"]:
             local_path = hf_hub_download(repo_id=REPO_ID, filename=fpath)
 
         return cls.from_local(Path(local_path).parent, device)
