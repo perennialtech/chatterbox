@@ -70,6 +70,8 @@ class ChatterboxVC:
         )
         s3gen.to(device).eval()
 
+        s3gen.mel2wav.remove_weight_norm()
+
         return cls(s3gen, device, ref_dict=ref_dict)
 
     @classmethod
