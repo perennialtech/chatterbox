@@ -4,7 +4,6 @@ from contextlib import contextmanager
 
 import librosa
 import torch
-import perth
 from huggingface_hub import hf_hub_download
 from safetensors.torch import load_file
 
@@ -27,7 +26,6 @@ class ChatterboxVC:
         self.sr = S3GEN_SR
         self.s3gen = s3gen
         self.device = device
-        self.watermarker = perth.PerthImplicitWatermarker()
         if ref_dict is None:
             self.ref_dict = None
         else:
@@ -135,13 +133,8 @@ class ChatterboxVC:
                     output_wavs[:, : len(self.s3gen.trim_fade)] *= self.s3gen.trim_fade
                     wav = output_wavs.squeeze(0).detach().cpu().numpy()
 
-                with self._track_time(timings, "watermark"):
-                    watermarked_wav = self.watermarker.apply_watermark(
-                        wav, sample_rate=self.sr
-                    )
-
-        audio_duration = watermarked_wav.shape[-1] / self.sr
+        audio_duration = wav.shape[-1] / self.sr
         timings["audio_duration_sec"] = audio_duration
         timings["rtf"] = timings["total"] / audio_duration if audio_duration > 0 else 0
 
-        return torch.from_numpy(watermarked_wav).unsqueeze(0), timings
+        return torch.from_numpy(wav).unsqueeze(0), timings
