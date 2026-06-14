@@ -58,6 +58,7 @@ class ConditionalCFM(BASECFM):
         cond=None,
         prompt_len=0,
         flow_cache=torch.zeros(1, 80, 0, 2),
+        cfg_rate=None,
     ):
         """Forward diffusion
 
@@ -93,11 +94,21 @@ class ConditionalCFM(BASECFM):
         if self.t_scheduler == "cosine":
             t_span = 1 - torch.cos(t_span * 0.5 * torch.pi)
         return (
-            self.solve_euler(z, t_span=t_span, mu=mu, mask=mask, spks=spks, cond=cond),
+            self.solve_euler(
+                z,
+                t_span=t_span,
+                mu=mu,
+                mask=mask,
+                spks=spks,
+                cond=cond,
+                cfg_rate=cfg_rate,
+            ),
             flow_cache,
         )
 
-    def solve_euler(self, x, t_span, mu, mask, spks, cond, meanflow=False):
+    def solve_euler(
+        self, x, t_span, mu, mask, spks, cond, meanflow=False, cfg_rate=None
+    ):
         """
         Fixed euler solver for ODEs.
         Args:
@@ -117,10 +128,28 @@ class ConditionalCFM(BASECFM):
         x, t_span, mu, mask, spks, cond = cast_all(
             x, t_span, mu, mask, spks, cond, dtype=self.estimator.dtype
         )
+        cfg_rate = self.inference_cfg_rate if cfg_rate is None else float(cfg_rate)
+
+        B, T = mu.size(0), x.size(2)
+        if cfg_rate == 0.0:
+            for t, r in zip(t_span[:-1], t_span[1:]):
+                t = t.unsqueeze(dim=0)
+                r = r.unsqueeze(dim=0)
+                dxdt = self.estimator.forward(
+                    x=x,
+                    mask=mask,
+                    mu=mu,
+                    t=t.expand(B),
+                    spks=spks,
+                    cond=cond,
+                    r=r.expand(B) if meanflow else None,
+                )
+                x = x + (r - t) * dxdt
+
+            return x.to(in_dtype)
 
         # Duplicated batch dims are for CFG
         # Do not use concat, it may cause memory format changed and trt infer with wrong results!
-        B, T = mu.size(0), x.size(2)
         x_in = torch.zeros([2 * B, 80, T], device=x.device, dtype=x.dtype)
         mask_in = torch.zeros([2 * B, 1, T], device=x.device, dtype=x.dtype)
         mu_in = torch.zeros([2 * B, 80, T], device=x.device, dtype=x.dtype)
@@ -167,9 +196,7 @@ class ConditionalCFM(BASECFM):
                 r=r_in if meanflow else None,
             )
             dxdt, cfg_dxdt = torch.split(dxdt, [B, B], dim=0)
-            dxdt = (
-                1.0 + self.inference_cfg_rate
-            ) * dxdt - self.inference_cfg_rate * cfg_dxdt
+            dxdt = (1.0 + cfg_rate) * dxdt - cfg_rate * cfg_dxdt
             dt = r - t
             x = x + dt * dxdt
 
@@ -243,6 +270,7 @@ class CausalConditionalCFM(ConditionalCFM):
         cond=None,
         noised_mels=None,
         meanflow=False,
+        cfg_rate=None,
     ):
         """Forward diffusion
 
@@ -294,6 +322,7 @@ class CausalConditionalCFM(ConditionalCFM):
                 spks=spks,
                 cond=cond,
                 meanflow=meanflow,
+                cfg_rate=cfg_rate,
             ),
             None,
         )
