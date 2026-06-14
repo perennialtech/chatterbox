@@ -9,11 +9,12 @@ model = ChatterboxVC.from_pretrained(DEVICE)
 
 
 def generate(audio, target_voice_path):
-    wav = model.generate(
+    wav, timings = model.generate(
         audio,
         target_voice_path=target_voice_path,
     )
-    return model.sr, wav.squeeze(0).numpy()
+    timing_str = "\n".join([f"{k}: {v:.4f}" for k, v in timings.items()])
+    return (model.sr, wav.squeeze(0).numpy()), timing_str
 
 
 demo = gr.Interface(
@@ -29,7 +30,10 @@ demo = gr.Interface(
             value=None,
         ),
     ],
-    "audio",
+    [
+        gr.Audio(label="Output audio"),
+        gr.Textbox(label="Execution Timings"),
+    ],
 )
 
 if __name__ == "__main__":

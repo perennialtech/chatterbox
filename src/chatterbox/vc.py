@@ -1,4 +1,6 @@
 from pathlib import Path
+import time
+from contextlib import contextmanager
 
 import librosa
 import torch
@@ -33,6 +35,21 @@ class ChatterboxVC:
                 k: v.to(device) if torch.is_tensor(v) else v
                 for k, v in ref_dict.items()
             }
+
+    def _sync(self):
+        device_type = str(self.device).lower()
+        if "cuda" in device_type and torch.cuda.is_available():
+            torch.cuda.synchronize()
+        elif "mps" in device_type and torch.backends.mps.is_available():
+            torch.mps.synchronize()
+
+    @contextmanager
+    def _track_time(self, timings_dict, key):
+        self._sync()
+        start = time.perf_counter()
+        yield
+        self._sync()
+        timings_dict[key] = time.perf_counter() - start
 
     @classmethod
     def from_local(cls, ckpt_dir, device) -> "ChatterboxVC":
@@ -88,22 +105,43 @@ class ChatterboxVC:
         audio,
         target_voice_path=None,
     ):
-        if target_voice_path:
-            self.set_target_voice(target_voice_path)
-        else:
-            assert (
-                self.ref_dict is not None
-            ), "Please `prepare_conditionals` first or specify `target_voice_path`"
+        timings = {}
 
-        with torch.inference_mode():
-            audio_16, _ = librosa.load(audio, sr=S3_SR)
-            audio_16 = torch.from_numpy(audio_16).float().to(self.device)[None,]
+        with self._track_time(timings, "total"):
+            if target_voice_path:
+                with self._track_time(timings, "target_voice_setup"):
+                    self.set_target_voice(target_voice_path)
+            else:
+                assert (
+                    self.ref_dict is not None
+                ), "Please `prepare_conditionals` first or specify `target_voice_path`"
 
-            s3_tokens, _ = self.s3gen.tokenizer(audio_16)
-            wav, _ = self.s3gen.inference(
-                speech_tokens=s3_tokens,
-                ref_dict=self.ref_dict,
-            )
-            wav = wav.squeeze(0).detach().cpu().numpy()
-            watermarked_wav = self.watermarker.apply_watermark(wav, sample_rate=self.sr)
-        return torch.from_numpy(watermarked_wav).unsqueeze(0)
+            with torch.inference_mode():
+                with self._track_time(timings, "audio_load"):
+                    audio_16, _ = librosa.load(audio, sr=S3_SR)
+                    audio_16 = torch.from_numpy(audio_16).float().to(self.device)[None,]
+
+                with self._track_time(timings, "tokenize"):
+                    s3_tokens, _ = self.s3gen.tokenizer(audio_16)
+
+                with self._track_time(timings, "flow_inference"):
+                    output_mels = self.s3gen.flow_inference(
+                        speech_tokens=s3_tokens, ref_dict=self.ref_dict, finalize=True
+                    )
+
+                with self._track_time(timings, "vocoder_inference"):
+                    output_mels = output_mels.to(dtype=self.s3gen.dtype)
+                    output_wavs, _ = self.s3gen.hift_inference(output_mels, None)
+                    output_wavs[:, : len(self.s3gen.trim_fade)] *= self.s3gen.trim_fade
+                    wav = output_wavs.squeeze(0).detach().cpu().numpy()
+
+                with self._track_time(timings, "watermark"):
+                    watermarked_wav = self.watermarker.apply_watermark(
+                        wav, sample_rate=self.sr
+                    )
+
+        audio_duration = watermarked_wav.shape[-1] / self.sr
+        timings["audio_duration_sec"] = audio_duration
+        timings["rtf"] = timings["total"] / audio_duration if audio_duration > 0 else 0
+
+        return torch.from_numpy(watermarked_wav).unsqueeze(0), timings
