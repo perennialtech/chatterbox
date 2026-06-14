@@ -41,3 +41,11 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[dependency-groups]
+dev = [
+    "basedpyright>=1.39.7",
+    "black>=26.5.1",
+    "isort>=8.0.1",
+    "ruff>=0.15.17",
+]
