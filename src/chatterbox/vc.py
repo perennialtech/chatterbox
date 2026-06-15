@@ -147,7 +147,7 @@ class ChatterboxVC:
                             output_mels,
                             None,
                             timer=timer.child("vocoder"),
-                            # output_mels, None, timer=None
+                            # timer=None
                         )
 
                     with timer.track("vocoder.trim_fade"):
