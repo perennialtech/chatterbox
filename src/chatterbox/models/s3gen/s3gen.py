@@ -152,7 +152,9 @@ class S3Token2Mel(torch.nn.Module):
             ref_wav_16 = get_resampler(ref_sr, S3_SR, device)(ref_wav)
 
         # Speaker embedding
-        ref_x_vector = self.speaker_encoder.inference(ref_wav_16.to(dtype=self.dtype))
+        ref_x_vector = self.speaker_encoder.inference(ref_wav_16.float()).to(
+            dtype=self.dtype
+        )
 
         # Tokenize 16khz reference
         ref_speech_tokens, ref_speech_token_lens = self.tokenizer(ref_wav_16.float())
@@ -162,7 +164,10 @@ class S3Token2Mel(torch.nn.Module):
             logging.warning(
                 "Reference mel length is not equal to 2 * reference token length.\n"
             )
-            ref_speech_tokens = ref_speech_tokens[:, : ref_mels_24.shape[1] // 2]
+            min_mel_len = min(ref_mels_24.shape[1], 2 * ref_speech_tokens.shape[1])
+            min_mel_len = min_mel_len - (min_mel_len % 2)
+            ref_mels_24 = ref_mels_24[:, :min_mel_len]
+            ref_speech_tokens = ref_speech_tokens[:, :min_mel_len // 2]
             ref_speech_token_lens[0] = ref_speech_tokens.shape[1]
 
         return dict(
@@ -218,9 +223,12 @@ class S3Token2Mel(torch.nn.Module):
                     if isinstance(ref_dict[rk], np.ndarray):
                         ref_dict[rk] = torch.from_numpy(ref_dict[rk])
                     if torch.is_tensor(ref_dict[rk]):
-                        ref_dict[rk] = ref_dict[rk].to(
-                            device=self.device, dtype=self.dtype
-                        )
+                        if ref_dict[rk].is_floating_point():
+                            ref_dict[rk] = ref_dict[rk].to(
+                                device=self.device, dtype=self.dtype
+                            )
+                        else:
+                            ref_dict[rk] = ref_dict[rk].to(device=self.device)
 
         with timer.track("prepare_tokens"):
             speech_tokens = torch.atleast_2d(speech_tokens)
@@ -312,7 +320,9 @@ class S3Token2Wav(S3Token2Mel):
             return output_mels
 
         # TODO jrm: ignoring the speed control (mel interpolation) and the HiFTGAN caching mechanisms for now.
-        hift_cache_source = torch.zeros(1, 1, 0).to(self.device)
+        vocoder_dtype = next(self.mel2wav.parameters()).dtype
+        hift_cache_source = torch.zeros(1, 1, 0, device=self.device, dtype=vocoder_dtype)
+        output_mels = output_mels.to(dtype=vocoder_dtype)
 
         output_wavs, *_ = self.mel2wav.inference(
             speech_feat=output_mels, cache_source=hift_cache_source, timer=timer
@@ -370,7 +380,8 @@ class S3Token2Wav(S3Token2Mel):
     ):
         timer = ensure_timer(timer)
         if cache_source is None:
-            cache_source = torch.zeros(1, 1, 0).to(device=self.device, dtype=self.dtype)
+            vocoder_dtype = next(self.mel2wav.parameters()).dtype
+            cache_source = torch.zeros(1, 1, 0, device=self.device, dtype=vocoder_dtype)
         return self.mel2wav.inference(
             speech_feat=speech_feat, cache_source=cache_source, timer=timer
         )
@@ -402,9 +413,7 @@ class S3Token2Wav(S3Token2Mel):
             n_cfm_timesteps=n_cfm_timesteps,
             finalize=True,
         )
-        output_mels = output_mels.to(
-            dtype=self.dtype
-        )  # FIXME (fp16 mode) is this still needed?
+        output_mels = output_mels.to(dtype=next(self.mel2wav.parameters()).dtype)
         output_wavs, output_sources = self.hift_inference(output_mels, None)
 
         # NOTE: ad-hoc method to reduce "spillover" from the reference clip.

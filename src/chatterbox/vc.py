@@ -54,6 +54,15 @@ class ChatterboxVC:
         )
         s3gen.to(device).eval()
 
+        # Dowcast `flow` module to fp16/bf16 to save memory and compute.
+        # mel2wav, tokenizer, and speaker_encoder intentionally remain in fp32.
+        if device != "cpu":
+            if str(device).startswith("cuda") and torch.cuda.is_bf16_supported():
+                flow_dtype = torch.bfloat16
+            else:
+                flow_dtype = torch.float16
+            s3gen.flow.to(dtype=flow_dtype)
+
         s3gen.mel2wav.optimize_for_inference()
 
         if str(device).startswith("cuda"):
@@ -128,7 +137,9 @@ class ChatterboxVC:
 
                 with timer.track("vocoder_inference"):
                     with timer.track("vocoder.prepare_mels"):
-                        output_mels = output_mels.to(dtype=self.s3gen.dtype)
+                        output_mels = output_mels.to(
+                            dtype=next(self.s3gen.mel2wav.parameters()).dtype
+                        )
 
                     with timer.track("vocoder.hift_inference"):
                         output_wavs, _ = self.s3gen.hift_inference(
