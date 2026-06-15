@@ -23,7 +23,8 @@ dependencies = [
     "pykakasi==2.3.0",
     "gradio==6.8.0",
     "pyloudnorm",
-    "omegaconf"
+    "omegaconf",
+    "peft>=0.19.1",
 ]
 
 [project.urls]
@@ -34,6 +35,7 @@ Repository = "https://github.com/resemble-ai/chatterbox"
 rocm = [
     "torch==2.11.0; sys_platform == 'linux'",
     "torchaudio==2.11.0; sys_platform == 'linux'",
+    "torchcodec==0.14.0; sys_platform == 'linux'",
     "pytorch-triton-rocm; sys_platform == 'linux'",
     "triton-rocm; sys_platform == 'linux'",
 ]
@@ -50,12 +52,20 @@ name = "pytorch-rocm72"
 url = "https://download.pytorch.org/whl/rocm7.2"
 explicit = true
 
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
 [tool.uv.sources]
 torch = [
     { index = "pytorch-rocm72", extra = "rocm", marker = "sys_platform == 'linux'" },
 ]
 torchaudio = [
     { index = "pytorch-rocm72", extra = "rocm", marker = "sys_platform == 'linux'" },
+]
+torchcodec = [
+    { index = "pytorch-cpu", marker = "sys_platform == 'linux'" },
 ]
 pytorch-triton-rocm = [
     { index = "pytorch-rocm72", extra = "rocm", marker = "sys_platform == 'linux'" },

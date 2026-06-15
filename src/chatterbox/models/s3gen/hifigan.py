@@ -490,6 +490,14 @@ class HiFTGenerator(nn.Module):
         self.remove_weight_norm()
         return self
 
+    def compile_for_inference(self) -> "HiFTGenerator":
+        self._decode_fast = torch.compile(
+            self._decode_fast,
+            mode="reduce-overhead",
+            dynamic=True,
+        )
+        return self
+
     def _stft(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         if x.dtype not in (torch.float32, torch.float64):
             x = x.float()

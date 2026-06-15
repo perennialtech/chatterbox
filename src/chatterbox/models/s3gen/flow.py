@@ -126,7 +126,12 @@ class CausalMaskedDiffWithXvec(torch.nn.Module):
         embedding = self.spk_embed_affine_layer(embedding)
 
         # concat text and prompt_text
-        mask = (~make_pad_mask(token_len)).float().unsqueeze(-1).to(device)  # (B, T, 1)
+        mask = (
+            (~make_pad_mask(token_len, max_len=token.size(1)))
+            .float()
+            .unsqueeze(-1)
+            .to(device)
+        )  # (B, T, 1)
         token = self.input_embedding(torch.clamp(token, min=0)) * mask  # (B, T, emb)
 
         # text encode
@@ -141,7 +146,9 @@ class CausalMaskedDiffWithXvec(torch.nn.Module):
             index = random.randint(0, int(0.3 * j))
             conds[i, :, :index] = feat[i, :, :index]
 
-        mask = (~make_pad_mask(h_lengths.sum(dim=-1).squeeze(dim=1))).to(h)
+        mask = (
+            ~make_pad_mask(h_lengths.sum(dim=-1).squeeze(dim=1), max_len=h.size(1))
+        ).to(h)
         loss, _ = self.decoder.compute_loss(
             feat.contiguous(),
             mask.unsqueeze(1),
@@ -197,7 +204,11 @@ class CausalMaskedDiffWithXvec(torch.nn.Module):
                 torch.concat([prompt_token, token], dim=1),
                 prompt_token_len + token_len,
             )
-            mask = (~make_pad_mask(token_len)).unsqueeze(-1).to(embedding)
+            mask = (
+                (~make_pad_mask(token_len, max_len=token.size(1)))
+                .unsqueeze(-1)
+                .to(embedding)
+            )
 
             if (token >= self.vocab_size).any():
                 logger.error(
@@ -223,7 +234,7 @@ class CausalMaskedDiffWithXvec(torch.nn.Module):
             conds[:, :mel_len1] = prompt_feat
             conds = conds.transpose(1, 2)
 
-            mask = (~make_pad_mask(h_lengths)).unsqueeze(1).to(h)
+            mask = (~make_pad_mask(h_lengths, max_len=h.shape[1])).unsqueeze(1).to(h)
 
             if mask.shape[0] != B:
                 mask = mask.repeat(B, 1, 1)

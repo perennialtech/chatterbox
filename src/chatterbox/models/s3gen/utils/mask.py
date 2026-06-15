@@ -14,6 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
+
 import torch
 
 '''
@@ -161,11 +163,8 @@ def add_optional_chunk_mask(
     else:
         chunk_masks = masks
     assert chunk_masks.dtype == torch.bool
-    if (chunk_masks.sum(dim=-1) == 0).sum().item() != 0:
-        logging.warning(
-            "get chunk_masks all false at some timestep, force set to true, make sure they are masked in futuer computation!"
-        )
-        chunk_masks[chunk_masks.sum(dim=-1) == 0] = True
+    zero_rows_mask = (chunk_masks.sum(dim=-1) == 0).unsqueeze(-1)
+    chunk_masks = chunk_masks | zero_rows_mask
     return chunk_masks
 
 

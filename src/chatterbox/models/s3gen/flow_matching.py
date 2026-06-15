@@ -163,7 +163,7 @@ class ConditionalCFM(BASECFM):
                 cond_in[:B] = cond
                 r_in[:B] = r_in[B:] = r  # (only used for meanflow)
                 with timer.track("estimator"):
-                    dxdt = self.estimator.forward(
+                    dxdt = self.estimator(
                         x=x_in,
                         mask=mask_in,
                         mu=mu_in,
@@ -334,8 +334,8 @@ class CausalConditionalCFM(ConditionalCFM):
             for t, r in zip(t_span[..., :-1], t_span[..., 1:]):
                 t, r = t[None], r[None]
                 with timer.track("estimator"):
-                    dxdt = self.estimator.forward(
-                        x, mask=mask, mu=mu, t=t, spks=spks, cond=cond, r=r
+                    dxdt = self.estimator(
+                        x=x, mask=mask, mu=mu, t=t, spks=spks, cond=cond, r=r
                     )
                 with timer.track("state_update"):
                     dt = r - t
