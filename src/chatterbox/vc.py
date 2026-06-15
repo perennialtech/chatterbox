@@ -25,6 +25,8 @@ class ChatterboxVC:
         self.sr = S3GEN_SR
         self.s3gen = s3gen
         self.device = device
+        self._target_voice_cache_key = None
+        self._target_voice_cache = None
         if ref_dict is None:
             self.ref_dict = None
         else:
@@ -85,6 +87,14 @@ class ChatterboxVC:
         return cls.from_local(Path(local_path).parent, device)
 
     def set_target_voice(self, wav_fpath):
+        wav_fpath = Path(wav_fpath).expanduser().resolve(strict=False)
+        wav_stat = wav_fpath.stat()
+        cache_key = (wav_fpath, wav_stat.st_mtime_ns, wav_stat.st_size)
+
+        if self._target_voice_cache_key == cache_key:
+            self.ref_dict = self._target_voice_cache
+            return
+
         ## Load reference wav
         s3gen_ref_wav, _sr = librosa.load(wav_fpath, sr=S3GEN_SR)
 
@@ -92,6 +102,8 @@ class ChatterboxVC:
         self.ref_dict = self.s3gen.embed_ref(
             s3gen_ref_wav, S3GEN_SR, device=self.device
         )
+        self._target_voice_cache_key = cache_key
+        self._target_voice_cache = self.ref_dict
 
     def generate(
         self,
