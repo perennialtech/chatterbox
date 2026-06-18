@@ -29,8 +29,6 @@ from torch.nn import Parameter
 from torch.nn.utils import parametrize
 from torch.nn.utils.parametrizations import weight_norm
 
-from ...timing import ensure_timer
-
 
 class Snake(nn.Module):
     """
@@ -493,7 +491,7 @@ class HiFTGenerator(nn.Module):
     def compile_for_inference(self) -> "HiFTGenerator":
         self._decode_fast = torch.compile(
             self._decode_fast,
-            mode="default", # other modes are broken
+            mode="default",  # other modes are broken
             dynamic=True,
         )
         return self
@@ -596,48 +594,12 @@ class HiFTGenerator(nn.Module):
 
         return x
 
-    def _decode_timed(
-        self,
-        x: torch.Tensor,
-        s: torch.Tensor,
-        timer,
-    ) -> torch.Tensor:
-        with timer.track("decode.source_stft"):
-            s_stft = self._source_stft(s)
-
-        with timer.track("decode.conv_pre"):
-            x = self.conv_pre(x)
-
-        for i in range(self.num_upsamples):
-            with timer.track(f"decode.upsample_{i}"):
-                x = self._upsample_stage(x, i)
-
-            with timer.track(f"decode.source_fusion_{i}"):
-                x = self._source_fusion_stage(x, s_stft, i)
-
-            with timer.track(f"decode.resblocks_{i}"):
-                x = self._resblock_stage(x, i)
-
-        with timer.track("decode.projection"):
-            magnitude, phase = self._projection(x)
-
-        with timer.track("decode.istft"):
-            x = self._istft(magnitude, phase)
-
-        with timer.track("decode.clamp"):
-            x.clamp_(-self.audio_limit, self.audio_limit)
-
-        return x
-
     def decode(
         self,
         x: torch.Tensor,
         s: torch.Tensor,
-        timer=None,
     ) -> torch.Tensor:
-        timer = ensure_timer(timer, x.device)
-        with timer.track("decode_fast"):
-            return self._decode_fast(x, s)
+        return self._decode_fast(x, s)
 
     def forward(
         self,
@@ -662,26 +624,16 @@ class HiFTGenerator(nn.Module):
         self,
         speech_feat: torch.Tensor,
         cache_source: Optional[torch.Tensor] = None,
-        timer=None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         speech_feat = speech_feat.contiguous()
 
-        timer = ensure_timer(timer, speech_feat.device)
-
-        with timer.track("f0_predictor"):
-            f0 = self.f0_predictor(speech_feat)
-
-        with timer.track("source_upsample"):
-            s = f0[:, None].repeat_interleave(self.source_hop, dim=2)
-
-        with timer.track("source_module"):
-            s, _ = self.m_source(s)
+        f0 = self.f0_predictor(speech_feat)
+        s = f0[:, None].repeat_interleave(self.source_hop, dim=2)
+        s, _ = self.m_source(s)
 
         if cache_source is not None and cache_source.numel() != 0:
-            with timer.track("cache_source"):
-                s[:, :, : cache_source.shape[2]].copy_(cache_source)
+            s[:, :, : cache_source.shape[2]].copy_(cache_source)
 
-        with timer.track("decode"):
-            generated_speech = self._decode_fast(speech_feat, s)
+        generated_speech = self._decode_fast(speech_feat, s)
 
         return generated_speech, s

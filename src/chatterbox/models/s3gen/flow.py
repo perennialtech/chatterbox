@@ -18,10 +18,10 @@ from typing import Dict, Optional
 logger = logging.getLogger(__name__)
 import torch
 import torch.nn as nn
-from torch.nn import functional as F
-from .utils.mask import make_pad_mask
-from ...timing import ensure_timer
 from omegaconf import DictConfig
+from torch.nn import functional as F
+
+from .utils.mask import make_pad_mask
 
 logger = logging.getLogger(__name__)
 
@@ -173,85 +173,73 @@ class CausalMaskedDiffWithXvec(torch.nn.Module):
         n_timesteps=10,
         noised_mels=None,
         meanflow=False,
-        timer=None,
     ):
-        timer = ensure_timer(timer)
         # token: (B, n_toks)
         # token_len: (B,)
         B = token.size(0)
         assert B == 1, "Only batch size 1 is supported"
 
         # xvec projection
-        with timer.track("speaker_embedding"):
-            embedding = torch.atleast_2d(embedding)
-            embedding = F.normalize(embedding, dim=1)
-            embedding = self.spk_embed_affine_layer(embedding)  # (1 or B, emb_dim)
+        embedding = torch.atleast_2d(embedding)
+        embedding = F.normalize(embedding, dim=1)
+        embedding = self.spk_embed_affine_layer(embedding)  # (1 or B, emb_dim)
 
         # adjust shapes (batching logic)
-        with timer.track("batch_repeat"):
-            prompt_token = _repeat_batch_dim(prompt_token, B, ndim=2)  # (B, n_prompt)
-            prompt_token_len = _repeat_batch_dim(prompt_token_len, B, ndim=1)  # (B,)
-            prompt_feat = _repeat_batch_dim(
-                prompt_feat, B, ndim=3
-            )  # (B, n_feat, feat_dim=80)
-            prompt_feat_len = _repeat_batch_dim(
-                prompt_feat_len, B, ndim=1
-            )  # (B,) or None
-            embedding = _repeat_batch_dim(embedding, B, ndim=2)  # (B, emb_dim)
+        prompt_token = _repeat_batch_dim(prompt_token, B, ndim=2)  # (B, n_prompt)
+        prompt_token_len = _repeat_batch_dim(prompt_token_len, B, ndim=1)  # (B,)
+        prompt_feat = _repeat_batch_dim(
+            prompt_feat, B, ndim=3
+        )  # (B, n_feat, feat_dim=80)
+        prompt_feat_len = _repeat_batch_dim(prompt_feat_len, B, ndim=1)  # (B,) or None
+        embedding = _repeat_batch_dim(embedding, B, ndim=2)  # (B, emb_dim)
 
         # concat text and prompt_text
-        with timer.track("token_embedding"):
-            token, token_len = (
-                torch.concat([prompt_token, token], dim=1),
-                prompt_token_len + token_len,
-            )
-            mask = (
-                (~make_pad_mask(token_len, max_len=token.size(1)))
-                .unsqueeze(-1)
-                .to(embedding)
-            )
+        token, token_len = (
+            torch.concat([prompt_token, token], dim=1),
+            prompt_token_len + token_len,
+        )
+        mask = (
+            (~make_pad_mask(token_len, max_len=token.size(1)))
+            .unsqueeze(-1)
+            .to(embedding)
+        )
 
-            if (token >= self.vocab_size).any():
-                logger.error(
-                    f"{token.max()}>{self.vocab_size}\n out-of-range special tokens found in flow, fix inputs!"
-                )
-            token = self.input_embedding(token.long()) * mask
+        if (token >= self.vocab_size).any():
+            logger.error(
+                f"{token.max()}>{self.vocab_size}\n out-of-range special tokens found in flow, fix inputs!"
+            )
+        token = self.input_embedding(token.long()) * mask
 
         # text encode
-        with timer.track("encoder"):
-            h, h_masks = self.encoder(token, token_len)
-            if finalize is False:
-                h = h[:, : -self.pre_lookahead_len * self.token_mel_ratio]
+        h, h_masks = self.encoder(token, token_len)
+        if finalize is False:
+            h = h[:, : -self.pre_lookahead_len * self.token_mel_ratio]
 
-            h_lengths = h_masks.sum(dim=-1).squeeze(dim=-1)
-            mel_len1, mel_len2 = prompt_feat.shape[1], h.shape[1] - prompt_feat.shape[1]
-            h = self.encoder_proj(h)
+        h_lengths = h_masks.sum(dim=-1).squeeze(dim=-1)
+        mel_len1, mel_len2 = prompt_feat.shape[1], h.shape[1] - prompt_feat.shape[1]
+        h = self.encoder_proj(h)
 
         # # get conditions
-        with timer.track("conditioning"):
-            conds = torch.zeros(
-                [B, mel_len1 + mel_len2, self.output_size], device=token.device
-            ).to(h.dtype)
-            conds[:, :mel_len1] = prompt_feat
-            conds = conds.transpose(1, 2)
+        conds = torch.zeros(
+            [B, mel_len1 + mel_len2, self.output_size], device=token.device
+        ).to(h.dtype)
+        conds[:, :mel_len1] = prompt_feat
+        conds = conds.transpose(1, 2)
 
-            mask = (~make_pad_mask(h_lengths, max_len=h.shape[1])).unsqueeze(1).to(h)
+        mask = (~make_pad_mask(h_lengths, max_len=h.shape[1])).unsqueeze(1).to(h)
 
-            if mask.shape[0] != B:
-                mask = mask.repeat(B, 1, 1)
+        if mask.shape[0] != B:
+            mask = mask.repeat(B, 1, 1)
 
-        with timer.track("decoder"):
-            feat, _ = self.decoder(
-                mu=h.transpose(1, 2).contiguous(),
-                mask=mask,
-                spks=embedding,
-                cond=conds,
-                n_timesteps=n_timesteps,
-                meanflow=meanflow,
-                timer=timer.child("decoder"),
-            )
+        feat, _ = self.decoder(
+            mu=h.transpose(1, 2).contiguous(),
+            mask=mask,
+            spks=embedding,
+            cond=conds,
+            n_timesteps=n_timesteps,
+            meanflow=meanflow,
+        )
 
-        with timer.track("drop_prompt"):
-            feat = feat[:, :, mel_len1:]
-            assert feat.shape[2] == mel_len2
+        feat = feat[:, :, mel_len1:]
+        assert feat.shape[2] == mel_len2
         return feat, None  # NOTE jrm: why are they returning None here?

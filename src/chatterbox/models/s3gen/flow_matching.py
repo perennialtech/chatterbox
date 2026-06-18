@@ -15,7 +15,6 @@ import torch
 import torch.nn.functional as F
 from .matcha.flow_matching import BASECFM
 from .configs import CFM_PARAMS
-from ...timing import ensure_timer
 
 
 def cast_all(*args, dtype):
@@ -97,7 +96,7 @@ class ConditionalCFM(BASECFM):
             flow_cache,
         )
 
-    def solve_euler(self, x, t_span, mu, mask, spks, cond, meanflow=False, timer=None):
+    def solve_euler(self, x, t_span, mu, mask, spks, cond, meanflow=False):
         """
         Fixed euler solver for ODEs.
         Args:
@@ -113,73 +112,68 @@ class ConditionalCFM(BASECFM):
             cond: Not used but kept for future purposes
             meanflow: meanflow mode
         """
-        timer = ensure_timer(timer)
-        with timer.track("dtype_cast"):
-            in_dtype = x.dtype
-            x, t_span, mu, mask, spks, cond = cast_all(
-                x, t_span, mu, mask, spks, cond, dtype=self.estimator.dtype
-            )
+        in_dtype = x.dtype
+        x, t_span, mu, mask, spks, cond = cast_all(
+            x, t_span, mu, mask, spks, cond, dtype=self.estimator.dtype
+        )
 
         # Duplicated batch dims are for CFG
         # Do not use concat, it may cause memory format changed and trt infer with wrong results!
         B, T = mu.size(0), x.size(2)
-        with timer.track("cfg_buffers"):
-            x_in = torch.zeros([2 * B, 80, T], device=x.device, dtype=x.dtype)
-            mask_in = torch.zeros([2 * B, 1, T], device=x.device, dtype=x.dtype)
-            mu_in = torch.zeros([2 * B, 80, T], device=x.device, dtype=x.dtype)
-            t_in = torch.zeros([2 * B], device=x.device, dtype=x.dtype)
-            spks_in = torch.zeros([2 * B, 80], device=x.device, dtype=x.dtype)
-            cond_in = torch.zeros([2 * B, 80, T], device=x.device, dtype=x.dtype)
-            r_in = torch.zeros(
-                [2 * B], device=x.device, dtype=x.dtype
-            )  # (only used for meanflow)
+        x_in = torch.zeros([2 * B, 80, T], device=x.device, dtype=x.dtype)
+        mask_in = torch.zeros([2 * B, 1, T], device=x.device, dtype=x.dtype)
+        mu_in = torch.zeros([2 * B, 80, T], device=x.device, dtype=x.dtype)
+        t_in = torch.zeros([2 * B], device=x.device, dtype=x.dtype)
+        spks_in = torch.zeros([2 * B, 80], device=x.device, dtype=x.dtype)
+        cond_in = torch.zeros([2 * B, 80, T], device=x.device, dtype=x.dtype)
+        r_in = torch.zeros(
+            [2 * B], device=x.device, dtype=x.dtype
+        )  # (only used for meanflow)
 
-        timer.record("steps", int(t_span.shape[0] - 1))
-        with timer.track("euler_loop"):
-            for t, r in zip(t_span[:-1], t_span[1:]):
-                t = t.unsqueeze(dim=0)
-                r = r.unsqueeze(dim=0)
-                # Shapes:
-                #      x_in  ( 2B, 80, T )
-                #   mask_in  ( 2B,  1, T )
-                #     mu_in  ( 2B, 80, T )
-                #      t_in  ( 2B,       )
-                #   spks_in  ( 2B, 80,   )
-                #   cond_in  ( 2B, 80, T )
-                #      r_in  ( 2B,       )
-                #         x  (  B, 80, T )
-                #      mask  (  B,  1, T )
-                #        mu  (  B, 80, T )
-                #         t  (  B,       )
-                #      spks  (  B, 80,   )
-                #      cond  (  B, 80, T )
-                #         r  (  B,       )
+        for t, r in zip(t_span[:-1], t_span[1:]):
+            t = t.unsqueeze(dim=0)
+            r = r.unsqueeze(dim=0)
+            # Shapes:
+            #      x_in  ( 2B, 80, T )
+            #   mask_in  ( 2B,  1, T )
+            #     mu_in  ( 2B, 80, T )
+            #      t_in  ( 2B,       )
+            #   spks_in  ( 2B, 80,   )
+            #   cond_in  ( 2B, 80, T )
+            #      r_in  ( 2B,       )
+            #         x  (  B, 80, T )
+            #      mask  (  B,  1, T )
+            #        mu  (  B, 80, T )
+            #         t  (  B,       )
+            #      spks  (  B, 80,   )
+            #      cond  (  B, 80, T )
+            #         r  (  B,       )
 
-                x_in[:B] = x_in[B:] = x
-                mask_in[:B] = mask_in[B:] = mask
-                mu_in[:B] = mu
-                t_in[:B] = t_in[B:] = t
-                spks_in[:B] = spks
-                cond_in[:B] = cond
-                r_in[:B] = r_in[B:] = r  # (only used for meanflow)
-                with timer.track("estimator"):
-                    dxdt = self.estimator(
-                        x=x_in,
-                        mask=mask_in,
-                        mu=mu_in,
-                        t=t_in,
-                        spks=spks_in,
-                        cond=cond_in,
-                        r=r_in if meanflow else None,
-                    )
-                with timer.track("cfg_combine"):
-                    dxdt, cfg_dxdt = torch.split(dxdt, [B, B], dim=0)
-                    dxdt = (
-                        1.0 + self.inference_cfg_rate
-                    ) * dxdt - self.inference_cfg_rate * cfg_dxdt
-                with timer.track("state_update"):
-                    dt = r - t
-                    x = x + dt * dxdt
+            x_in[:B] = x_in[B:] = x
+            mask_in[:B] = mask_in[B:] = mask
+            mu_in[:B] = mu
+            t_in[:B] = t_in[B:] = t
+            spks_in[:B] = spks
+            cond_in[:B] = cond
+            r_in[:B] = r_in[B:] = r  # (only used for meanflow)
+
+            dxdt = self.estimator(
+                x=x_in,
+                mask=mask_in,
+                mu=mu_in,
+                t=t_in,
+                spks=spks_in,
+                cond=cond_in,
+                r=r_in if meanflow else None,
+            )
+
+            dxdt, cfg_dxdt = torch.split(dxdt, [B, B], dim=0)
+            dxdt = (
+                1.0 + self.inference_cfg_rate
+            ) * dxdt - self.inference_cfg_rate * cfg_dxdt
+
+            dt = r - t
+            x = x + dt * dxdt
 
         return x.to(in_dtype)
 
@@ -250,7 +244,6 @@ class CausalConditionalCFM(ConditionalCFM):
         spks=None,
         cond=None,
         meanflow=False,
-        timer=None,
     ):
         """Forward diffusion
 
@@ -269,19 +262,13 @@ class CausalConditionalCFM(ConditionalCFM):
                 shape: (batch_size, n_feats, mel_timesteps)
         """
 
-        timer = ensure_timer(timer)
         B = mu.size(0)
-        timer.record("timesteps", int(n_timesteps))
-        with timer.track("noise_init"):
-            z = torch.randn_like(mu)
+        z = torch.randn_like(mu)
 
         # time steps for reverse diffusion
-        with timer.track("time_schedule"):
-            t_span = torch.linspace(
-                0, 1, n_timesteps + 1, device=mu.device, dtype=mu.dtype
-            )
-            if (not meanflow) and (self.t_scheduler == "cosine"):
-                t_span = 1 - torch.cos(t_span * 0.5 * torch.pi)
+        t_span = torch.linspace(0, 1, n_timesteps + 1, device=mu.device, dtype=mu.dtype)
+        if (not meanflow) and (self.t_scheduler == "cosine"):
+            t_span = 1 - torch.cos(t_span * 0.5 * torch.pi)
 
         # NOTE: right now, the only meanflow models are also distilled models, which don't need CFG
         #   because they were distilled with CFG outputs. We would need to add another hparam and
@@ -295,7 +282,6 @@ class CausalConditionalCFM(ConditionalCFM):
                     mask=mask,
                     spks=spks,
                     cond=cond,
-                    timer=timer,
                 ),
                 None,
             )
@@ -309,29 +295,21 @@ class CausalConditionalCFM(ConditionalCFM):
                 spks=spks,
                 cond=cond,
                 meanflow=meanflow,
-                timer=timer,
             ),
             None,
         )
 
-    def basic_euler(self, x, t_span, mu, mask, spks, cond, timer=None):
-        timer = ensure_timer(timer)
-        with timer.track("dtype_cast"):
-            in_dtype = x.dtype
-            x, t_span, mu, mask, spks, cond = cast_all(
-                x, t_span, mu, mask, spks, cond, dtype=self.estimator.dtype
-            )
+    def basic_euler(self, x, t_span, mu, mask, spks, cond):
+        in_dtype = x.dtype
+        x, t_span, mu, mask, spks, cond = cast_all(
+            x, t_span, mu, mask, spks, cond, dtype=self.estimator.dtype
+        )
 
-        timer.record("steps", int(t_span.shape[-1] - 1))
-        with timer.track("euler_loop"):
-            for t, r in zip(t_span[..., :-1], t_span[..., 1:]):
-                t, r = t[None], r[None]
-                with timer.track("estimator"):
-                    dxdt = self.estimator(
-                        x=x, mask=mask, mu=mu, t=t, spks=spks, cond=cond, r=r
-                    )
-                with timer.track("state_update"):
-                    dt = r - t
-                    x = x + dt * dxdt
+        for t, r in zip(t_span[..., :-1], t_span[..., 1:]):
+            t, r = t[None], r[None]
+            dxdt = self.estimator(x=x, mask=mask, mu=mu, t=t, spks=spks, cond=cond, r=r)
+
+            dt = r - t
+            x = x + dt * dxdt
 
         return x.to(in_dtype)

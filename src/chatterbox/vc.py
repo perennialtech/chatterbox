@@ -1,4 +1,3 @@
-from contextlib import nullcontext
 from pathlib import Path
 import time
 
@@ -9,7 +8,6 @@ from safetensors.torch import load_file
 from .audio import load_audio_mono
 from .models.s3tokenizer import S3_SR
 from .models.s3gen import S3GEN_SR, S3Gen
-from .timing import InferenceTimer
 
 REPO_ID = "ResembleAI/chatterbox-turbo"
 
@@ -27,10 +25,6 @@ def _configure_cuda_runtime(device) -> None:
     # Broken on rocm
     # torch.backends.cudnn.benchmark = True
     torch.set_float32_matmul_precision("high")
-
-
-def _track(timer, key):
-    return timer.track(key) if timer is not None else nullcontext()
 
 
 class ChatterboxVC:
@@ -125,61 +119,41 @@ class ChatterboxVC:
         target_voice_path=None,
         profile: bool = False,
     ):
-        timings = {}
-        timer = InferenceTimer(timings, self.device) if profile else None
         wall_start = time.perf_counter()
 
-        with _track(timer, "total"):
-            with torch.inference_mode():
-                if target_voice_path:
-                    with _track(timer, "target_voice_setup"):
-                        self.set_target_voice(target_voice_path)
-                else:
-                    assert (
-                        self.ref_dict is not None
-                    ), "Please `prepare_conditionals` first or specify `target_voice_path`"
+        with torch.inference_mode():
+            if target_voice_path:
+                self.set_target_voice(target_voice_path)
+            else:
+                assert (
+                    self.ref_dict is not None
+                ), "Please `prepare_conditionals` first or specify `target_voice_path`"
 
-                with _track(timer, "audio_load"):
-                    audio_16 = load_audio_mono(audio, S3_SR, self.device).unsqueeze(0)
+            audio_16 = load_audio_mono(audio, S3_SR, self.device).unsqueeze(0)
+            s3_tokens, _ = self.s3gen.tokenizer(audio_16)
 
-                with _track(timer, "tokenize"):
-                    s3_tokens, _ = self.s3gen.tokenizer(audio_16)
+            output_mels = self.s3gen.flow_inference(
+                speech_tokens=s3_tokens,
+                ref_dict=self.ref_dict,
+                finalize=True,
+            )
 
-                with _track(timer, "flow_inference"):
-                    output_mels = self.s3gen.flow_inference(
-                        speech_tokens=s3_tokens,
-                        ref_dict=self.ref_dict,
-                        finalize=True,
-                        timer=timer.child("flow") if timer is not None else None,
-                    )
+            output_mels = output_mels.to(dtype=self.s3gen.dtype)
+            output_wavs, _ = self.s3gen.hift_inference(
+                output_mels,
+                None,
+            )
+            output_wavs[:, : len(self.s3gen.trim_fade)] *= self.s3gen.trim_fade
 
-                with _track(timer, "vocoder_inference"):
-                    with _track(timer, "vocoder.prepare_mels"):
-                        output_mels = output_mels.to(dtype=self.s3gen.dtype)
-
-                    with _track(timer, "vocoder.hift_inference"):
-                        output_wavs, _ = self.s3gen.hift_inference(
-                            output_mels,
-                            None,
-                            timer=timer.child("vocoder") if timer is not None else None,
-                        )
-
-                    with _track(timer, "vocoder.trim_fade"):
-                        output_wavs[
-                            :, : len(self.s3gen.trim_fade)
-                        ] *= self.s3gen.trim_fade
-
-                    with _track(timer, "vocoder.to_cpu"):
-                        wav = output_wavs.detach().cpu()
-
-        if timer is not None:
-            timer.finalize()
+            wav = output_wavs.detach().cpu()
 
         wall_total = time.perf_counter() - wall_start
         audio_duration = wav.shape[-1] / self.sr
-        timings["wall_total"] = wall_total
-        timings["total"] = wall_total
-        timings["audio_duration_sec"] = audio_duration
-        timings["rtf"] = wall_total / audio_duration if audio_duration > 0 else 0
+        timings = {
+            "wall_total": wall_total,
+            "total": wall_total,
+            "audio_duration_sec": audio_duration,
+            "rtf": wall_total / audio_duration if audio_duration > 0 else 0,
+        }
 
         return wav, timings
