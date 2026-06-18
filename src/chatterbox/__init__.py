@@ -1,9 +1,9 @@
 try:
     from importlib.metadata import version
 except ImportError:
-    from importlib_metadata import version
-
-from .vc import VoiceConverter
+    from importlib_metadata import version  # For Python <3.8
 
 __version__ = version("chatterbox-tts")
-__all__ = ["VoiceConverter"]
+
+
+from .vc import ChatterboxVC
