@@ -26,6 +26,7 @@ dependencies = [
     "omegaconf",
     "peft>=0.19.1",
     "flowhigh",
+    "torchcodec==0.14.0",
 ]
 
 [project.urls]
