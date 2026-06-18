@@ -536,7 +536,7 @@ wheels = [
 [[package]]
 name = "flowhigh"
 version = "0.1"
-source = { git = "https://github.com/perennialtech/flowhigh#a7635858645119f03642635d69a6796ef9bc3614" }
+source = { git = "https://github.com/perennialtech/flowhigh#134dd24a861d72779651757465b27b98533d42b4" }
 dependencies = [
     { name = "beartype" },
     { name = "bigvgan" },

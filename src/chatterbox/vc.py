@@ -50,7 +50,9 @@ class ChatterboxVC:
         self.flowhigh = flowhigh
 
     @classmethod
-    def from_local(cls, ckpt_dir, device, load_flowhigh: bool = True, compile: bool = False) -> "ChatterboxVC":
+    def from_local(
+        cls, ckpt_dir, device, load_flowhigh: bool = True, compile: bool = False
+    ) -> "ChatterboxVC":
         ckpt_dir = Path(ckpt_dir)
         map_location = torch.device("cpu")
 
@@ -71,7 +73,12 @@ class ChatterboxVC:
         if _is_cuda_device(device):
             _configure_cuda_runtime(device)
 
-        should_compile = compile or os.getenv("CHATTERBOX_COMPILE", "0").lower() in ("1", "true", "yes", "on")
+        should_compile = compile or os.getenv("CHATTERBOX_COMPILE", "0").lower() in (
+            "1",
+            "true",
+            "yes",
+            "on",
+        )
 
         if should_compile:
             s3gen.compile_for_inference()
@@ -83,12 +90,14 @@ class ChatterboxVC:
         if load_flowhigh:
             from flowhigh.flowhighsr import FlowHighSR
 
-            flowhigh = FlowHighSR.from_pretrained(device)
+            flowhigh = FlowHighSR.from_pretrained(device=device)
 
         return cls(s3gen, device, ref_dict=ref_dict, flowhigh=flowhigh)
 
     @classmethod
-    def from_pretrained(cls, device, load_flowhigh: bool = True, compile: bool = False) -> "ChatterboxVC":
+    def from_pretrained(
+        cls, device, load_flowhigh: bool = True, compile: bool = False
+    ) -> "ChatterboxVC":
         # Check if MPS is available on macOS
         if device == "mps" and not torch.backends.mps.is_available():
             if not torch.backends.mps.is_built():
@@ -105,7 +114,10 @@ class ChatterboxVC:
             local_path = hf_hub_download(repo_id=REPO_ID, filename=fpath)
 
         return cls.from_local(
-            Path(local_path).parent, device, load_flowhigh=load_flowhigh, compile=compile
+            Path(local_path).parent,
+            device,
+            load_flowhigh=load_flowhigh,
+            compile=compile,
         )
 
     @torch.inference_mode()
@@ -171,15 +183,12 @@ class ChatterboxVC:
             output_wavs[:, : len(self.s3gen.trim_fade)] *= self.s3gen.trim_fade
 
             if upscale:
-                output_wavs = self.flowhigh.generate_tensor(output_wavs, sr=active_sr)
-                output_wavs = output_wavs.unsqueeze(0) if output_wavs.ndim == 1 else output_wavs
+                output_wavs = self.flowhigh.enhance(output_wavs, sample_rate=active_sr)
+                output_wavs = (
+                    output_wavs.unsqueeze(0) if output_wavs.ndim == 1 else output_wavs
+                )
 
-                if hasattr(self.flowhigh, 'sr'):
-                    active_sr = self.flowhigh.sr
-                elif hasattr(self.flowhigh, 'flowhigh') and hasattr(self.flowhigh.flowhigh, 'audio_enc_dec'):
-                    active_sr = getattr(self.flowhigh.flowhigh.audio_enc_dec, 'sampling_rate', 48000)
-                else:
-                    active_sr = 48000
+                active_sr = self.flowhigh.codec.sampling_rate
 
             wav = output_wavs.detach().cpu()
 
