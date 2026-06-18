@@ -1,159 +1,109 @@
+from __future__ import annotations
+
 from pathlib import Path
 import time
 
 import torch
-from huggingface_hub import hf_hub_download
-from safetensors.torch import load_file
 
-from .audio import load_audio_mono
-from .models.s3tokenizer import S3_SR
-from .models.s3gen import S3GEN_SR, S3Gen
+from .device import Runtime
+from .models.checkpoint import CheckpointLoader, REPO_ID
+from .models.pipeline import VoiceConversionPipeline
+from .types import AudioInput, ConversionResult, ReferenceConditioning
 
-REPO_ID = "ResembleAI/chatterbox-turbo"
-
-
-def _is_cuda_device(device) -> bool:
-    return torch.device(device).type == "cuda"
+SAMPLE_RATE = 24_000
 
 
-def _configure_cuda_runtime(device) -> None:
-    if not _is_cuda_device(device):
-        return
-
-    torch.backends.cuda.matmul.allow_tf32 = True
-    torch.backends.cudnn.allow_tf32 = True
-    # Broken on rocm
-    # torch.backends.cudnn.benchmark = True
-    torch.set_float32_matmul_precision("high")
-
-
-class ChatterboxVC:
-    ENC_COND_LEN = 6 * S3_SR
-    DEC_COND_LEN = 10 * S3GEN_SR
-
+class VoiceConverter:
     def __init__(
         self,
-        s3gen: S3Gen,
-        device: str,
-        ref_dict: dict = None,
+        *,
+        pipeline: VoiceConversionPipeline,
+        runtime: Runtime,
+        target: ReferenceConditioning | None = None,
     ):
-        self.sr = S3GEN_SR
-        self.s3gen = s3gen
-        self.device = device
-        self._target_voice_cache_key = None
-        self._target_voice_cache = None
-        self.ref_dict = (
-            None if ref_dict is None else self.s3gen.prepare_ref_dict(ref_dict)
-        )
+        self.pipeline = pipeline
+        self.runtime = runtime
+        self.target = target
+        self._target_voice_cache_key: tuple[Path, int, int] | None = None
+        self._target_voice_cache: ReferenceConditioning | None = None
 
     @classmethod
-    def from_local(cls, ckpt_dir, device) -> "ChatterboxVC":
-        ckpt_dir = Path(ckpt_dir)
-        map_location = torch.device("cpu")
-
-        ref_dict = None
-        if (builtin_voice := ckpt_dir / "conds.pt").exists():
-            states = torch.load(builtin_voice, map_location=map_location)
-            ref_dict = states["gen"]
-
-        s3gen = S3Gen(meanflow=True)
-        s3gen.load_state_dict(
-            load_file(ckpt_dir / "s3gen_meanflow.safetensors"), strict=False
-        )
-        s3gen.to(device).eval()
-
-        s3gen.mel2wav.optimize_for_inference()
-        ref_dict = s3gen.prepare_ref_dict(ref_dict) if ref_dict is not None else None
-
-        if _is_cuda_device(device):
-            _configure_cuda_runtime(device)
-            s3gen.compile_for_inference()
-            s3gen.warmup(ref_dict=ref_dict)
-
-        return cls(s3gen, device, ref_dict=ref_dict)
+    def from_local(
+        cls,
+        checkpoint_dir: str | Path,
+        device: str | torch.device = "auto",
+    ) -> "VoiceConverter":
+        runtime = Runtime.create(device)
+        bundle = CheckpointLoader.from_local(checkpoint_dir)
+        pipeline = CheckpointLoader.load_pipeline(bundle, runtime)
+        target = CheckpointLoader.load_builtin_reference(bundle, runtime)
+        return cls(pipeline=pipeline, runtime=runtime, target=target)
 
     @classmethod
-    def from_pretrained(cls, device) -> "ChatterboxVC":
-        # Check if MPS is available on macOS
-        if device == "mps" and not torch.backends.mps.is_available():
-            if not torch.backends.mps.is_built():
-                print(
-                    "MPS not available because the current PyTorch install was not built with MPS enabled."
-                )
-            else:
-                print(
-                    "MPS not available because the current MacOS version is not 12.3+ and/or you do not have an MPS-enabled device on this machine."
-                )
-            device = "cpu"
-
-        for fpath in ["s3gen_meanflow.safetensors", "conds.pt"]:
-            local_path = hf_hub_download(repo_id=REPO_ID, filename=fpath)
-
-        return cls.from_local(Path(local_path).parent, device)
+    def from_pretrained(
+        cls,
+        device: str | torch.device = "auto",
+        *,
+        repo_id: str = REPO_ID,
+    ) -> "VoiceConverter":
+        runtime = Runtime.create(device)
+        bundle = CheckpointLoader.from_pretrained(repo_id)
+        pipeline = CheckpointLoader.load_pipeline(bundle, runtime)
+        target = CheckpointLoader.load_builtin_reference(bundle, runtime)
+        return cls(pipeline=pipeline, runtime=runtime, target=target)
 
     @torch.inference_mode()
-    def set_target_voice(self, wav_fpath):
-        wav_fpath = Path(wav_fpath).expanduser().resolve(strict=False)
-        wav_stat = wav_fpath.stat()
-        cache_key = (wav_fpath, wav_stat.st_mtime_ns, wav_stat.st_size)
+    def set_target_voice(self, target_voice: AudioInput) -> None:
+        if isinstance(target_voice, str | Path):
+            path = Path(target_voice).expanduser().resolve(strict=False)
+            stat = path.stat()
+            cache_key = (path, stat.st_mtime_ns, stat.st_size)
 
-        if self._target_voice_cache_key == cache_key:
-            self.ref_dict = self._target_voice_cache
+            if cache_key == self._target_voice_cache_key:
+                self.target = self._target_voice_cache
+                return
+
+            self.target = self.pipeline.encode_reference(path)
+            self._target_voice_cache_key = cache_key
+            self._target_voice_cache = self.target
             return
 
-        s3gen_ref_wav = load_audio_mono(
-            wav_fpath,
-            S3GEN_SR,
-            self.device,
-            max_len=self.DEC_COND_LEN,
-        )
-        self.ref_dict = self.s3gen.embed_ref(
-            s3gen_ref_wav, S3GEN_SR, device=self.device
-        )
-        self._target_voice_cache_key = cache_key
-        self._target_voice_cache = self.ref_dict
+        self.target = self.pipeline.encode_reference(target_voice)
+        self._target_voice_cache_key = None
+        self._target_voice_cache = None
 
-    def generate(
+    @torch.inference_mode()
+    def convert(
         self,
-        audio,
-        target_voice_path=None,
-        profile: bool = False,
-    ):
-        wall_start = time.perf_counter()
+        source: AudioInput,
+        *,
+        target_voice: AudioInput | None = None,
+        steps: int | None = None,
+        return_cpu: bool = True,
+        generator: torch.Generator | None = None,
+    ) -> ConversionResult:
+        start = time.perf_counter()
 
-        with torch.inference_mode():
-            if target_voice_path:
-                self.set_target_voice(target_voice_path)
-            else:
-                assert (
-                    self.ref_dict is not None
-                ), "Please `prepare_conditionals` first or specify `target_voice_path`"
+        if target_voice is not None:
+            ref = self.pipeline.encode_reference(target_voice)
+        else:
+            if self.target is None:
+                raise ValueError("Set a target voice before conversion.")
+            ref = self.target
 
-            audio_16 = load_audio_mono(audio, S3_SR, self.device).unsqueeze(0)
-            s3_tokens, _ = self.s3gen.tokenizer(audio_16)
+        wav = self.pipeline.convert(source, ref, steps=steps, generator=generator)
+        if return_cpu:
+            wav = wav.detach().cpu()
 
-            output_mels = self.s3gen.flow_inference(
-                speech_tokens=s3_tokens,
-                ref_dict=self.ref_dict,
-                finalize=True,
-            )
-
-            output_mels = output_mels.to(dtype=self.s3gen.dtype)
-            output_wavs, _ = self.s3gen.hift_inference(
-                output_mels,
-                None,
-            )
-            output_wavs[:, : len(self.s3gen.trim_fade)] *= self.s3gen.trim_fade
-
-            wav = output_wavs.detach().cpu()
-
-        wall_total = time.perf_counter() - wall_start
-        audio_duration = wav.shape[-1] / self.sr
-        timings = {
-            "wall_total": wall_total,
-            "total": wall_total,
-            "audio_duration_sec": audio_duration,
-            "rtf": wall_total / audio_duration if audio_duration > 0 else 0,
-        }
-
-        return wav, timings
+        total = time.perf_counter() - start
+        duration = wav.shape[-1] / SAMPLE_RATE
+        return ConversionResult(
+            waveform=wav,
+            sample_rate=SAMPLE_RATE,
+            timings={
+                "wall_total": total,
+                "total": total,
+                "audio_duration_sec": duration,
+                "rtf": total / duration if duration > 0 else 0.0,
+            },
+        )
