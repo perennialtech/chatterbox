@@ -12,8 +12,6 @@ dependencies = [
     "numpy>=1.24.0",
     "librosa==0.11.0",
     "s3tokenizer",
-    "torch==2.11.0",
-    "torchaudio==2.11.0",
     "transformers==5.2.0",
     "diffusers==0.29.0",
     "resemble-perth @ git+https://github.com/resemble-ai/Perth.git@master",
@@ -26,7 +24,6 @@ dependencies = [
     "omegaconf",
     "peft>=0.19.1",
     "flowhigh",
-    "torchcodec==0.14.0",
 ]
 
 [project.urls]
@@ -34,6 +31,18 @@ Homepage = "https://github.com/resemble-ai/chatterbox"
 Repository = "https://github.com/resemble-ai/chatterbox"
 
 [project.optional-dependencies]
+cpu = [
+    "torch==2.11.0",
+    "torchaudio==2.11.0",
+    "torchcodec==0.14.0",
+]
+
+cuda = [
+    "torch==2.11.0; sys_platform == 'linux' or sys_platform == 'win32'",
+    "torchaudio==2.11.0; sys_platform == 'linux' or sys_platform == 'win32'",
+    "torchcodec==0.14.0; sys_platform == 'linux' or sys_platform == 'win32'",
+]
+
 rocm = [
     "torch==2.11.0; sys_platform == 'linux'",
     "torchaudio==2.11.0; sys_platform == 'linux'",
@@ -42,16 +51,31 @@ rocm = [
     "triton-rocm; sys_platform == 'linux'",
 ]
 
-[build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
+[dependency-groups]
+dev = [
+    "basedpyright>=1.39.7",
+    "black>=26.5.1",
+    "isort>=8.0.1",
+    "ruff>=0.15.17",
+]
 
-[tool.setuptools.packages.find]
-where = ["src"]
+[tool.uv]
+conflicts = [
+    [
+        { extra = "cpu" },
+        { extra = "cuda" },
+        { extra = "rocm" },
+    ],
+]
 
 [[tool.uv.index]]
 name = "pytorch-rocm72"
 url = "https://download.pytorch.org/whl/rocm7.2"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu129"
+url = "https://download.pytorch.org/whl/cu129"
 explicit = true
 
 [[tool.uv.index]]
@@ -62,25 +86,35 @@ explicit = true
 [tool.uv.sources]
 torch = [
     { index = "pytorch-rocm72", extra = "rocm", marker = "sys_platform == 'linux'" },
+    { index = "pytorch-cu129", extra = "cuda", marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
+    { index = "pytorch-cpu", extra = "cpu" },
 ]
+
 torchaudio = [
     { index = "pytorch-rocm72", extra = "rocm", marker = "sys_platform == 'linux'" },
+    { index = "pytorch-cu129", extra = "cuda", marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
+    { index = "pytorch-cpu", extra = "cpu" },
 ]
+
 torchcodec = [
     { index = "pytorch-cpu", extra = "rocm", marker = "sys_platform == 'linux'" },
+    { index = "pytorch-cpu", extra = "cuda", marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
+    { index = "pytorch-cpu", extra = "cpu" },
 ]
+
 pytorch-triton-rocm = [
     { index = "pytorch-rocm72", extra = "rocm", marker = "sys_platform == 'linux'" },
 ]
+
 triton-rocm = [
     { index = "pytorch-rocm72", extra = "rocm", marker = "sys_platform == 'linux'" },
 ]
+
 flowhigh = { git = "https://github.com/perennialtech/flowhigh" }
 
-[dependency-groups]
-dev = [
-    "basedpyright>=1.39.7",
-    "black>=26.5.1",
-    "isort>=8.0.1",
-    "ruff>=0.15.17",
-]
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
