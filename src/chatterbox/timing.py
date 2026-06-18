@@ -5,6 +5,8 @@ import torch
 
 
 class InferenceTimer:
+    enabled = True
+
     def __init__(self, timings=None, device=None, prefix="", pending_cuda_events=None):
         self._timings = timings if timings is not None else {}
         self.device = device
@@ -129,6 +131,8 @@ class InferenceTimer:
 
 
 class _NoopTimer:
+    enabled = False
+
     def set_device(self, device):
         pass
 

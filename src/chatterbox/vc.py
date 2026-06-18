@@ -24,6 +24,8 @@ def _configure_cuda_runtime(device) -> None:
 
     torch.backends.cuda.matmul.allow_tf32 = True
     torch.backends.cudnn.allow_tf32 = True
+    # Broken on rocm
+    # torch.backends.cudnn.benchmark = True
     torch.set_float32_matmul_precision("high")
 
 
@@ -95,6 +97,7 @@ class ChatterboxVC:
 
         return cls.from_local(Path(local_path).parent, device)
 
+    @torch.inference_mode()
     def set_target_voice(self, wav_fpath):
         wav_fpath = Path(wav_fpath).expanduser().resolve(strict=False)
         wav_stat = wav_fpath.stat()
@@ -127,15 +130,15 @@ class ChatterboxVC:
         wall_start = time.perf_counter()
 
         with _track(timer, "total"):
-            if target_voice_path:
-                with _track(timer, "target_voice_setup"):
-                    self.set_target_voice(target_voice_path)
-            else:
-                assert (
-                    self.ref_dict is not None
-                ), "Please `prepare_conditionals` first or specify `target_voice_path`"
-
             with torch.inference_mode():
+                if target_voice_path:
+                    with _track(timer, "target_voice_setup"):
+                        self.set_target_voice(target_voice_path)
+                else:
+                    assert (
+                        self.ref_dict is not None
+                    ), "Please `prepare_conditionals` first or specify `target_voice_path`"
+
                 with _track(timer, "audio_load"):
                     audio_16 = load_audio_mono(audio, S3_SR, self.device).unsqueeze(0)
 
@@ -167,7 +170,7 @@ class ChatterboxVC:
                         ] *= self.s3gen.trim_fade
 
                     with _track(timer, "vocoder.to_cpu"):
-                        wav = output_wavs.squeeze(0).detach().cpu().numpy()
+                        wav = output_wavs.detach().cpu()
 
         if timer is not None:
             timer.finalize()
@@ -179,4 +182,4 @@ class ChatterboxVC:
         timings["audio_duration_sec"] = audio_duration
         timings["rtf"] = wall_total / audio_duration if audio_duration > 0 else 0
 
-        return torch.from_numpy(wav).unsqueeze(0), timings
+        return wav, timings

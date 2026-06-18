@@ -493,7 +493,7 @@ class HiFTGenerator(nn.Module):
     def compile_for_inference(self) -> "HiFTGenerator":
         self._decode_fast = torch.compile(
             self._decode_fast,
-            mode="reduce-overhead",
+            mode="default", # other modes are broken
             dynamic=True,
         )
         return self
@@ -635,11 +635,9 @@ class HiFTGenerator(nn.Module):
         s: torch.Tensor,
         timer=None,
     ) -> torch.Tensor:
-        if timer is None:
-            return self._decode_fast(x, s)
-
         timer = ensure_timer(timer, x.device)
-        return self._decode_timed(x, s, timer)
+        with timer.track("decode_fast"):
+            return self._decode_fast(x, s)
 
     def forward(
         self,
@@ -668,16 +666,6 @@ class HiFTGenerator(nn.Module):
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         speech_feat = speech_feat.contiguous()
 
-        if timer is None:
-            f0 = self.f0_predictor(speech_feat)
-            s = self._source_from_f0(f0)
-
-            if cache_source is not None and cache_source.numel() != 0:
-                s[:, :, : cache_source.shape[2]].copy_(cache_source)
-
-            generated_speech = self._decode_fast(speech_feat, s)
-            return generated_speech, s
-
         timer = ensure_timer(timer, speech_feat.device)
 
         with timer.track("f0_predictor"):
@@ -694,6 +682,6 @@ class HiFTGenerator(nn.Module):
                 s[:, :, : cache_source.shape[2]].copy_(cache_source)
 
         with timer.track("decode"):
-            generated_speech = self.decode(x=speech_feat, s=s, timer=timer)
+            generated_speech = self._decode_fast(speech_feat, s)
 
         return generated_speech, s

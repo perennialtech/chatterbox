@@ -81,7 +81,7 @@ class S3Tokenizer(S3TokenizerV2):
             processed_wavs.append(wav)
         return processed_wavs
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def forward(
         self,
         wavs: torch.Tensor,
@@ -153,12 +153,12 @@ class S3Tokenizer(S3TokenizerV2):
             audio,
             self.n_fft,
             S3_HOP,
-            window=self.window.to(self.device),
+            window=self.window,
             return_complex=True,
         )
         magnitudes = stft[..., :-1].abs() ** 2
 
-        mel_spec = self._mel_filters.to(self.device) @ magnitudes
+        mel_spec = self._mel_filters @ magnitudes
 
         log_spec = torch.clamp(mel_spec, min=1e-10).log10()
         log_spec = torch.maximum(log_spec, log_spec.max() - 8.0)

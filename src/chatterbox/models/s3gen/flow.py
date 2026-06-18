@@ -179,6 +179,7 @@ class CausalMaskedDiffWithXvec(torch.nn.Module):
         # token: (B, n_toks)
         # token_len: (B,)
         B = token.size(0)
+        assert B == 1, "Only batch size 1 is supported"
 
         # xvec projection
         with timer.track("speaker_embedding"):
@@ -246,7 +247,6 @@ class CausalMaskedDiffWithXvec(torch.nn.Module):
                 spks=embedding,
                 cond=conds,
                 n_timesteps=n_timesteps,
-                noised_mels=noised_mels,
                 meanflow=meanflow,
                 timer=timer.child("decoder"),
             )

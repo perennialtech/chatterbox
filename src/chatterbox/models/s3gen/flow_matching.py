@@ -249,7 +249,6 @@ class CausalConditionalCFM(ConditionalCFM):
         temperature=1.0,
         spks=None,
         cond=None,
-        noised_mels=None,
         meanflow=False,
         timer=None,
     ):
@@ -265,7 +264,6 @@ class CausalConditionalCFM(ConditionalCFM):
             spks (torch.Tensor, optional): speaker ids. Defaults to None.
                 shape: (batch_size, spk_emb_dim)
             cond: Not used but kept for future purposes
-            noised_mels: gt mels noised a time t
         Returns:
             sample: generated mel-spectrogram
                 shape: (batch_size, n_feats, mel_timesteps)
@@ -276,11 +274,6 @@ class CausalConditionalCFM(ConditionalCFM):
         timer.record("timesteps", int(n_timesteps))
         with timer.track("noise_init"):
             z = torch.randn_like(mu)
-
-        if noised_mels is not None:
-            with timer.track("apply_noised_mels"):
-                prompt_len = mu.size(2) - noised_mels.size(2)
-                z[..., prompt_len:] = noised_mels
 
         # time steps for reverse diffusion
         with timer.track("time_schedule"):
