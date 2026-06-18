@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 import time
 
@@ -36,6 +37,7 @@ class ChatterboxVC:
         s3gen: S3Gen,
         device: str,
         ref_dict: dict = None,
+        flowhigh=None,
     ):
         self.sr = S3GEN_SR
         self.s3gen = s3gen
@@ -45,9 +47,10 @@ class ChatterboxVC:
         self.ref_dict = (
             None if ref_dict is None else self.s3gen.prepare_ref_dict(ref_dict)
         )
+        self.flowhigh = flowhigh
 
     @classmethod
-    def from_local(cls, ckpt_dir, device) -> "ChatterboxVC":
+    def from_local(cls, ckpt_dir, device, load_flowhigh: bool = True, compile: bool = False) -> "ChatterboxVC":
         ckpt_dir = Path(ckpt_dir)
         map_location = torch.device("cpu")
 
@@ -67,13 +70,25 @@ class ChatterboxVC:
 
         if _is_cuda_device(device):
             _configure_cuda_runtime(device)
+
+        should_compile = compile or os.getenv("CHATTERBOX_COMPILE", "0").lower() in ("1", "true", "yes", "on")
+
+        if should_compile:
             s3gen.compile_for_inference()
+
+        if _is_cuda_device(device) or should_compile:
             s3gen.warmup(ref_dict=ref_dict)
 
-        return cls(s3gen, device, ref_dict=ref_dict)
+        flowhigh = None
+        if load_flowhigh:
+            from flowhigh.flowhighsr import FlowHighSR
+
+            flowhigh = FlowHighSR.from_pretrained(device)
+
+        return cls(s3gen, device, ref_dict=ref_dict, flowhigh=flowhigh)
 
     @classmethod
-    def from_pretrained(cls, device) -> "ChatterboxVC":
+    def from_pretrained(cls, device, load_flowhigh: bool = True, compile: bool = False) -> "ChatterboxVC":
         # Check if MPS is available on macOS
         if device == "mps" and not torch.backends.mps.is_available():
             if not torch.backends.mps.is_built():
@@ -89,7 +104,9 @@ class ChatterboxVC:
         for fpath in ["s3gen_meanflow.safetensors", "conds.pt"]:
             local_path = hf_hub_download(repo_id=REPO_ID, filename=fpath)
 
-        return cls.from_local(Path(local_path).parent, device)
+        return cls.from_local(
+            Path(local_path).parent, device, load_flowhigh=load_flowhigh, compile=compile
+        )
 
     @torch.inference_mode()
     def set_target_voice(self, wav_fpath):
@@ -118,8 +135,16 @@ class ChatterboxVC:
         audio,
         target_voice_path=None,
         profile: bool = False,
+        upscale: bool = False,
     ):
+        if upscale and self.flowhigh is None:
+            raise ValueError(
+                "FlowHigh model is not loaded. Initialize ChatterboxVC with load_flowhigh=True."
+            )
+
         wall_start = time.perf_counter()
+
+        active_sr = self.sr
 
         with torch.inference_mode():
             if target_voice_path:
@@ -145,10 +170,21 @@ class ChatterboxVC:
             )
             output_wavs[:, : len(self.s3gen.trim_fade)] *= self.s3gen.trim_fade
 
+            if upscale:
+                output_wavs = self.flowhigh.generate_tensor(output_wavs, sr=active_sr)
+                output_wavs = output_wavs.unsqueeze(0) if output_wavs.ndim == 1 else output_wavs
+
+                if hasattr(self.flowhigh, 'sr'):
+                    active_sr = self.flowhigh.sr
+                elif hasattr(self.flowhigh, 'flowhigh') and hasattr(self.flowhigh.flowhigh, 'audio_enc_dec'):
+                    active_sr = getattr(self.flowhigh.flowhigh.audio_enc_dec, 'sampling_rate', 48000)
+                else:
+                    active_sr = 48000
+
             wav = output_wavs.detach().cpu()
 
         wall_total = time.perf_counter() - wall_start
-        audio_duration = wav.shape[-1] / self.sr
+        audio_duration = wav.shape[-1] / active_sr
         timings = {
             "wall_total": wall_total,
             "total": wall_total,
@@ -156,4 +192,4 @@ class ChatterboxVC:
             "rtf": wall_total / audio_duration if audio_duration > 0 else 0,
         }
 
-        return wav, timings
+        return wav, active_sr, timings
