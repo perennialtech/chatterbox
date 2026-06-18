@@ -67,7 +67,7 @@ torchaudio = [
     { index = "pytorch-rocm72", extra = "rocm", marker = "sys_platform == 'linux'" },
 ]
 torchcodec = [
-    { index = "pytorch-cpu", marker = "sys_platform == 'linux'" },
+    { index = "pytorch-cpu", extra = "rocm", marker = "sys_platform == 'linux'" },
 ]
 pytorch-triton-rocm = [
     { index = "pytorch-rocm72", extra = "rocm", marker = "sys_platform == 'linux'" },
