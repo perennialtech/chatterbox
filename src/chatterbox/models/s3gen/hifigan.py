@@ -23,9 +23,7 @@ from typing import Dict, Optional, Sequence, Tuple
 import torch
 import torch.nn.functional as F
 from torch import nn
-from torch.nn import Conv1d
-from torch.nn import ConvTranspose1d
-from torch.nn import Parameter
+from torch.nn import Conv1d, ConvTranspose1d, Parameter
 from torch.nn.utils import parametrize
 from torch.nn.utils.parametrizations import weight_norm
 
@@ -492,6 +490,7 @@ class HiFTGenerator(nn.Module):
         self._decode_fast = torch.compile(
             self._decode_fast,
             mode="default",  # other modes are broken
+            backend="tensorrt",
             dynamic=True,
         )
         return self

@@ -309,11 +309,13 @@ class S3Token2Wav(S3Token2Mel):
         self.flow.encoder = torch.compile(
             self.flow.encoder,
             mode="default",  # other modes are broken
+            backend="tensorrt",
             dynamic=True,
         )
         self.flow.decoder.estimator = torch.compile(
             self.flow.decoder.estimator,
             mode="default",  # other modes are broken
+            backend="tensorrt",
             dynamic=True,
         )
         self.mel2wav.compile_for_inference()
