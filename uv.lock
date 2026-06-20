@@ -335,7 +335,6 @@ dependencies = [
     { name = "conformer" },
     { name = "diffusers" },
     { name = "flowhigh" },
-    { name = "gradio" },
     { name = "librosa" },
     { name = "numpy" },
     { name = "omegaconf" },
@@ -372,6 +371,9 @@ rocm = [
     { name = "torchcodec", version = "0.14.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform == 'linux' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
     { name = "triton-rocm", marker = "sys_platform == 'linux'" },
 ]
+ui = [
+    { name = "gradio" },
+]
 
 [package.dev-dependencies]
 dev = [
@@ -386,7 +388,7 @@ requires-dist = [
     { name = "conformer", specifier = "==0.3.2" },
     { name = "diffusers", specifier = "==0.29.0" },
     { name = "flowhigh", git = "https://github.com/perennialtech/flowhigh" },
-    { name = "gradio", specifier = "==6.8.0" },
+    { name = "gradio", marker = "extra == 'ui'", specifier = "==6.8.0" },
     { name = "librosa", specifier = "==0.11.0" },
     { name = "numpy", specifier = ">=1.24.0" },
     { name = "omegaconf" },
@@ -410,7 +412,7 @@ requires-dist = [
     { name = "transformers", specifier = "==5.2.0" },
     { name = "triton-rocm", marker = "sys_platform == 'linux' and extra == 'rocm'", index = "https://download.pytorch.org/whl/rocm7.2", conflict = { package = "chatterbox-tts", extra = "rocm" } },
 ]
-provides-extras = ["cpu", "cuda", "rocm"]
+provides-extras = ["cpu", "cuda", "rocm", "ui"]
 
 [package.metadata.requires-dev]
 dev = [
