@@ -498,8 +498,8 @@ class HiFTGenerator(nn.Module):
             "tensorrt" if "tensorrt" in torch._dynamo.list_backends() else "inductor"
         )
 
-        self._decode_fast = torch.compile(
-            self._decode_fast,
+        self._forward_features = torch.compile(
+            self._forward_features,
             mode="default",  # other modes are broken
             backend=backend,
             dynamic=True,
@@ -589,8 +589,9 @@ class HiFTGenerator(nn.Module):
 
         return magnitude, phase
 
-    def _decode_fast(self, x: torch.Tensor, s: torch.Tensor) -> torch.Tensor:
-        s_stft = self._source_stft(s)
+    def _forward_features(
+        self, x: torch.Tensor, s_stft: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         x = self.conv_pre(x)
 
         for i in range(self.num_upsamples):
@@ -599,6 +600,13 @@ class HiFTGenerator(nn.Module):
             x = self._resblock_stage(x, i)
 
         magnitude, phase = self._projection(x)
+
+        return magnitude, phase
+
+    def _decode_fast(self, x: torch.Tensor, s: torch.Tensor) -> torch.Tensor:
+        s_stft = self._source_stft(s)
+        magnitude, phase = self._forward_features(x, s_stft)
+
         x = self._istft(magnitude, phase)
         x.clamp_(-self.audio_limit, self.audio_limit)
 
