@@ -487,10 +487,18 @@ class HiFTGenerator(nn.Module):
         return self
 
     def compile_for_inference(self) -> "HiFTGenerator":
+        try:
+            import torch_tensorrt  # noqa
+        except ImportError:
+            pass
+
+        import torch._dynamo
+        backend = "tensorrt" if "tensorrt" in torch._dynamo.list_backends() else "inductor"
+
         self._decode_fast = torch.compile(
             self._decode_fast,
             mode="default",  # other modes are broken
-            backend="tensorrt",
+            backend=backend,
             dynamic=True,
         )
         return self

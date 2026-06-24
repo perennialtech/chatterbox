@@ -306,16 +306,24 @@ class S3Token2Wav(S3Token2Mel):
         self.estimator_dtype = "fp32"
 
     def compile_for_inference(self) -> "S3Token2Wav":
+        try:
+            import torch_tensorrt  # noqa
+        except ImportError:
+            pass
+
+        import torch._dynamo
+        backend = "tensorrt" if "tensorrt" in torch._dynamo.list_backends() else "inductor"
+
         self.flow.encoder = torch.compile(
             self.flow.encoder,
             mode="default",  # other modes are broken
-            backend="tensorrt",
+            backend=backend,
             dynamic=True,
         )
         self.flow.decoder.estimator = torch.compile(
             self.flow.decoder.estimator,
             mode="default",  # other modes are broken
-            backend="tensorrt",
+            backend=backend,
             dynamic=True,
         )
         self.mel2wav.compile_for_inference()
