@@ -26,21 +26,19 @@ Repository = "https://github.com/resemble-ai/chatterbox"
 
 [project.optional-dependencies]
 cpu = [
-    "torch==2.11.0",
+    "torch==2.12.1",
     "torchaudio==2.11.0",
     "torchcodec==0.14.0",
 ]
 
 cuda = [
-    "nvidia-modelopt>=0.44.0; sys_platform == 'linux' or sys_platform == 'win32'",
     "torch==2.12.1; sys_platform == 'linux' or sys_platform == 'win32'",
-    "torch-tensorrt==2.12.1; sys_platform == 'linux' or sys_platform == 'win32'",
     "torchaudio==2.11.0; sys_platform == 'linux' or sys_platform == 'win32'",
     "torchcodec==0.14.0; sys_platform == 'linux' or sys_platform == 'win32'",
 ]
 
 rocm = [
-    "torch==2.11.0; sys_platform == 'linux'",
+    "torch==2.12.1; sys_platform == 'linux'",
     "torchaudio==2.11.0; sys_platform == 'linux'",
     "torchcodec==0.14.0; sys_platform == 'linux'",
     "pytorch-triton-rocm; sys_platform == 'linux'",

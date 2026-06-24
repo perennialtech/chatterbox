@@ -35,11 +35,11 @@ dependencies = [
     { name = "psutil" },
     { name = "pyyaml" },
     { name = "safetensors" },
-    { name = "torch", version = "2.11.0", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform == 'darwin' and extra == 'extra-14-chatterbox-tts-cpu') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
-    { name = "torch", version = "2.11.0", source = { registry = "https://pypi.org/simple" }, marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra != 'extra-14-chatterbox-tts-rocm')" },
-    { name = "torch", version = "2.11.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform != 'darwin' and extra == 'extra-14-chatterbox-tts-cpu') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
-    { name = "torch", version = "2.11.0+rocm7.2", source = { registry = "https://download.pytorch.org/whl/rocm7.2" }, marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra != 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
+    { name = "torch", version = "2.12.1", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform == 'darwin' and extra == 'extra-14-chatterbox-tts-cpu') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
+    { name = "torch", version = "2.12.1", source = { registry = "https://pypi.org/simple" }, marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra != 'extra-14-chatterbox-tts-rocm')" },
+    { name = "torch", version = "2.12.1+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform != 'darwin' and extra == 'extra-14-chatterbox-tts-cpu') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
     { name = "torch", version = "2.12.1+cu130", source = { registry = "https://download.pytorch.org/whl/cu130" }, marker = "extra == 'extra-14-chatterbox-tts-cuda' or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
+    { name = "torch", version = "2.12.1+rocm7.2", source = { registry = "https://download.pytorch.org/whl/rocm7.2" }, marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra != 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/8d/75/94cd5d389649578aca399e5aa822637eec18319a1dadc400ffe2f9a7493f/accelerate-1.14.0.tar.gz", hash = "sha256:41b9c4377a54e0b460a959b0defa1b736e4ca0a2373252d9a539964c2afe3c8d", size = 412167, upload-time = "2026-06-11T13:45:52.326Z" }
 wheels = [
@@ -93,15 +93,6 @@ wheels = [
 ]
 
 [[package]]
-name = "attrs"
-version = "26.1.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/9a/8e/82a0fe20a541c03148528be8cac2408564a6c9a0cc7e9171802bc1d26985/attrs-26.1.0.tar.gz", hash = "sha256:d03ceb89cb322a8fd706d4fb91940737b6642aa36998fe130a9bc96c985eff32", size = 952055, upload-time = "2026-03-19T14:22:25.026Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/64/b4/17d4b0b2a2dc85a6df63d1157e028ed19f90d4cd97c36717afef2bc2f395/attrs-26.1.0-py3-none-any.whl", hash = "sha256:c647aa4a12dfbad9333ca4e71fe62ddc36f4e63b2d260a37a8b83d2f043ac309", size = 67548, upload-time = "2026-03-19T14:22:23.645Z" },
-]
-
-[[package]]
 name = "audioread"
 version = "3.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -141,11 +132,11 @@ dependencies = [
     { name = "numpy" },
     { name = "scipy" },
     { name = "soundfile" },
-    { name = "torch", version = "2.11.0", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform == 'darwin' and extra == 'extra-14-chatterbox-tts-cpu') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
-    { name = "torch", version = "2.11.0", source = { registry = "https://pypi.org/simple" }, marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra != 'extra-14-chatterbox-tts-rocm')" },
-    { name = "torch", version = "2.11.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform != 'darwin' and extra == 'extra-14-chatterbox-tts-cpu') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
-    { name = "torch", version = "2.11.0+rocm7.2", source = { registry = "https://download.pytorch.org/whl/rocm7.2" }, marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra != 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
+    { name = "torch", version = "2.12.1", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform == 'darwin' and extra == 'extra-14-chatterbox-tts-cpu') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
+    { name = "torch", version = "2.12.1", source = { registry = "https://pypi.org/simple" }, marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra != 'extra-14-chatterbox-tts-rocm')" },
+    { name = "torch", version = "2.12.1+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform != 'darwin' and extra == 'extra-14-chatterbox-tts-cpu') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
     { name = "torch", version = "2.12.1+cu130", source = { registry = "https://download.pytorch.org/whl/cu130" }, marker = "extra == 'extra-14-chatterbox-tts-cuda' or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
+    { name = "torch", version = "2.12.1+rocm7.2", source = { registry = "https://download.pytorch.org/whl/rocm7.2" }, marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra != 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
 ]
 wheels = [
     { url = "https://github.com/perennialtech/BigVGAN/releases/download/v2026.6.24/bigvgan-2026.6.24-cp311-cp311-linux_x86_64.whl", hash = "sha256:7dda5f69cbc9ce96b6cf6bf42b30c363ceee4021d0ec76f149d43e5f1c18b9bb" },
@@ -207,19 +198,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/0d/1a/23fcfee1c324fd48a63d7ebf4bac3a4115bdb1b00e600f80f727d850b1ae/brotli-1.2.0-cp311-cp311-musllinux_1_2_x86_64.whl", hash = "sha256:844a8ceb8483fefafc412f85c14f2aae2fb69567bf2a0de53cdb88b73e7c43ae", size = 1493505, upload-time = "2025-11-05T18:38:20.913Z" },
     { url = "https://files.pythonhosted.org/packages/36/e5/12904bbd36afeef53d45a84881a4810ae8810ad7e328a971ebbfd760a0b3/brotli-1.2.0-cp311-cp311-win32.whl", hash = "sha256:aa47441fa3026543513139cb8926a92a8e305ee9c71a6209ef7a97d91640ea03", size = 334451, upload-time = "2025-11-05T18:38:21.94Z" },
     { url = "https://files.pythonhosted.org/packages/02/8b/ecb5761b989629a4758c394b9301607a5880de61ee2ee5fe104b87149ebc/brotli-1.2.0-cp311-cp311-win_amd64.whl", hash = "sha256:022426c9e99fd65d9475dce5c195526f04bb8be8907607e27e747893f6ee3e24", size = 369035, upload-time = "2025-11-05T18:38:22.941Z" },
-]
-
-[[package]]
-name = "cattrs"
-version = "26.1.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "attrs" },
-    { name = "typing-extensions" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/a0/ec/ba18945e7d6e55a58364d9fb2e46049c1c2998b3d805f19b703f14e81057/cattrs-26.1.0.tar.gz", hash = "sha256:fa239e0f0ec0715ba34852ce813986dfed1e12117e209b816ab87401271cdd40", size = 495672, upload-time = "2026-02-18T22:15:19.406Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/80/56/60547f7801b97c67e97491dc3d9ade9fbccbd0325058fd3dfcb2f5d98d90/cattrs-26.1.0-py3-none-any.whl", hash = "sha256:d1e0804c42639494d469d08d4f26d6b9de9b8ab26b446db7b5f8c2e97f7c3096", size = 73054, upload-time = "2026-02-18T22:15:17.958Z" },
 ]
 
 [[package]]
@@ -307,17 +285,15 @@ dependencies = [
 
 [package.optional-dependencies]
 cpu = [
-    { name = "torch", version = "2.11.0", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform == 'darwin' and extra == 'extra-14-chatterbox-tts-cpu') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
-    { name = "torch", version = "2.11.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform != 'darwin' and extra == 'extra-14-chatterbox-tts-cpu') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
+    { name = "torch", version = "2.12.1", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform == 'darwin' and extra == 'extra-14-chatterbox-tts-cpu') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
+    { name = "torch", version = "2.12.1+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform != 'darwin' and extra == 'extra-14-chatterbox-tts-cpu') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
     { name = "torchaudio", version = "2.11.0", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform == 'darwin' and extra == 'extra-14-chatterbox-tts-cpu') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
     { name = "torchaudio", version = "2.11.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform != 'darwin' and extra == 'extra-14-chatterbox-tts-cpu') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
     { name = "torchcodec", version = "0.14.0", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform == 'darwin' and extra == 'extra-14-chatterbox-tts-cpu') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
     { name = "torchcodec", version = "0.14.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform != 'darwin' and extra == 'extra-14-chatterbox-tts-cpu') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
 ]
 cuda = [
-    { name = "nvidia-modelopt", marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
     { name = "torch", version = "2.12.1+cu130", source = { registry = "https://download.pytorch.org/whl/cu130" }, marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
-    { name = "torch-tensorrt", marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
     { name = "torchaudio", version = "2.11.0+cu130", source = { registry = "https://download.pytorch.org/whl/cu130" }, marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
     { name = "torchcodec", version = "0.14.0", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
     { name = "torchcodec", version = "0.14.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform == 'linux' and extra == 'extra-14-chatterbox-tts-cuda') or (sys_platform == 'win32' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
@@ -327,7 +303,7 @@ flowhigh = [
 ]
 rocm = [
     { name = "pytorch-triton-rocm", marker = "sys_platform == 'linux'" },
-    { name = "torch", version = "2.11.0+rocm7.2", source = { registry = "https://download.pytorch.org/whl/rocm7.2" }, marker = "sys_platform == 'linux'" },
+    { name = "torch", version = "2.12.1+rocm7.2", source = { registry = "https://download.pytorch.org/whl/rocm7.2" }, marker = "sys_platform == 'linux'" },
     { name = "torchaudio", version = "2.11.0+rocm7.2", source = { registry = "https://download.pytorch.org/whl/rocm7.2" }, marker = "sys_platform == 'linux'" },
     { name = "torchcodec", version = "0.14.0", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
     { name = "torchcodec", version = "0.14.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform == 'linux' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
@@ -354,16 +330,14 @@ requires-dist = [
     { name = "huggingface-hub", specifier = ">=1.20" },
     { name = "librosa", specifier = ">=0.11" },
     { name = "numpy", specifier = ">=1.24" },
-    { name = "nvidia-modelopt", marker = "(sys_platform == 'linux' and extra == 'cuda') or (sys_platform == 'win32' and extra == 'cuda')", specifier = ">=0.44.0" },
     { name = "omegaconf", specifier = ">=2.3" },
     { name = "peft", specifier = ">=0.19" },
     { name = "pytorch-triton-rocm", marker = "sys_platform == 'linux' and extra == 'rocm'", index = "https://download.pytorch.org/whl/rocm7.2", conflict = { package = "chatterbox-tts", extra = "rocm" } },
     { name = "s3tokenizer", specifier = ">=0.3" },
     { name = "safetensors", specifier = ">=0.8" },
     { name = "torch", marker = "(sys_platform == 'linux' and extra == 'cuda') or (sys_platform == 'win32' and extra == 'cuda')", specifier = "==2.12.1", index = "https://download.pytorch.org/whl/cu130", conflict = { package = "chatterbox-tts", extra = "cuda" } },
-    { name = "torch", marker = "sys_platform == 'linux' and extra == 'rocm'", specifier = "==2.11.0", index = "https://download.pytorch.org/whl/rocm7.2", conflict = { package = "chatterbox-tts", extra = "rocm" } },
-    { name = "torch", marker = "extra == 'cpu'", specifier = "==2.11.0", index = "https://download.pytorch.org/whl/cpu", conflict = { package = "chatterbox-tts", extra = "cpu" } },
-    { name = "torch-tensorrt", marker = "(sys_platform == 'linux' and extra == 'cuda') or (sys_platform == 'win32' and extra == 'cuda')", specifier = "==2.12.1" },
+    { name = "torch", marker = "sys_platform == 'linux' and extra == 'rocm'", specifier = "==2.12.1", index = "https://download.pytorch.org/whl/rocm7.2", conflict = { package = "chatterbox-tts", extra = "rocm" } },
+    { name = "torch", marker = "extra == 'cpu'", specifier = "==2.12.1", index = "https://download.pytorch.org/whl/cpu", conflict = { package = "chatterbox-tts", extra = "cpu" } },
     { name = "torchaudio", marker = "(sys_platform == 'linux' and extra == 'cuda') or (sys_platform == 'win32' and extra == 'cuda')", specifier = "==2.11.0", index = "https://download.pytorch.org/whl/cu130", conflict = { package = "chatterbox-tts", extra = "cuda" } },
     { name = "torchaudio", marker = "sys_platform == 'linux' and extra == 'rocm'", specifier = "==2.11.0", index = "https://download.pytorch.org/whl/rocm7.2", conflict = { package = "chatterbox-tts", extra = "rocm" } },
     { name = "torchaudio", marker = "extra == 'cpu'", specifier = "==2.11.0", index = "https://download.pytorch.org/whl/cpu", conflict = { package = "chatterbox-tts", extra = "cpu" } },
@@ -409,36 +383,15 @@ version = "0.3.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "einops" },
-    { name = "torch", version = "2.11.0", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform == 'darwin' and extra == 'extra-14-chatterbox-tts-cpu') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
-    { name = "torch", version = "2.11.0", source = { registry = "https://pypi.org/simple" }, marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra != 'extra-14-chatterbox-tts-rocm')" },
-    { name = "torch", version = "2.11.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform != 'darwin' and extra == 'extra-14-chatterbox-tts-cpu') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
-    { name = "torch", version = "2.11.0+rocm7.2", source = { registry = "https://download.pytorch.org/whl/rocm7.2" }, marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra != 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
+    { name = "torch", version = "2.12.1", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform == 'darwin' and extra == 'extra-14-chatterbox-tts-cpu') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
+    { name = "torch", version = "2.12.1", source = { registry = "https://pypi.org/simple" }, marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra != 'extra-14-chatterbox-tts-rocm')" },
+    { name = "torch", version = "2.12.1+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform != 'darwin' and extra == 'extra-14-chatterbox-tts-cpu') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
     { name = "torch", version = "2.12.1+cu130", source = { registry = "https://download.pytorch.org/whl/cu130" }, marker = "extra == 'extra-14-chatterbox-tts-cuda' or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
+    { name = "torch", version = "2.12.1+rocm7.2", source = { registry = "https://download.pytorch.org/whl/rocm7.2" }, marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra != 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/c0/b2/2859d16fe377f1a5dbd3ba85c68fa0e6deb5605ce86faded85b047f8cbed/conformer-0.3.2.tar.gz", hash = "sha256:32ef34fa461ff32e1c33061025c0f583884f19d2f0aba200234f4e771f777eda", size = 4663, upload-time = "2023-05-17T21:08:48.415Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/3f/7d/714601ab8d790d77d4158af743895fb999216cb02fc6283ab8e54911a887/conformer-0.3.2-py3-none-any.whl", hash = "sha256:b957faa683e9e75061257f77407318428f2ad0fb5262bfc2e9b55fc2fffdfa03", size = 4260, upload-time = "2023-05-17T21:08:42.826Z" },
-]
-
-[[package]]
-name = "coremltools"
-version = "9.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "attrs" },
-    { name = "cattrs" },
-    { name = "numpy" },
-    { name = "packaging" },
-    { name = "protobuf" },
-    { name = "pyaml" },
-    { name = "sympy" },
-    { name = "tqdm" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/79/e6/8cb11a246f61736e75b20488b9c3cf9c208f500c9a3f92d717dbf592348c/coremltools-9.0.tar.gz", hash = "sha256:4ff346b29c31c4b45acd19a20e0f0a1ac65180a96776e62f15bd5c46f4926687", size = 1656978, upload-time = "2025-11-10T21:51:23.855Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/87/ab/d1e06207fd68aab62b1b476fc4ccf1fb52f43fa1816d6ab02f13c38d7c2c/coremltools-9.0-cp311-none-macosx_10_15_x86_64.whl", hash = "sha256:e6e58143c5270c1a37872fef41f8c18c042d22fa38f0ad33b33250007d9e1186", size = 2793255, upload-time = "2025-11-10T21:47:29.351Z" },
-    { url = "https://files.pythonhosted.org/packages/27/b2/8ff944f25c0fc9e5ae9deef1707029784019b78a1df2a7d0b24d581be1a2/coremltools-9.0-cp311-none-macosx_11_0_arm64.whl", hash = "sha256:0e079fea3f13f96a30587c9f7375796ff61cad53f703bde53c56fbf1374813ed", size = 2767374, upload-time = "2025-11-10T21:47:46.002Z" },
-    { url = "https://files.pythonhosted.org/packages/54/fe/58fc966635ebe3b92b100fbec875d173addab62454c4438457fa3f427d1c/coremltools-9.0-cp311-none-manylinux1_x86_64.whl", hash = "sha256:e9080254a4b9d286e168f3b1bc8616edd5d48ab664c17870b85e496629a00e81", size = 2309379, upload-time = "2025-11-10T21:48:02.81Z" },
 ]
 
 [[package]]
@@ -471,9 +424,6 @@ wheels = [
 ]
 
 [package.optional-dependencies]
-cublas = [
-    { name = "nvidia-cublas", version = "13.1.0.3", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra != 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra != 'extra-14-chatterbox-tts-rocm') or (sys_platform == 'win32' and extra != 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra != 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
-]
 cudart = [
     { name = "nvidia-cuda-runtime", marker = "(sys_platform == 'linux' and extra == 'extra-14-chatterbox-tts-cuda') or (sys_platform == 'win32' and extra == 'extra-14-chatterbox-tts-cuda') or (sys_platform == 'linux' and extra != 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-rocm') or (sys_platform == 'win32' and extra != 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
 ]
@@ -544,64 +494,12 @@ wheels = [
 ]
 
 [[package]]
-name = "dllist"
-version = "2.0.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/b2/ce/dda13123329d55555de67b414206f14f4f80b96cb273ec59d76d5ce6b5c3/dllist-2.0.0.tar.gz", hash = "sha256:7413ba963aaa1b2b6827eadd7908e40e635b19108ab431667485eaf75c492bf4", size = 5369, upload-time = "2025-02-10T15:41:07.637Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/7b/07/a212ca4cfe56fa35c8315307e37df218e5946c726a792b5c7a795b245c10/dllist-2.0.0-py3-none-any.whl", hash = "sha256:cd307b1a91bc46fae084f8c817d79be7e34951b149a2fd69004772e03573bfb3", size = 5721, upload-time = "2025-02-10T15:41:06.045Z" },
-]
-
-[[package]]
 name = "einops"
 version = "0.8.2"
 source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/2c/77/850bef8d72ffb9219f0b1aac23fbc1bf7d038ee6ea666f331fa273031aa2/einops-0.8.2.tar.gz", hash = "sha256:609da665570e5e265e27283aab09e7f279ade90c4f01bcfca111f3d3e13f2827", size = 56261, upload-time = "2026-01-26T04:13:17.638Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/2a/09/f8d8f8f31e4483c10a906437b4ce31bdf3d6d417b73fe33f1a8b59e34228/einops-0.8.2-py3-none-any.whl", hash = "sha256:54058201ac7087911181bfec4af6091bb59380360f069276601256a76af08193", size = 65638, upload-time = "2026-01-26T04:13:18.546Z" },
-]
-
-[[package]]
-name = "executorch"
-version = "1.3.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "coremltools", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
-    { name = "expecttest" },
-    { name = "flatbuffers" },
-    { name = "hydra-core" },
-    { name = "hypothesis" },
-    { name = "kgb" },
-    { name = "mpmath" },
-    { name = "numpy" },
-    { name = "omegaconf" },
-    { name = "packaging" },
-    { name = "pandas" },
-    { name = "parameterized" },
-    { name = "pytorch-tokenizers" },
-    { name = "pyyaml" },
-    { name = "ruamel-yaml" },
-    { name = "scikit-learn", version = "1.7.1", source = { registry = "https://pypi.org/simple" } },
-    { name = "sympy" },
-    { name = "tabulate" },
-    { name = "torch", version = "2.12.1+cu130", source = { registry = "https://download.pytorch.org/whl/cu130" } },
-    { name = "torchao" },
-    { name = "typing-extensions" },
-]
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/03/56/f88ab668d82c2df18169b12eb23449795fbd8918d59b752971059333906e/executorch-1.3.1-cp311-cp311-macosx_14_0_arm64.whl", hash = "sha256:feb471031b219f2ca6a5fedcb5c59b58e3df6831cc0c395783a4d2a86f40a430", size = 15615779, upload-time = "2026-05-29T17:04:00.037Z" },
-    { url = "https://files.pythonhosted.org/packages/f0/c1/3931e85f72ed4ae60fa9cd6e750291d554e4053170f567f03b7d9e2d8a57/executorch-1.3.1-cp311-cp311-manylinux_2_28_aarch64.whl", hash = "sha256:93e9acba2230c7feb48de6925db1057f1237c5ea642047c8b4dc0cd18a0d83af", size = 14626201, upload-time = "2026-05-29T17:04:02.939Z" },
-    { url = "https://files.pythonhosted.org/packages/ad/d5/d90a2038da338727f528f19c7a31177f1be026d3ceb9f32d41cab9f4946c/executorch-1.3.1-cp311-cp311-manylinux_2_28_x86_64.whl", hash = "sha256:ca69888e7281445c3fe830b259f5e80da4d7116d91fe8d4afb82c0f94ab77238", size = 16009684, upload-time = "2026-05-29T17:04:05.482Z" },
-    { url = "https://files.pythonhosted.org/packages/8d/48/b762bb1628735da90e7025f8dcd62979d75b99217ba75a6eebb547da682f/executorch-1.3.1-cp311-cp311-win_amd64.whl", hash = "sha256:bf6ff156c581df13246d10d698bbd7d6a43f1953ecc23ae5cb65211b220f2bc4", size = 11496037, upload-time = "2026-05-29T17:04:07.971Z" },
-]
-
-[[package]]
-name = "expecttest"
-version = "0.3.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/22/0a/8868083a2b25c28811a88da6a4cb561f84feab0c9fa953c45820a3eb3a65/expecttest-0.3.0.tar.gz", hash = "sha256:6e8512fb86523ada1f94fd1b14e280f924e379064bb8a29ee399950e513eeccd", size = 7742, upload-time = "2024-12-11T15:32:15.72Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/27/fb/deeefea1ea549273817ca7bed3db2f39cc238a75a745a20e3651619f7335/expecttest-0.3.0-py3-none-any.whl", hash = "sha256:60f88103086e1754240b42175f622be83b6ffeac419434691ee5a5be819d0544", size = 8238, upload-time = "2024-12-11T15:32:13.523Z" },
 ]
 
 [[package]]
@@ -639,14 +537,6 @@ wheels = [
 ]
 
 [[package]]
-name = "flatbuffers"
-version = "25.12.19"
-source = { registry = "https://pypi.org/simple" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/e8/2d/d2a548598be01649e2d46231d151a6c56d10b964d94043a335ae56ea2d92/flatbuffers-25.12.19-py2.py3-none-any.whl", hash = "sha256:7634f50c427838bb021c2d66a3d1168e9d199b0607e6329399f04846d42e20b4", size = 26661, upload-time = "2025-12-19T23:16:13.622Z" },
-]
-
-[[package]]
 name = "flowhigh"
 version = "0.1"
 source = { git = "https://github.com/perennialtech/flowhigh#30fd3ef1bf685363721be3853dd88af3fc056f6c" }
@@ -681,11 +571,11 @@ source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "einops" },
     { name = "rotary-embedding-torch" },
-    { name = "torch", version = "2.11.0", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform == 'darwin' and extra == 'extra-14-chatterbox-tts-cpu') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
-    { name = "torch", version = "2.11.0", source = { registry = "https://pypi.org/simple" }, marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra != 'extra-14-chatterbox-tts-rocm')" },
-    { name = "torch", version = "2.11.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform != 'darwin' and extra == 'extra-14-chatterbox-tts-cpu') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
-    { name = "torch", version = "2.11.0+rocm7.2", source = { registry = "https://download.pytorch.org/whl/rocm7.2" }, marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra != 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
+    { name = "torch", version = "2.12.1", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform == 'darwin' and extra == 'extra-14-chatterbox-tts-cpu') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
+    { name = "torch", version = "2.12.1", source = { registry = "https://pypi.org/simple" }, marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra != 'extra-14-chatterbox-tts-rocm')" },
+    { name = "torch", version = "2.12.1+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform != 'darwin' and extra == 'extra-14-chatterbox-tts-cpu') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
     { name = "torch", version = "2.12.1+cu130", source = { registry = "https://download.pytorch.org/whl/cu130" }, marker = "extra == 'extra-14-chatterbox-tts-cuda' or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
+    { name = "torch", version = "2.12.1+rocm7.2", source = { registry = "https://download.pytorch.org/whl/rocm7.2" }, marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra != 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/eb/9f/97e83f5951ae7df137b322a0130e665ff085ec250b1a9c320b043afed812/gateloop_transformer-0.2.5.tar.gz", hash = "sha256:9559dc3a6b15f4640f2bb7b611010030da126ada5ced784e7c4ce84afa090355", size = 11057, upload-time = "2024-06-18T21:08:18.501Z" }
 wheels = [
@@ -831,32 +721,6 @@ wheels = [
 ]
 
 [[package]]
-name = "hydra-core"
-version = "1.3.3"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "antlr4-python3-runtime" },
-    { name = "omegaconf" },
-    { name = "packaging" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/0d/0b/7c0d941311aadc6479ec01767edba9c8a07db1452685de3567ed3058d0c9/hydra_core-1.3.3.tar.gz", hash = "sha256:b7477ee21f08b62f71bf0126d44695c048dc7e9c0cc79e2d593b707cb1e44048", size = 3262532, upload-time = "2026-06-11T05:54:26.835Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/e5/57/4e39f85347f77144d2ad12e87d5df8fb8f17023f9bd9e8c6e903a128382c/hydra_core-1.3.3-py3-none-any.whl", hash = "sha256:cf349fc393f486f250e5825592c3d0a50c0af3effd726cf8dd5b637a7cb464e3", size = 154706, upload-time = "2026-06-11T05:54:24.917Z" },
-]
-
-[[package]]
-name = "hypothesis"
-version = "6.155.7"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "sortedcontainers" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/f2/55/983b6bc1b6b343a5ff6020388f9d0680ab477be59a731517e6c4a0387100/hypothesis-6.155.7.tar.gz", hash = "sha256:d8d6091753d0669db3c90c5e5b346cb37c72f3dd9378c8413acb1fd5da63f7ea", size = 478291, upload-time = "2026-06-21T05:54:31.573Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/01/f8/c151e196d4f397ed9436a071e52666c70a2f021138dea828b0a461e245db/hypothesis-6.155.7-py3-none-any.whl", hash = "sha256:9f634bdb1f9e9b8ab6ba09431cf2deedb750c96978125a6fb3c5a0f6c6db4131", size = 544762, upload-time = "2026-06-21T05:54:29.506Z" },
-]
-
-[[package]]
 name = "identify"
 version = "2.6.19"
 source = { registry = "https://pypi.org/simple" }
@@ -917,15 +781,6 @@ wheels = [
 ]
 
 [[package]]
-name = "kgb"
-version = "7.3"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/e8/00/9e56dee65ec791a92348fb54e8ced08c4c4db494b0f58cfb34737d087fb4/kgb-7.3.tar.gz", hash = "sha256:b8af7e79cb8b0df5a2ec596010b8e5d014845cfaa9203577b85b99d4df192927", size = 62922, upload-time = "2025-12-11T23:56:24.911Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/eb/d6/1c81a1292fc50ad93d0b145f1c241ecb7d541fba4dcec7166e2e1d99f9cd/kgb-7.3-py2.py3-none-any.whl", hash = "sha256:0b300cd6d234a951f60e54ccda78c99a355393d6ae878d3d5925e726ae2f0450", size = 59662, upload-time = "2025-12-11T23:56:23.699Z" },
-]
-
-[[package]]
 name = "lazy-loader"
 version = "0.5"
 source = { registry = "https://pypi.org/simple" }
@@ -950,8 +805,7 @@ dependencies = [
     { name = "numba" },
     { name = "numpy" },
     { name = "pooch" },
-    { name = "scikit-learn", version = "1.7.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-14-chatterbox-tts-cuda' or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
-    { name = "scikit-learn", version = "1.9.0", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-14-chatterbox-tts-cpu' or extra != 'extra-14-chatterbox-tts-cuda' or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
+    { name = "scikit-learn" },
     { name = "scipy" },
     { name = "soundfile" },
     { name = "soxr" },
@@ -1086,32 +940,6 @@ wheels = [
 ]
 
 [[package]]
-name = "ninja"
-version = "1.13.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/43/73/79a0b22fc731989c708068427579e840a6cf4e937fe7ae5c5d0b7356ac22/ninja-1.13.0.tar.gz", hash = "sha256:4a40ce995ded54d9dc24f8ea37ff3bf62ad192b547f6c7126e7e25045e76f978", size = 242558, upload-time = "2025-08-11T15:10:19.421Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/3c/74/d02409ed2aa865e051b7edda22ad416a39d81a84980f544f8de717cab133/ninja-1.13.0-py3-none-macosx_10_9_universal2.whl", hash = "sha256:fa2a8bfc62e31b08f83127d1613d10821775a0eb334197154c4d6067b7068ff1", size = 310125, upload-time = "2025-08-11T15:09:50.971Z" },
-    { url = "https://files.pythonhosted.org/packages/8e/de/6e1cd6b84b412ac1ef327b76f0641aeb5dcc01e9d3f9eee0286d0c34fd93/ninja-1.13.0-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:3d00c692fb717fd511abeb44b8c5d00340c36938c12d6538ba989fe764e79630", size = 177467, upload-time = "2025-08-11T15:09:52.767Z" },
-    { url = "https://files.pythonhosted.org/packages/c8/83/49320fb6e58ae3c079381e333575fdbcf1cca3506ee160a2dcce775046fa/ninja-1.13.0-py3-none-manylinux2014_i686.manylinux_2_17_i686.whl", hash = "sha256:be7f478ff9f96a128b599a964fc60a6a87b9fa332ee1bd44fa243ac88d50291c", size = 187834, upload-time = "2025-08-11T15:09:54.115Z" },
-    { url = "https://files.pythonhosted.org/packages/56/c7/ba22748fb59f7f896b609cd3e568d28a0a367a6d953c24c461fe04fc4433/ninja-1.13.0-py3-none-manylinux2014_ppc64le.manylinux_2_17_ppc64le.whl", hash = "sha256:60056592cf495e9a6a4bea3cd178903056ecb0943e4de45a2ea825edb6dc8d3e", size = 202736, upload-time = "2025-08-11T15:09:55.745Z" },
-    { url = "https://files.pythonhosted.org/packages/79/22/d1de07632b78ac8e6b785f41fa9aad7a978ec8c0a1bf15772def36d77aac/ninja-1.13.0-py3-none-manylinux2014_s390x.manylinux_2_17_s390x.whl", hash = "sha256:1c97223cdda0417f414bf864cfb73b72d8777e57ebb279c5f6de368de0062988", size = 179034, upload-time = "2025-08-11T15:09:57.394Z" },
-    { url = "https://files.pythonhosted.org/packages/ed/de/0e6edf44d6a04dabd0318a519125ed0415ce437ad5a1ec9b9be03d9048cf/ninja-1.13.0-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:fb46acf6b93b8dd0322adc3a4945452a4e774b75b91293bafcc7b7f8e6517dfa", size = 180716, upload-time = "2025-08-11T15:09:58.696Z" },
-    { url = "https://files.pythonhosted.org/packages/54/28/938b562f9057aaa4d6bfbeaa05e81899a47aebb3ba6751e36c027a7f5ff7/ninja-1.13.0-py3-none-manylinux_2_28_armv7l.manylinux_2_31_armv7l.whl", hash = "sha256:4be9c1b082d244b1ad7ef41eb8ab088aae8c109a9f3f0b3e56a252d3e00f42c1", size = 146843, upload-time = "2025-08-11T15:10:00.046Z" },
-    { url = "https://files.pythonhosted.org/packages/2a/fb/d06a3838de4f8ab866e44ee52a797b5491df823901c54943b2adb0389fbb/ninja-1.13.0-py3-none-manylinux_2_31_riscv64.whl", hash = "sha256:6739d3352073341ad284246f81339a384eec091d9851a886dfa5b00a6d48b3e2", size = 154402, upload-time = "2025-08-11T15:10:01.657Z" },
-    { url = "https://files.pythonhosted.org/packages/31/bf/0d7808af695ceddc763cf251b84a9892cd7f51622dc8b4c89d5012779f06/ninja-1.13.0-py3-none-musllinux_1_2_aarch64.whl", hash = "sha256:11be2d22027bde06f14c343f01d31446747dbb51e72d00decca2eb99be911e2f", size = 552388, upload-time = "2025-08-11T15:10:03.349Z" },
-    { url = "https://files.pythonhosted.org/packages/9d/70/c99d0c2c809f992752453cce312848abb3b1607e56d4cd1b6cded317351a/ninja-1.13.0-py3-none-musllinux_1_2_armv7l.whl", hash = "sha256:aa45b4037b313c2f698bc13306239b8b93b4680eb47e287773156ac9e9304714", size = 472501, upload-time = "2025-08-11T15:10:04.735Z" },
-    { url = "https://files.pythonhosted.org/packages/9f/43/c217b1153f0e499652f5e0766da8523ce3480f0a951039c7af115e224d55/ninja-1.13.0-py3-none-musllinux_1_2_i686.whl", hash = "sha256:5f8e1e8a1a30835eeb51db05cf5a67151ad37542f5a4af2a438e9490915e5b72", size = 638280, upload-time = "2025-08-11T15:10:06.512Z" },
-    { url = "https://files.pythonhosted.org/packages/8c/45/9151bba2c8d0ae2b6260f71696330590de5850e5574b7b5694dce6023e20/ninja-1.13.0-py3-none-musllinux_1_2_ppc64le.whl", hash = "sha256:3d7d7779d12cb20c6d054c61b702139fd23a7a964ec8f2c823f1ab1b084150db", size = 642420, upload-time = "2025-08-11T15:10:08.35Z" },
-    { url = "https://files.pythonhosted.org/packages/3c/fb/95752eb635bb8ad27d101d71bef15bc63049de23f299e312878fc21cb2da/ninja-1.13.0-py3-none-musllinux_1_2_riscv64.whl", hash = "sha256:d741a5e6754e0bda767e3274a0f0deeef4807f1fec6c0d7921a0244018926ae5", size = 585106, upload-time = "2025-08-11T15:10:09.818Z" },
-    { url = "https://files.pythonhosted.org/packages/c1/31/aa56a1a286703800c0cbe39fb4e82811c277772dc8cd084f442dd8e2938a/ninja-1.13.0-py3-none-musllinux_1_2_s390x.whl", hash = "sha256:e8bad11f8a00b64137e9b315b137d8bb6cbf3086fbdc43bf1f90fd33324d2e96", size = 707138, upload-time = "2025-08-11T15:10:11.366Z" },
-    { url = "https://files.pythonhosted.org/packages/34/6f/5f5a54a1041af945130abdb2b8529cbef0cdcbbf9bcf3f4195378319d29a/ninja-1.13.0-py3-none-musllinux_1_2_x86_64.whl", hash = "sha256:b4f2a072db3c0f944c32793e91532d8948d20d9ab83da9c0c7c15b5768072200", size = 581758, upload-time = "2025-08-11T15:10:13.295Z" },
-    { url = "https://files.pythonhosted.org/packages/95/97/51359c77527d45943fe7a94d00a3843b81162e6c4244b3579fe8fc54cb9c/ninja-1.13.0-py3-none-win32.whl", hash = "sha256:8cfbb80b4a53456ae8a39f90ae3d7a2129f45ea164f43fadfa15dc38c4aef1c9", size = 267201, upload-time = "2025-08-11T15:10:15.158Z" },
-    { url = "https://files.pythonhosted.org/packages/29/45/c0adfbfb0b5895aa18cec400c535b4f7ff3e52536e0403602fc1a23f7de9/ninja-1.13.0-py3-none-win_amd64.whl", hash = "sha256:fb8ee8719f8af47fed145cced4a85f0755dd55d45b2bddaf7431fa89803c5f3e", size = 309975, upload-time = "2025-08-11T15:10:16.697Z" },
-    { url = "https://files.pythonhosted.org/packages/df/93/a7b983643d1253bb223234b5b226e69de6cda02b76cdca7770f684b795f5/ninja-1.13.0-py3-none-win_arm64.whl", hash = "sha256:3c0b40b1f0bba764644385319028650087b4c1b18cdfa6f45cb39a3669b81aa9", size = 290806, upload-time = "2025-08-11T15:10:18.018Z" },
-]
-
-[[package]]
 name = "nodeenv"
 version = "1.10.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1180,26 +1008,10 @@ wheels = [
 
 [[package]]
 name = "nvidia-cublas"
-version = "13.1.0.3"
-source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "sys_platform != 'emscripten' and sys_platform != 'win32'",
-]
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/e1/a5/fce49e2ae977e0ccc084e5adafceb4f0ac0c8333cb6863501618a7277f67/nvidia_cublas-13.1.0.3-py3-none-manylinux_2_27_aarch64.whl", hash = "sha256:c86fc7f7ae36d7528288c5d88098edcb7b02c633d262e7ddbb86b0ad91be5df2", size = 542851226, upload-time = "2025-10-09T08:59:04.818Z" },
-    { url = "https://files.pythonhosted.org/packages/e7/44/423ac00af4dd95a5aeb27207e2c0d9b7118702149bf4704c3ddb55bb7429/nvidia_cublas-13.1.0.3-py3-none-manylinux_2_27_x86_64.whl", hash = "sha256:ee8722c1f0145ab246bccb9e452153b5e0515fd094c3678df50b2a0888b8b171", size = 423133236, upload-time = "2025-10-09T08:59:32.536Z" },
-    { url = "https://files.pythonhosted.org/packages/10/f5/f50bc3f5c2bb57ab8f5b4d78bc1146b57810d42cb8fcb28cbe2e14050376/nvidia_cublas-13.1.0.3-py3-none-win_amd64.whl", hash = "sha256:2a3b94a37def342471c59fad7856caee4926809a72dd5270155d6a31b5b277be", size = 404355960, upload-time = "2025-10-09T09:07:00.987Z" },
-]
-
-[[package]]
-name = "nvidia-cublas"
 version = "13.1.1.3"
 source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32'",
-]
 dependencies = [
-    { name = "nvidia-cuda-nvrtc", marker = "extra == 'extra-14-chatterbox-tts-cuda' or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
+    { name = "nvidia-cuda-nvrtc" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a7/a1/0bd24ee8c8d03adac032fd2909426a00c88f8c57961b1277ded97f91119f/nvidia_cublas-13.1.1.3-py3-none-manylinux_2_27_aarch64.whl", hash = "sha256:b7a210458267ac818974c53038fbec2e969d5c99f305ab15c72522fa9f001dd5", size = 542848918, upload-time = "2026-04-08T18:46:22.985Z" },
@@ -1239,29 +1051,10 @@ wheels = [
 
 [[package]]
 name = "nvidia-cudnn-cu13"
-version = "9.19.0.56"
-source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "sys_platform != 'emscripten' and sys_platform != 'win32'",
-]
-dependencies = [
-    { name = "nvidia-cublas", version = "13.1.0.3", source = { registry = "https://pypi.org/simple" }, marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra != 'extra-14-chatterbox-tts-rocm')" },
-]
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/f1/84/26025437c1e6b61a707442184fa0c03d083b661adf3a3eecfd6d21677740/nvidia_cudnn_cu13-9.19.0.56-py3-none-manylinux_2_27_aarch64.whl", hash = "sha256:6ed29ffaee1176c612daf442e4dd6cfeb6a0caa43ddcbeb59da94953030b1be4", size = 433781201, upload-time = "2026-02-03T20:40:53.805Z" },
-    { url = "https://files.pythonhosted.org/packages/a3/22/0b4b932655d17a6da1b92fa92ab12844b053bb2ac2475e179ba6f043da1e/nvidia_cudnn_cu13-9.19.0.56-py3-none-manylinux_2_27_x86_64.whl", hash = "sha256:d20e1734305e9d68889a96e3f35094d733ff1f83932ebe462753973e53a572bf", size = 366066321, upload-time = "2026-02-03T20:44:52.837Z" },
-    { url = "https://files.pythonhosted.org/packages/91/a2/f020386683ee9ab2c9a9f7f79290d9b0d07f7241de54dc746af2abd188d2/nvidia_cudnn_cu13-9.19.0.56-py3-none-win_amd64.whl", hash = "sha256:40d8c375005bcb01495f8edf375230b203a411a0c05fb6dc92a3781edcb23eac", size = 350547366, upload-time = "2026-02-03T20:50:49.563Z" },
-]
-
-[[package]]
-name = "nvidia-cudnn-cu13"
 version = "9.20.0.48"
 source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32'",
-]
 dependencies = [
-    { name = "nvidia-cublas", version = "13.1.1.3", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-14-chatterbox-tts-cuda' or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
+    { name = "nvidia-cublas" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/56/c5/83384d846b2fd17c44bd499b36c75a45ed4f095fbbb2252294e89cea5c5c/nvidia_cudnn_cu13-9.20.0.48-py3-none-manylinux_2_27_aarch64.whl", hash = "sha256:e31454ae00094b0c55319d9d15b6fa2fc50a9e1c0f5c8c80fb75258234e731e1", size = 444574296, upload-time = "2026-03-09T19:28:27.751Z" },
@@ -1306,8 +1099,7 @@ name = "nvidia-cusolver"
 version = "12.0.4.66"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "nvidia-cublas", version = "13.1.0.3", source = { registry = "https://pypi.org/simple" }, marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra != 'extra-14-chatterbox-tts-rocm')" },
-    { name = "nvidia-cublas", version = "13.1.1.3", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'darwin' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
+    { name = "nvidia-cublas", marker = "(sys_platform != 'darwin' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra != 'extra-14-chatterbox-tts-rocm')" },
     { name = "nvidia-cusparse", marker = "(sys_platform != 'darwin' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra != 'extra-14-chatterbox-tts-rocm')" },
     { name = "nvidia-nvjitlink", marker = "(sys_platform != 'darwin' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra != 'extra-14-chatterbox-tts-rocm')" },
 ]
@@ -1332,24 +1124,8 @@ wheels = [
 
 [[package]]
 name = "nvidia-cusparselt-cu13"
-version = "0.8.0"
-source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "sys_platform != 'emscripten' and sys_platform != 'win32'",
-]
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/46/10/8dcd1175260706a2fc92a16a52e306b71d4c1ea0b0cc4a9484183399818a/nvidia_cusparselt_cu13-0.8.0-py3-none-manylinux2014_aarch64.whl", hash = "sha256:400c6ed1cf6780fc6efedd64ec9f1345871767e6a1a0a552a1ea0578117ea77c", size = 220791277, upload-time = "2025-08-13T19:22:40.982Z" },
-    { url = "https://files.pythonhosted.org/packages/fd/53/43b0d71f4e702fa9733f8b4571fdca50a8813f1e450b656c239beff12315/nvidia_cusparselt_cu13-0.8.0-py3-none-manylinux2014_x86_64.whl", hash = "sha256:25e30a8a7323935d4ad0340b95a0b69926eee755767e8e0b1cf8dd85b197d3fd", size = 169884119, upload-time = "2025-08-13T19:23:41.967Z" },
-    { url = "https://files.pythonhosted.org/packages/57/de/8f0578928b9b1246d7b1324db0528e6b9f9fb54496a49f40bf71f09f1a27/nvidia_cusparselt_cu13-0.8.0-py3-none-win_amd64.whl", hash = "sha256:e80212ed7b1afc97102fbb2b5c82487aa73f6a0edfa6d26c5a152593e520bb8f", size = 156459710, upload-time = "2025-08-13T19:24:18.043Z" },
-]
-
-[[package]]
-name = "nvidia-cusparselt-cu13"
 version = "0.8.1"
 source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32'",
-]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/46/e1/cdc1797eadf82d3a9a575a19b33fdc871a97edbec42c00b5b5e914f4aff4/nvidia_cusparselt_cu13-0.8.1-py3-none-manylinux2014_aarch64.whl", hash = "sha256:4dca476c50bf4780d46cd0bfbd82e2bc10a08e4fef7950917ce8d7578d22a23f", size = 221051344, upload-time = "2025-09-05T18:49:51.289Z" },
     { url = "https://files.pythonhosted.org/packages/34/7d/2661f2fb3ac4302f3a246f5fc030213ac60c1fe0bce84f9783dbd831dbb7/nvidia_cusparselt_cu13-0.8.1-py3-none-manylinux2014_x86_64.whl", hash = "sha256:786ce87568c303fadb5afcc7102d454cd3040d75f6f8626f5db460d1871f4dd0", size = 170148586, upload-time = "2025-09-05T18:50:50.248Z" },
@@ -1357,58 +1133,9 @@ wheels = [
 ]
 
 [[package]]
-name = "nvidia-ml-py"
-version = "13.610.43"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/f0/b5/a8fbc356f768fa5c9cfd646668fd7d34bf55bdd1c6e20754642a64d930d4/nvidia_ml_py-13.610.43.tar.gz", hash = "sha256:65437eb73d68d0c62c931ca4d45038472faff03bd0b8729abba4b899f70d60f2", size = 52109, upload-time = "2026-06-01T18:54:08.829Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/23/45/caa600acfab94560807a20a64b5830d2cd3c3202b7f1328644d70b7d6bd8/nvidia_ml_py-13.610.43-py3-none-any.whl", hash = "sha256:f13c72698edef492f985cc225f14faafe68ae065a2e407f45bdf6f4b9b43fde8", size = 53163, upload-time = "2026-06-01T18:54:07.704Z" },
-]
-
-[[package]]
-name = "nvidia-modelopt"
-version = "0.44.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "ninja" },
-    { name = "numpy" },
-    { name = "nvidia-ml-py" },
-    { name = "omegaconf" },
-    { name = "packaging" },
-    { name = "pulp" },
-    { name = "pydantic" },
-    { name = "pyyaml" },
-    { name = "regex" },
-    { name = "rich" },
-    { name = "safetensors" },
-    { name = "scipy" },
-    { name = "setuptools" },
-    { name = "torch", version = "2.12.1+cu130", source = { registry = "https://download.pytorch.org/whl/cu130" } },
-    { name = "tqdm" },
-]
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/83/ab/7e12dd238638624cb9d48904e9205abe16a5b26bdd5f9b91e3357821cf90/nvidia_modelopt-0.44.0-py3-none-any.whl", hash = "sha256:9b54a853dfda161db97a0dfce4d7c24269d1d19966b5e2026094186af897f74d", size = 1604658, upload-time = "2026-05-13T20:47:04.007Z" },
-]
-
-[[package]]
-name = "nvidia-nccl-cu13"
-version = "2.28.9"
-source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "sys_platform != 'emscripten' and sys_platform != 'win32'",
-]
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/39/55/1920646a2e43ffd4fc958536b276197ed740e9e0c54105b4bb3521591fc7/nvidia_nccl_cu13-2.28.9-py3-none-manylinux_2_18_aarch64.whl", hash = "sha256:01c873ba1626b54caa12272ed228dc5b2781545e0ae8ba3f432a8ef1c6d78643", size = 196561677, upload-time = "2025-11-18T05:49:03.45Z" },
-    { url = "https://files.pythonhosted.org/packages/b0/b4/878fefaad5b2bcc6fcf8d474a25e3e3774bc5133e4b58adff4d0bca238bc/nvidia_nccl_cu13-2.28.9-py3-none-manylinux_2_18_x86_64.whl", hash = "sha256:e4553a30f34195f3fa1da02a6da3d6337d28f2003943aa0a3d247bbc25fefc42", size = 196493177, upload-time = "2025-11-18T05:49:17.677Z" },
-]
-
-[[package]]
 name = "nvidia-nccl-cu13"
 version = "2.29.7"
 source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32'",
-]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/72/0d/daf50d44177ee0cbc7ff0a0c91eb5ff676c82be42f9a970bc7597f440c3a/nvidia_nccl_cu13-2.29.7-py3-none-manylinux_2_18_aarch64.whl", hash = "sha256:674a12383e3c38a1bcccae7d4f3633b37852230b6047883cb2f4c2d1b36d9bf5", size = 206014712, upload-time = "2026-03-03T05:34:20.843Z" },
     { url = "https://files.pythonhosted.org/packages/67/f4/58e4e91b6919367c7aafb8e36fce9aad1a3047e536bf7e2fd560927d3a4c/nvidia_nccl_cu13-2.29.7-py3-none-manylinux_2_18_x86_64.whl", hash = "sha256:edd81538446786ec3b73972543e53bb43bcaf0bfc8ef76cb679fcc390ffe136d", size = 205976000, upload-time = "2026-03-03T05:36:24.472Z" },
@@ -1537,15 +1264,6 @@ wheels = [
 ]
 
 [[package]]
-name = "parameterized"
-version = "0.9.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/ea/49/00c0c0cc24ff4266025a53e41336b79adaa5a4ebfad214f433d623f9865e/parameterized-0.9.0.tar.gz", hash = "sha256:7fc905272cefa4f364c1a3429cbbe9c0f98b793988efb5bf90aac80f08db09b1", size = 24351, upload-time = "2023-03-27T02:01:11.592Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/00/2f/804f58f0b856ab3bf21617cccf5b39206e6c4c94c2cd227bde125ea6105f/parameterized-0.9.0-py2.py3-none-any.whl", hash = "sha256:4e0758e3d41bea3bbd05ec14fc2c24736723f243b28d702081aef438c9372b1b", size = 20475, upload-time = "2023-03-27T02:01:09.31Z" },
-]
-
-[[package]]
 name = "pathspec"
 version = "1.1.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1566,11 +1284,11 @@ dependencies = [
     { name = "psutil" },
     { name = "pyyaml" },
     { name = "safetensors" },
-    { name = "torch", version = "2.11.0", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform == 'darwin' and extra == 'extra-14-chatterbox-tts-cpu') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
-    { name = "torch", version = "2.11.0", source = { registry = "https://pypi.org/simple" }, marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra != 'extra-14-chatterbox-tts-rocm')" },
-    { name = "torch", version = "2.11.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform != 'darwin' and extra == 'extra-14-chatterbox-tts-cpu') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
-    { name = "torch", version = "2.11.0+rocm7.2", source = { registry = "https://download.pytorch.org/whl/rocm7.2" }, marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra != 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
+    { name = "torch", version = "2.12.1", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform == 'darwin' and extra == 'extra-14-chatterbox-tts-cpu') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
+    { name = "torch", version = "2.12.1", source = { registry = "https://pypi.org/simple" }, marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra != 'extra-14-chatterbox-tts-rocm')" },
+    { name = "torch", version = "2.12.1+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform != 'darwin' and extra == 'extra-14-chatterbox-tts-cpu') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
     { name = "torch", version = "2.12.1+cu130", source = { registry = "https://download.pytorch.org/whl/cu130" }, marker = "extra == 'extra-14-chatterbox-tts-cuda' or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
+    { name = "torch", version = "2.12.1+rocm7.2", source = { registry = "https://download.pytorch.org/whl/rocm7.2" }, marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra != 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
     { name = "tqdm" },
     { name = "transformers" },
 ]
@@ -1673,27 +1391,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/04/78/0acd37ca84ce3ddffaa92ef0f571e073faa6d8ff1f0559ab1272188ea2be/psutil-7.2.2-cp36-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:b58fabe35e80b264a4e3bb23e6b96f9e45a3df7fb7eed419ac0e5947c61e47cc", size = 148266, upload-time = "2026-01-28T18:15:31.597Z" },
     { url = "https://files.pythonhosted.org/packages/b4/90/e2159492b5426be0c1fef7acba807a03511f97c5f86b3caeda6ad92351a7/psutil-7.2.2-cp37-abi3-win_amd64.whl", hash = "sha256:eb7e81434c8d223ec4a219b5fc1c47d0417b12be7ea866e24fb5ad6e84b3d988", size = 137737, upload-time = "2026-01-28T18:15:33.849Z" },
     { url = "https://files.pythonhosted.org/packages/8c/c7/7bb2e321574b10df20cbde462a94e2b71d05f9bbda251ef27d104668306a/psutil-7.2.2-cp37-abi3-win_arm64.whl", hash = "sha256:8c233660f575a5a89e6d4cb65d9f938126312bca76d8fe087b947b3a1aaac9ee", size = 134617, upload-time = "2026-01-28T18:15:36.514Z" },
-]
-
-[[package]]
-name = "pulp"
-version = "3.3.2"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/4e/70/69be07a67621ad804d6cf347965eb4e0d7786a97330d99c31d735aaa6c5a/pulp-3.3.2.tar.gz", hash = "sha256:d0904700c207ac11e25e3b1213b70eae1d6fb25faa719d75f3f15054901258c0", size = 16305346, upload-time = "2026-05-25T09:41:26.207Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/dd/6e/d674f1dde91c71e2ac19e5e5cf1ee6d5845e3aefecd9c39ed9c4b0c9a696/pulp-3.3.2-py3-none-any.whl", hash = "sha256:631b166f72086971a9597f7a0233ababa99bb8d50a01cd543f7758be5a9f86c0", size = 16391742, upload-time = "2026-05-25T09:41:22.2Z" },
-]
-
-[[package]]
-name = "pyaml"
-version = "26.2.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "pyyaml" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/38/fb/2b9590512a9d7763620d87171c7531d5295678ce96e57393614b91da8998/pyaml-26.2.1.tar.gz", hash = "sha256:489dd82997235d4cfcf76a6287fce2f075487d77a6567c271e8d790583690c68", size = 30653, upload-time = "2026-02-06T13:49:30.769Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/5d/f3/1f8651f23101e6fae41d0d504414c9722b0140bf0fc6acf87ac52e18aa41/pyaml-26.2.1-py3-none-any.whl", hash = "sha256:6261c2f0a2f33245286c794ad6ec234be33a73d2b05427079fd343e2812a87cf", size = 27211, upload-time = "2026-02-06T13:49:29.652Z" },
 ]
 
 [[package]]
@@ -1825,22 +1522,6 @@ wheels = [
 ]
 
 [[package]]
-name = "pytorch-tokenizers"
-version = "1.3.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "sentencepiece" },
-    { name = "tiktoken" },
-    { name = "tokenizers" },
-]
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/ea/19/6bb091d8f0c013a63a425f91c7280b413d512343b8c2466fda562870ef78/pytorch_tokenizers-1.3.0-cp311-cp311-macosx_14_0_arm64.whl", hash = "sha256:1c6808950271cf7b8b775d9a03ac95de72ec4665feb4af50322686a74f415d64", size = 1107082, upload-time = "2026-05-26T16:32:31.459Z" },
-    { url = "https://files.pythonhosted.org/packages/bf/d2/7b3eaa21e53cc654acb62ba09ce991d3fe2c7a6d81af5ecb235773805e57/pytorch_tokenizers-1.3.0-cp311-cp311-manylinux_2_28_aarch64.whl", hash = "sha256:df502a38d183a1ecc1ff6ae438b89c3752fd32ebbfb0df32a388d257e9ba2a28", size = 1443206, upload-time = "2026-05-26T16:32:32.906Z" },
-    { url = "https://files.pythonhosted.org/packages/3d/bd/9c6ad7777f9df2876c139ba289b0028ae6368e9aa53a30543af0081bd9ba/pytorch_tokenizers-1.3.0-cp311-cp311-manylinux_2_28_x86_64.whl", hash = "sha256:c67ac5d90c93bcea620e9fc720cb158a5649cd4faa509de072f2e2255f57d622", size = 1554597, upload-time = "2026-05-26T16:32:34.246Z" },
-    { url = "https://files.pythonhosted.org/packages/98/2f/84bafb973c8f041f860ea8403d4c9aaad4eac22b6950401baab378a7639e/pytorch_tokenizers-1.3.0-cp311-cp311-win_amd64.whl", hash = "sha256:32accf5284a3459ac2a1a0c6661e9dbb949aba5bd37307e6046b5857ba460ba5", size = 849183, upload-time = "2026-05-26T16:32:35.393Z" },
-]
-
-[[package]]
 name = "pytorch-triton-rocm"
 version = "3.5.1"
 source = { registry = "https://download.pytorch.org/whl/rocm7.2" }
@@ -1932,24 +1613,15 @@ version = "0.9.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "einops" },
-    { name = "torch", version = "2.11.0", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform == 'darwin' and extra == 'extra-14-chatterbox-tts-cpu') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
-    { name = "torch", version = "2.11.0", source = { registry = "https://pypi.org/simple" }, marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra != 'extra-14-chatterbox-tts-rocm')" },
-    { name = "torch", version = "2.11.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform != 'darwin' and extra == 'extra-14-chatterbox-tts-cpu') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
-    { name = "torch", version = "2.11.0+rocm7.2", source = { registry = "https://download.pytorch.org/whl/rocm7.2" }, marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra != 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
+    { name = "torch", version = "2.12.1", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform == 'darwin' and extra == 'extra-14-chatterbox-tts-cpu') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
+    { name = "torch", version = "2.12.1", source = { registry = "https://pypi.org/simple" }, marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra != 'extra-14-chatterbox-tts-rocm')" },
+    { name = "torch", version = "2.12.1+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform != 'darwin' and extra == 'extra-14-chatterbox-tts-cpu') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
     { name = "torch", version = "2.12.1+cu130", source = { registry = "https://download.pytorch.org/whl/cu130" }, marker = "extra == 'extra-14-chatterbox-tts-cuda' or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
+    { name = "torch", version = "2.12.1+rocm7.2", source = { registry = "https://download.pytorch.org/whl/rocm7.2" }, marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra != 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/fc/63/776d55b395aed9d2815afc1740056e919691d1be1ceee203d101d33d1674/rotary_embedding_torch-0.9.1.tar.gz", hash = "sha256:f43c39cd9c0aaa17d47e876db89a552a203dd8af35e7980f484ab7ad7ea8bf69", size = 13246, upload-time = "2026-06-20T23:39:14.667Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ea/63/ca681366df98d207876c6ad7761ef6910668c83ec766fd5a70c56b9c3567/rotary_embedding_torch-0.9.1-py3-none-any.whl", hash = "sha256:489ef53e21ab4c4eb35c0c97b551d724f5eea71c2bca39acb8fee8d88b142a76", size = 17423, upload-time = "2026-06-20T23:39:13.427Z" },
-]
-
-[[package]]
-name = "ruamel-yaml"
-version = "0.19.1"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/c7/3b/ebda527b56beb90cb7652cb1c7e4f91f48649fbcd8d2eb2fb6e77cd3329b/ruamel_yaml-0.19.1.tar.gz", hash = "sha256:53eb66cd27849eff968ebf8f0bf61f46cdac2da1d1f3576dd4ccee9b25c31993", size = 142709, upload-time = "2026-01-02T16:50:31.84Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/b8/0c/51f6841f1d84f404f92463fc2b1ba0da357ca1e3db6b7fbda26956c3b82a/ruamel_yaml-0.19.1-py3-none-any.whl", hash = "sha256:27592957fedf6e0b62f281e96effd28043345e0e66001f97683aa9a40c667c93", size = 118102, upload-time = "2026-01-02T16:50:29.201Z" },
 ]
 
 [[package]]
@@ -1986,11 +1658,11 @@ dependencies = [
     { name = "numpy" },
     { name = "onnx" },
     { name = "pre-commit" },
-    { name = "torch", version = "2.11.0", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform == 'darwin' and extra == 'extra-14-chatterbox-tts-cpu') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
-    { name = "torch", version = "2.11.0", source = { registry = "https://pypi.org/simple" }, marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra != 'extra-14-chatterbox-tts-rocm')" },
-    { name = "torch", version = "2.11.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform != 'darwin' and extra == 'extra-14-chatterbox-tts-cpu') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
-    { name = "torch", version = "2.11.0+rocm7.2", source = { registry = "https://download.pytorch.org/whl/rocm7.2" }, marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra != 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
+    { name = "torch", version = "2.12.1", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform == 'darwin' and extra == 'extra-14-chatterbox-tts-cpu') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
+    { name = "torch", version = "2.12.1", source = { registry = "https://pypi.org/simple" }, marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra != 'extra-14-chatterbox-tts-rocm')" },
+    { name = "torch", version = "2.12.1+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform != 'darwin' and extra == 'extra-14-chatterbox-tts-cpu') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
     { name = "torch", version = "2.12.1+cu130", source = { registry = "https://download.pytorch.org/whl/cu130" }, marker = "extra == 'extra-14-chatterbox-tts-cuda' or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
+    { name = "torch", version = "2.12.1+rocm7.2", source = { registry = "https://download.pytorch.org/whl/rocm7.2" }, marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra != 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
     { name = "torchaudio", version = "2.11.0", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform == 'darwin' and extra == 'extra-14-chatterbox-tts-cpu') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
     { name = "torchaudio", version = "2.11.0", source = { registry = "https://pypi.org/simple" }, marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra != 'extra-14-chatterbox-tts-rocm')" },
     { name = "torchaudio", version = "2.11.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform != 'darwin' and extra == 'extra-14-chatterbox-tts-cpu') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
@@ -2041,52 +1713,14 @@ wheels = [
 
 [[package]]
 name = "scikit-learn"
-version = "1.7.1"
-source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "sys_platform == 'win32'",
-    "sys_platform == 'emscripten'",
-    "sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32'",
-    "sys_platform == 'darwin'",
-]
-dependencies = [
-    { name = "joblib", marker = "extra == 'extra-14-chatterbox-tts-cuda' or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
-    { name = "numpy", marker = "extra == 'extra-14-chatterbox-tts-cuda' or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
-    { name = "scipy", marker = "extra == 'extra-14-chatterbox-tts-cuda' or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
-    { name = "threadpoolctl", marker = "extra == 'extra-14-chatterbox-tts-cuda' or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/41/84/5f4af978fff619706b8961accac84780a6d298d82a8873446f72edb4ead0/scikit_learn-1.7.1.tar.gz", hash = "sha256:24b3f1e976a4665aa74ee0fcaac2b8fccc6ae77c8e07ab25da3ba6d3292b9802", size = 7190445, upload-time = "2025-07-18T08:01:54.5Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/b4/bd/a23177930abd81b96daffa30ef9c54ddbf544d3226b8788ce4c3ef1067b4/scikit_learn-1.7.1-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:90c8494ea23e24c0fb371afc474618c1019dc152ce4a10e4607e62196113851b", size = 9334838, upload-time = "2025-07-18T08:01:11.239Z" },
-    { url = "https://files.pythonhosted.org/packages/8d/a1/d3a7628630a711e2ac0d1a482910da174b629f44e7dd8cfcd6924a4ef81a/scikit_learn-1.7.1-cp311-cp311-macosx_12_0_arm64.whl", hash = "sha256:bb870c0daf3bf3be145ec51df8ac84720d9972170786601039f024bf6d61a518", size = 8651241, upload-time = "2025-07-18T08:01:13.234Z" },
-    { url = "https://files.pythonhosted.org/packages/26/92/85ec172418f39474c1cd0221d611345d4f433fc4ee2fc68e01f524ccc4e4/scikit_learn-1.7.1-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:40daccd1b5623f39e8943ab39735cadf0bdce80e67cdca2adcb5426e987320a8", size = 9718677, upload-time = "2025-07-18T08:01:15.649Z" },
-    { url = "https://files.pythonhosted.org/packages/df/ce/abdb1dcbb1d2b66168ec43b23ee0cee356b4cc4100ddee3943934ebf1480/scikit_learn-1.7.1-cp311-cp311-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:30d1f413cfc0aa5a99132a554f1d80517563c34a9d3e7c118fde2d273c6fe0f7", size = 9511189, upload-time = "2025-07-18T08:01:18.013Z" },
-    { url = "https://files.pythonhosted.org/packages/b2/3b/47b5eaee01ef2b5a80ba3f7f6ecf79587cb458690857d4777bfd77371c6f/scikit_learn-1.7.1-cp311-cp311-win_amd64.whl", hash = "sha256:c711d652829a1805a95d7fe96654604a8f16eab5a9e9ad87b3e60173415cb650", size = 8914794, upload-time = "2025-07-18T08:01:20.357Z" },
-]
-
-[[package]]
-name = "scikit-learn"
 version = "1.9.0"
 source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "sys_platform == 'win32' and extra != 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm'",
-    "sys_platform == 'emscripten' and extra != 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm'",
-    "sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm'",
-    "sys_platform == 'darwin' and extra != 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm'",
-    "sys_platform == 'win32' and extra == 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra != 'extra-14-chatterbox-tts-rocm'",
-    "sys_platform == 'emscripten' and extra == 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra != 'extra-14-chatterbox-tts-rocm'",
-    "sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra == 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra != 'extra-14-chatterbox-tts-rocm'",
-    "sys_platform == 'darwin' and extra == 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra != 'extra-14-chatterbox-tts-rocm'",
-    "sys_platform == 'win32' and extra != 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra != 'extra-14-chatterbox-tts-rocm'",
-    "sys_platform == 'emscripten' and extra != 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra != 'extra-14-chatterbox-tts-rocm'",
-    "sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra != 'extra-14-chatterbox-tts-rocm'",
-]
 dependencies = [
-    { name = "joblib", marker = "extra == 'extra-14-chatterbox-tts-cpu' or extra != 'extra-14-chatterbox-tts-cuda' or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
-    { name = "narwhals", marker = "extra == 'extra-14-chatterbox-tts-cpu' or extra != 'extra-14-chatterbox-tts-cuda' or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
-    { name = "numpy", marker = "extra == 'extra-14-chatterbox-tts-cpu' or extra != 'extra-14-chatterbox-tts-cuda' or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
-    { name = "scipy", marker = "extra == 'extra-14-chatterbox-tts-cpu' or extra != 'extra-14-chatterbox-tts-cuda' or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
-    { name = "threadpoolctl", marker = "extra == 'extra-14-chatterbox-tts-cpu' or extra != 'extra-14-chatterbox-tts-cuda' or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
+    { name = "joblib" },
+    { name = "narwhals" },
+    { name = "numpy" },
+    { name = "scipy" },
+    { name = "threadpoolctl" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/fa/6f/37092bdb25f712817231799fc5674d8e704066a8a70c1d2d40517e18b4ab/scikit_learn-1.9.0.tar.gz", hash = "sha256:8833266989d3a5110178a9fae30783675460724d0e1efb13b14901d2c660c557", size = 7750767, upload-time = "2026-06-02T11:54:32.706Z" }
 wheels = [
@@ -2129,22 +1763,6 @@ wheels = [
 ]
 
 [[package]]
-name = "sentencepiece"
-version = "0.2.1"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/15/15/2e7a025fc62d764b151ae6d0f2a92f8081755ebe8d4a64099accc6f77ba6/sentencepiece-0.2.1.tar.gz", hash = "sha256:8138cec27c2f2282f4a34d9a016e3374cd40e5c6e9cb335063db66a0a3b71fad", size = 3228515, upload-time = "2025-08-12T07:00:51.718Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/d8/15/46afbab00733d81788b64be430ca1b93011bb9388527958e26cc31832de5/sentencepiece-0.2.1-cp311-cp311-macosx_10_9_universal2.whl", hash = "sha256:6356d0986b8b8dc351b943150fcd81a1c6e6e4d439772e8584c64230e58ca987", size = 1942560, upload-time = "2025-08-12T06:59:25.82Z" },
-    { url = "https://files.pythonhosted.org/packages/fa/79/7c01b8ef98a0567e9d84a4e7a910f8e7074fcbf398a5cd76f93f4b9316f9/sentencepiece-0.2.1-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:8f8ba89a3acb3dc1ae90f65ec1894b0b9596fdb98ab003ff38e058f898b39bc7", size = 1325385, upload-time = "2025-08-12T06:59:27.722Z" },
-    { url = "https://files.pythonhosted.org/packages/bb/88/2b41e07bd24f33dcf2f18ec3b74247aa4af3526bad8907b8727ea3caba03/sentencepiece-0.2.1-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:02593eca45440ef39247cee8c47322a34bdcc1d8ae83ad28ba5a899a2cf8d79a", size = 1253319, upload-time = "2025-08-12T06:59:29.306Z" },
-    { url = "https://files.pythonhosted.org/packages/a0/54/38a1af0c6210a3c6f95aa46d23d6640636d020fba7135cd0d9a84ada05a7/sentencepiece-0.2.1-cp311-cp311-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:0a0d15781a171d188b661ae4bde1d998c303f6bd8621498c50c671bd45a4798e", size = 1316162, upload-time = "2025-08-12T06:59:30.914Z" },
-    { url = "https://files.pythonhosted.org/packages/ef/66/fb191403ade791ad2c3c1e72fe8413e63781b08cfa3aa4c9dfc536d6e795/sentencepiece-0.2.1-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:4f5a3e0d9f445ed9d66c0fec47d4b23d12cfc858b407a03c194c1b26c2ac2a63", size = 1387785, upload-time = "2025-08-12T06:59:32.491Z" },
-    { url = "https://files.pythonhosted.org/packages/a9/2d/3bd9b08e70067b2124518b308db6a84a4f8901cc8a4317e2e4288cdd9b4d/sentencepiece-0.2.1-cp311-cp311-win32.whl", hash = "sha256:6d297a1748d429ba8534eebe5535448d78b8acc32d00a29b49acf28102eeb094", size = 999555, upload-time = "2025-08-12T06:59:34.475Z" },
-    { url = "https://files.pythonhosted.org/packages/32/b8/f709977f5fda195ae1ea24f24e7c581163b6f142b1005bc3d0bbfe4d7082/sentencepiece-0.2.1-cp311-cp311-win_amd64.whl", hash = "sha256:82d9ead6591015f009cb1be1cb1c015d5e6f04046dbb8c9588b931e869a29728", size = 1054617, upload-time = "2025-08-12T06:59:36.461Z" },
-    { url = "https://files.pythonhosted.org/packages/7a/40/a1fc23be23067da0f703709797b464e8a30a1c78cc8a687120cd58d4d509/sentencepiece-0.2.1-cp311-cp311-win_arm64.whl", hash = "sha256:39f8651bd10974eafb9834ce30d9bcf5b73e1fc798a7f7d2528f9820ca86e119", size = 1033877, upload-time = "2025-08-12T06:59:38.391Z" },
-]
-
-[[package]]
 name = "setuptools"
 version = "81.0.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2169,15 +1787,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/94/e7/b2c673351809dca68a0e064b6af791aa332cf192da575fd474ed7d6f16a2/six-1.17.0.tar.gz", hash = "sha256:ff70335d468e7eb6ec65b95b99d3a2836546063f63acc5171de367e834932a81", size = 34031, upload-time = "2024-12-04T17:35:28.174Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b7/ce/149a00dd41f10bc29e5921b496af8b574d8413afcd5e30dfa0ed46c2cc5e/six-1.17.0-py2.py3-none-any.whl", hash = "sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274", size = 11050, upload-time = "2024-12-04T17:35:26.475Z" },
-]
-
-[[package]]
-name = "sortedcontainers"
-version = "2.4.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/e8/c4/ba2f8066cceb6f23394729afe52f3bf7adec04bf9ed2c820b39e19299111/sortedcontainers-2.4.0.tar.gz", hash = "sha256:25caa5a06cc30b6b83d11423433f65d1f9d76c4c6a0c90e3379eaa43b9bfdb88", size = 30594, upload-time = "2021-05-16T22:03:42.897Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/32/46/9cb0e58b2deb7f82b84065f37f3bffeb12413f947f9388e4cac22c4621ce/sortedcontainers-2.4.0-py2.py3-none-any.whl", hash = "sha256:a163dcaede0f1c021485e957a39245190e74249897e2ae4b2aa38595db237ee0", size = 29575, upload-time = "2021-05-16T22:03:41.177Z" },
 ]
 
 [[package]]
@@ -2248,75 +1857,12 @@ wheels = [
 ]
 
 [[package]]
-name = "tabulate"
-version = "0.10.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/46/58/8c37dea7bbf769b20d58e7ace7e5edfe65b849442b00ffcdd56be88697c6/tabulate-0.10.0.tar.gz", hash = "sha256:e2cfde8f79420f6deeffdeda9aaec3b6bc5abce947655d17ac662b126e48a60d", size = 91754, upload-time = "2026-03-04T18:55:34.402Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/99/55/db07de81b5c630da5cbf5c7df646580ca26dfaefa593667fc6f2fe016d2e/tabulate-0.10.0-py3-none-any.whl", hash = "sha256:f0b0622e567335c8fabaaa659f1b33bcb6ddfe2e496071b743aa113f8774f2d3", size = 39814, upload-time = "2026-03-04T18:55:31.284Z" },
-]
-
-[[package]]
-name = "tensorrt"
-version = "10.16.1.11"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "tensorrt-cu13" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/fc/ca/e50b15ccd364a5347a23d56f93479735510109b70caabbe91a47d493bba7/tensorrt-10.16.1.11.tar.gz", hash = "sha256:5c31ef98e1a1b53197acc600327d6b1e4abb503024119a2e66f21a5654ea3996", size = 16617, upload-time = "2026-04-07T19:37:13.586Z" }
-
-[[package]]
-name = "tensorrt-cu13"
-version = "10.16.1.11"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "tensorrt-cu13-bindings" },
-    { name = "tensorrt-cu13-libs" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/7c/9a/dfe6c293faa625457563c293d165f8948532d71b29a490e4f59773edf2aa/tensorrt_cu13-10.16.1.11.tar.gz", hash = "sha256:5d34203a92f38851b150c4eddd32b9b55c01fd40fc4d19bff83e8dfef1d8f69e", size = 17916, upload-time = "2026-04-07T19:37:15.536Z" }
-
-[[package]]
-name = "tensorrt-cu13-bindings"
-version = "10.16.1.11"
-source = { registry = "https://pypi.org/simple" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/cc/25/c9118b04afb96e0cd4d492199d9b476de9c0087b2e406c34515f0c7458d1/tensorrt_cu13_bindings-10.16.1.11-cp311-none-manylinux_2_28_x86_64.whl", hash = "sha256:f986d47980d042cc126506a9b84586e55ad13737a7a46826fe45457c04d66294", size = 1346363, upload-time = "2026-04-07T19:39:58.905Z" },
-    { url = "https://files.pythonhosted.org/packages/3b/29/63935339615bc98289a173fd06b275e61959cbf7513bbc9fb1852303e330/tensorrt_cu13_bindings-10.16.1.11-cp311-none-manylinux_2_35_aarch64.whl", hash = "sha256:6fa40558659d027ef6d71b475f012e0531f3d69c7b27b4a2b92779cc6de24a9a", size = 1340941, upload-time = "2026-04-07T19:41:07.568Z" },
-    { url = "https://files.pythonhosted.org/packages/fa/d5/2595b547ab7228f7c424b6901b59f90360006a537603c13417c30b3bcc3c/tensorrt_cu13_bindings-10.16.1.11-cp311-none-win_amd64.whl", hash = "sha256:483a58b8cf3a7e97d66d7245084d08f9ee9cd19d09210305ed43b34fbb721f7c", size = 963765, upload-time = "2026-04-07T19:38:58.426Z" },
-]
-
-[[package]]
-name = "tensorrt-cu13-libs"
-version = "10.16.1.11"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/67/25/085bcc297237bfea56fac62cca0439f2298f875b6a26de5ae0413671687d/tensorrt_cu13_libs-10.16.1.11.tar.gz", hash = "sha256:0e86cd02321b7258c2521495a7d8f0591852e6966ed7e43cfe33640c737495a3", size = 15737, upload-time = "2026-04-07T19:38:09.175Z" }
-
-[[package]]
 name = "threadpoolctl"
 version = "3.6.0"
 source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/b7/4d/08c89e34946fce2aec4fbb45c9016efd5f4d7f24af8e5d93296e935631d8/threadpoolctl-3.6.0.tar.gz", hash = "sha256:8ab8b4aa3491d812b623328249fab5302a68d2d71745c8a4c719a2fcaba9f44e", size = 21274, upload-time = "2025-03-13T13:49:23.031Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/32/d5/f9a850d79b0851d1d4ef6456097579a9005b31fea68726a4ae5f2d82ddd9/threadpoolctl-3.6.0-py3-none-any.whl", hash = "sha256:43a0b8fd5a2928500110039e43a5eed8480b918967083ea48dc3ab9f13c4a7fb", size = 18638, upload-time = "2025-03-13T13:49:21.846Z" },
-]
-
-[[package]]
-name = "tiktoken"
-version = "0.13.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "regex" },
-    { name = "requests" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/e4/e5/5f3cb2159769d0f4324c0e9e87f9de3c4b1cd45848a96b2eb3566ad5ca77/tiktoken-0.13.0.tar.gz", hash = "sha256:c9435714c3a84c2319499de9a300c0e604449dd0799ff246458b3bb6a7f433c1", size = 38986, upload-time = "2026-05-15T04:51:27.153Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/1a/4c/1bc81f4cd53e827c4ee67ca951b5935724716049452d8dfa09b8b82372bb/tiktoken-0.13.0-cp311-cp311-macosx_10_12_x86_64.whl", hash = "sha256:7bfe1849caa65d1e1d9871817170ec497bbb7984e182012e1bdce72f66608cdb", size = 1036353, upload-time = "2026-05-15T04:50:21.757Z" },
-    { url = "https://files.pythonhosted.org/packages/75/91/10b9c7076bc02c246c853201fdbbe300a4b8c5ed7b84c25f7403f4e32655/tiktoken-0.13.0-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:91c180fe255bd5a86d8316210d2833a1d4d33d026cd86a67812f4773743c8d26", size = 984644, upload-time = "2026-05-15T04:50:23.256Z" },
-    { url = "https://files.pythonhosted.org/packages/4e/e4/fceae98015fab47fcd49b8bd7f46145bcd187a47e0add1e5378ed67ef980/tiktoken-0.13.0-cp311-cp311-manylinux_2_28_aarch64.whl", hash = "sha256:059c8ecf554eb5b41e6e054ba467b871b03277d267dee7244380aca4359747d4", size = 1119261, upload-time = "2026-05-15T04:50:24.348Z" },
-    { url = "https://files.pythonhosted.org/packages/f9/39/fe42ad00de01a8c4a49ad8649a2c8a316835a9cad5961b11d21eac0020a5/tiktoken-0.13.0-cp311-cp311-manylinux_2_28_x86_64.whl", hash = "sha256:36217497eaffc158607a3b26f065300db2aefd43b115263f3b9688ce38146173", size = 1138253, upload-time = "2026-05-15T04:50:25.505Z" },
-    { url = "https://files.pythonhosted.org/packages/03/c4/ccee1ecccca107e9a16efcecdeeb964c325305038554d466ece65b42338f/tiktoken-0.13.0-cp311-cp311-musllinux_1_2_aarch64.whl", hash = "sha256:303f7d91b4fce3baddbcde05c139091d4caa5026ac7214c1dc7ff7a71ee429ff", size = 1185747, upload-time = "2026-05-15T04:50:27.02Z" },
-    { url = "https://files.pythonhosted.org/packages/9d/03/cd0cba295522b91eb55c6b2704f1df895f8226cfe60ab10d4d51d0cc9e69/tiktoken-0.13.0-cp311-cp311-musllinux_1_2_x86_64.whl", hash = "sha256:5d48843bee149630eb735a99e1f4a85b47308d21868ea63163f6e87768d3cfed", size = 1241265, upload-time = "2026-05-15T04:50:28.815Z" },
-    { url = "https://files.pythonhosted.org/packages/7e/25/a10efd564402d82c2ff50d12057353ace447aa8007deceaa48641f63d35c/tiktoken-0.13.0-cp311-cp311-win_amd64.whl", hash = "sha256:fc1c44cd37b43fc46bae593129164f4f281e82ea116b57a85aa81bda57eafc94", size = 876509, upload-time = "2026-05-15T04:50:30.026Z" },
 ]
 
 [[package]]
@@ -2356,7 +1902,7 @@ wheels = [
 
 [[package]]
 name = "torch"
-version = "2.11.0"
+version = "2.12.1"
 source = { registry = "https://download.pytorch.org/whl/cpu" }
 resolution-markers = [
     "sys_platform == 'darwin'",
@@ -2371,12 +1917,12 @@ dependencies = [
     { name = "typing-extensions", marker = "(sys_platform == 'darwin' and extra == 'extra-14-chatterbox-tts-cpu') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
 ]
 wheels = [
-    { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.11.0-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:d75eadcd97fe0dc7cd0eedc4d72152484c19cb2cfe46ce55766c8e129116425f", upload-time = "2026-03-23T15:16:54Z" },
+    { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.12.1-cp311-cp311-macosx_14_0_arm64.whl", hash = "sha256:ef81f503912effea2ce3d9b12a2e3a6ed488943e91271c90c7a829f60baf6aa2", upload-time = "2026-06-17T15:43:57Z" },
 ]
 
 [[package]]
 name = "torch"
-version = "2.11.0"
+version = "2.12.1"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "sys_platform == 'win32'",
@@ -2385,30 +1931,31 @@ resolution-markers = [
 ]
 dependencies = [
     { name = "cuda-bindings", marker = "(sys_platform == 'linux' and extra != 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra != 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
-    { name = "cuda-toolkit", extra = ["cublas", "cudart", "cufft", "cufile", "cupti", "curand", "cusolver", "cusparse", "nvjitlink", "nvrtc", "nvtx"], marker = "(sys_platform == 'linux' and extra != 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra != 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
+    { name = "cuda-toolkit", extra = ["cudart", "cufft", "cufile", "cupti", "curand", "cusolver", "cusparse", "nvjitlink", "nvrtc", "nvtx"], marker = "(sys_platform == 'linux' and extra != 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra != 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
     { name = "filelock", marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra != 'extra-14-chatterbox-tts-rocm')" },
     { name = "fsspec", marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra != 'extra-14-chatterbox-tts-rocm')" },
     { name = "jinja2", marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra != 'extra-14-chatterbox-tts-rocm')" },
     { name = "networkx", marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra != 'extra-14-chatterbox-tts-rocm')" },
-    { name = "nvidia-cudnn-cu13", version = "9.19.0.56", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra != 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra != 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
-    { name = "nvidia-cusparselt-cu13", version = "0.8.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra != 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra != 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
-    { name = "nvidia-nccl-cu13", version = "2.28.9", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra != 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra != 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
+    { name = "nvidia-cublas", marker = "(sys_platform == 'linux' and extra != 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra != 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
+    { name = "nvidia-cudnn-cu13", marker = "(sys_platform == 'linux' and extra != 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra != 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
+    { name = "nvidia-cusparselt-cu13", marker = "(sys_platform == 'linux' and extra != 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra != 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
+    { name = "nvidia-nccl-cu13", marker = "(sys_platform == 'linux' and extra != 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra != 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
     { name = "nvidia-nvshmem-cu13", marker = "(sys_platform == 'linux' and extra != 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra != 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
     { name = "setuptools", marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra != 'extra-14-chatterbox-tts-rocm')" },
     { name = "sympy", marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra != 'extra-14-chatterbox-tts-rocm')" },
-    { name = "triton", version = "3.6.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra != 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra != 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
+    { name = "triton", marker = "(sys_platform == 'linux' and extra != 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra != 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
     { name = "typing-extensions", marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra != 'extra-14-chatterbox-tts-rocm')" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ae/0d/98b410492609e34a155fa8b121b55c7dca229f39636851c3a9ec20edea21/torch-2.11.0-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:7b6a60d48062809f58595509c524b88e6ddec3ebe25833d6462eeab81e5f2ce4", size = 80529712, upload-time = "2026-03-23T18:12:02.608Z" },
-    { url = "https://files.pythonhosted.org/packages/84/03/acea680005f098f79fd70c1d9d5ccc0cb4296ec2af539a0450108232fc0c/torch-2.11.0-cp311-cp311-manylinux_2_28_aarch64.whl", hash = "sha256:d91aac77f24082809d2c5a93f52a5f085032740a1ebc9252a7b052ef5a4fddc6", size = 419718178, upload-time = "2026-03-23T18:10:46.675Z" },
-    { url = "https://files.pythonhosted.org/packages/8c/8b/d7be22fbec9ffee6cff31a39f8750d4b3a65d349a286cf4aec74c2375662/torch-2.11.0-cp311-cp311-manylinux_2_28_x86_64.whl", hash = "sha256:7aa2f9bbc6d4595ba72138026b2074be1233186150e9292865e04b7a63b8c67a", size = 530604548, upload-time = "2026-03-23T18:10:03.569Z" },
-    { url = "https://files.pythonhosted.org/packages/d1/bd/9912d30b68845256aabbb4a40aeefeef3c3b20db5211ccda653544ada4b6/torch-2.11.0-cp311-cp311-win_amd64.whl", hash = "sha256:73e24aaf8f36ab90d95cd1761208b2eb70841c2a9ca1a3f9061b39fc5331b708", size = 114519675, upload-time = "2026-03-23T18:11:52.995Z" },
+    { url = "https://files.pythonhosted.org/packages/59/38/7028d3be540f1dcdf41660a2b01d0c51d2cb73915fe370d84e4d277a6d47/torch-2.12.1-cp311-cp311-macosx_14_0_arm64.whl", hash = "sha256:ef81f503912effea2ce3d9b12a2e3a6ed488943e91271c90c7a829f60baf6aa2", size = 87975425, upload-time = "2026-06-17T21:08:34.094Z" },
+    { url = "https://files.pythonhosted.org/packages/5a/e3/750b3e3548635ceac03ba255daa26dbc7ed66ca3484dc4b4d955ab7f4501/torch-2.12.1-cp311-cp311-manylinux_2_28_aarch64.whl", hash = "sha256:107df6888624bdea41508f9aeb6149d9333c737a5530ceecb56c904e811369ae", size = 426379894, upload-time = "2026-06-17T21:06:55.077Z" },
+    { url = "https://files.pythonhosted.org/packages/dc/ca/ed24783da629ff3e640ba3f70a7639e9045d3d88b93ee6bc47b8a28a1f2c/torch-2.12.1-cp311-cp311-manylinux_2_28_x86_64.whl", hash = "sha256:6e29e7e74d05bda7d955c75e99459f878ebd970ef851b4057edbd3b34a5eb4a3", size = 532169264, upload-time = "2026-06-17T21:08:17.65Z" },
+    { url = "https://files.pythonhosted.org/packages/46/61/c63f0158446f3a98ea672b004d761b848911eba567ea4a624c7db5aadc04/torch-2.12.1-cp311-cp311-win_amd64.whl", hash = "sha256:a513506cfda3c1c78dabeb6574c1597538c0254b3d39af174dde35d8177f4ce3", size = 122953086, upload-time = "2026-06-17T21:08:27.69Z" },
 ]
 
 [[package]]
 name = "torch"
-version = "2.11.0+cpu"
+version = "2.12.1+cpu"
 source = { registry = "https://download.pytorch.org/whl/cpu" }
 resolution-markers = [
     "sys_platform == 'win32'",
@@ -2425,34 +1972,11 @@ dependencies = [
     { name = "typing-extensions", marker = "(sys_platform != 'darwin' and extra == 'extra-14-chatterbox-tts-cpu') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
 ]
 wheels = [
-    { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.11.0%2Bcpu-cp311-cp311-linux_s390x.whl", hash = "sha256:5214b203ee187f8746c66f1378b72611b7c1e15c5cb325037541899e705ea24e", upload-time = "2026-04-27T21:55:40Z" },
-    { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.11.0%2Bcpu-cp311-cp311-manylinux_2_28_aarch64.whl", hash = "sha256:46fbb0aa257bb781efbfad648f5b045c0e232573b661f1461593db61342e9096", upload-time = "2026-04-28T00:05:38Z" },
-    { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.11.0%2Bcpu-cp311-cp311-manylinux_2_28_x86_64.whl", hash = "sha256:8a56a8c95531ef0e454510ba8bbd9d11dc7a9000337265210b10f6bfeacdd485", upload-time = "2026-04-28T00:05:47Z" },
-    { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.11.0%2Bcpu-cp311-cp311-win_amd64.whl", hash = "sha256:51a221769d4a316f4b47a786c12e67c3f4807db8ed13c7b8817ebe73786acbbc", upload-time = "2026-04-28T00:06:00Z" },
-]
-
-[[package]]
-name = "torch"
-version = "2.11.0+rocm7.2"
-source = { registry = "https://download.pytorch.org/whl/rocm7.2" }
-resolution-markers = [
-    "sys_platform == 'win32'",
-    "sys_platform == 'emscripten'",
-    "sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32'",
-    "sys_platform == 'darwin'",
-]
-dependencies = [
-    { name = "filelock", marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra != 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
-    { name = "fsspec", marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra != 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
-    { name = "jinja2", marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra != 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
-    { name = "networkx", marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra != 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
-    { name = "setuptools", marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra != 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
-    { name = "sympy", marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra != 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
-    { name = "triton-rocm", marker = "(sys_platform == 'linux' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
-    { name = "typing-extensions", marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra != 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
-]
-wheels = [
-    { url = "https://download-r2.pytorch.org/whl/rocm7.2/torch-2.11.0%2Brocm7.2-cp311-cp311-manylinux_2_28_x86_64.whl", hash = "sha256:e86e64dc070eebe40bd7d7d397b418f3e16a528ed91495efcfbbe430ba3bb45d", upload-time = "2026-04-28T19:40:45Z" },
+    { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.12.1%2Bcpu-cp311-cp311-linux_s390x.whl", hash = "sha256:c6cf299bad55b045abdc0969f298385845c25bc8ace587215e5538d6a73e7712", upload-time = "2026-06-18T01:56:56Z" },
+    { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.12.1%2Bcpu-cp311-cp311-manylinux_2_28_aarch64.whl", hash = "sha256:6d1b61e53a2c000e1e5cc49fc88aebc665bdf02c63910c243116d395d7cbc164", upload-time = "2026-06-18T01:57:02Z" },
+    { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.12.1%2Bcpu-cp311-cp311-manylinux_2_28_x86_64.whl", hash = "sha256:04cd8b002c03dd6a246fbb4ae5abf1edd42adf0a9929ad82162c973e5737b5ac", upload-time = "2026-06-18T01:57:09Z" },
+    { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.12.1%2Bcpu-cp311-cp311-win_amd64.whl", hash = "sha256:cf9ef28ef8d1a7d56aba206780cbb09e8a643a942f26a2374ab21b9a02b9d9fd", upload-time = "2026-06-18T01:57:15Z" },
+    { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.12.1%2Bcpu-cp311-cp311-win_arm64.whl", hash = "sha256:9b4f554e5e461545b1b42551e27f97b4fbc58e05f2bad0603120aa929d4562e1", upload-time = "2026-06-18T01:57:19Z" },
 ]
 
 [[package]]
@@ -2472,14 +1996,14 @@ dependencies = [
     { name = "fsspec", marker = "extra == 'extra-14-chatterbox-tts-cuda' or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
     { name = "jinja2", marker = "extra == 'extra-14-chatterbox-tts-cuda' or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
     { name = "networkx", marker = "extra == 'extra-14-chatterbox-tts-cuda' or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
-    { name = "nvidia-cublas", version = "13.1.1.3", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
-    { name = "nvidia-cudnn-cu13", version = "9.20.0.48", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
-    { name = "nvidia-cusparselt-cu13", version = "0.8.1", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
-    { name = "nvidia-nccl-cu13", version = "2.29.7", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
+    { name = "nvidia-cublas", marker = "(sys_platform == 'linux' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
+    { name = "nvidia-cudnn-cu13", marker = "(sys_platform == 'linux' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
+    { name = "nvidia-cusparselt-cu13", marker = "(sys_platform == 'linux' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
+    { name = "nvidia-nccl-cu13", marker = "(sys_platform == 'linux' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
     { name = "nvidia-nvshmem-cu13", marker = "(sys_platform == 'linux' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
     { name = "setuptools", marker = "extra == 'extra-14-chatterbox-tts-cuda' or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
     { name = "sympy", marker = "extra == 'extra-14-chatterbox-tts-cuda' or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
-    { name = "triton", version = "3.7.1", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
+    { name = "triton", marker = "(sys_platform == 'linux' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
     { name = "typing-extensions", marker = "extra == 'extra-14-chatterbox-tts-cuda' or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
 ]
 wheels = [
@@ -2489,33 +2013,27 @@ wheels = [
 ]
 
 [[package]]
-name = "torch-tensorrt"
-version = "2.12.1"
-source = { registry = "https://pypi.org/simple" }
+name = "torch"
+version = "2.12.1+rocm7.2"
+source = { registry = "https://download.pytorch.org/whl/rocm7.2" }
+resolution-markers = [
+    "sys_platform == 'win32'",
+    "sys_platform == 'emscripten'",
+    "sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32'",
+    "sys_platform == 'darwin'",
+]
 dependencies = [
-    { name = "dllist" },
-    { name = "executorch", marker = "sys_platform == 'linux'" },
-    { name = "filelock" },
-    { name = "numpy" },
-    { name = "packaging" },
-    { name = "psutil" },
-    { name = "tensorrt" },
-    { name = "torch", version = "2.12.1+cu130", source = { registry = "https://download.pytorch.org/whl/cu130" } },
-    { name = "typing-extensions" },
+    { name = "filelock", marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra != 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
+    { name = "fsspec", marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra != 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
+    { name = "jinja2", marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra != 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
+    { name = "networkx", marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra != 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
+    { name = "setuptools", marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra != 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
+    { name = "sympy", marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra != 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
+    { name = "triton-rocm", marker = "(sys_platform == 'linux' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
+    { name = "typing-extensions", marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra != 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/85/ca/e373aeadbb31295e1cead3bda2a11e977a21bf41f284539c597731a36f4c/torch_tensorrt-2.12.1-cp311-cp311-manylinux_2_28_aarch64.whl", hash = "sha256:02ff3e84618c53cc9d34116017600399e45adcd4da41bfed7596daa2c558716b", size = 3720099, upload-time = "2026-06-09T23:54:02.338Z" },
-    { url = "https://files.pythonhosted.org/packages/d5/2f/21436f2a5fd982cccb1368eccf6b51be64bbabd8fc00b216ab00b4bd6964/torch_tensorrt-2.12.1-cp311-cp311-manylinux_2_28_x86_64.whl", hash = "sha256:d4c36294a534ea2862aa00717bf5dd76b86cb1c62f6bb75dc2d7548d60074635", size = 3868255, upload-time = "2026-06-09T23:54:04.307Z" },
-    { url = "https://files.pythonhosted.org/packages/72/05/b335e71e4b9a2134c7d692cc6b7ed86e7a75c823b0817fbb685e522e7230/torch_tensorrt-2.12.1-cp311-cp311-win_amd64.whl", hash = "sha256:f62d0d401d76c429ea071a5408e7a66f8e01350a89fe5a63e42060713d7645fb", size = 1967573, upload-time = "2026-06-09T23:54:07.161Z" },
-]
-
-[[package]]
-name = "torchao"
-version = "0.17.0"
-source = { registry = "https://pypi.org/simple" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/32/fe/a4036a8e80fa800c92dbcbf75f541cd4c106248b6b579db6dab1800f616a/torchao-0.17.0-cp310-abi3-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:87a418ce0ec064a821ceab83c921b501acef0ce9a6ccd1be358fcd16c3ae8c58", size = 3206172, upload-time = "2026-03-30T22:25:52.974Z" },
-    { url = "https://files.pythonhosted.org/packages/c9/37/ef37ca885265e5f79a168616767dd416a3cea1cc3b28bb6b503ce4a5b652/torchao-0.17.0-py3-none-any.whl", hash = "sha256:02eba449036715b9ae784fbaa1a6f97994bb7b0421ce92d1d5d1c08e5bd6d349", size = 1200680, upload-time = "2026-03-30T22:25:54.457Z" },
+    { url = "https://download-r2.pytorch.org/whl/rocm7.2/torch-2.12.1%2Brocm7.2-cp311-cp311-manylinux_2_28_x86_64.whl", hash = "sha256:5909175d227f4e9ed49ea1125868e53f29ac45ef3321d05afd89a76acdba5fbf", upload-time = "2026-06-18T03:37:06Z" },
 ]
 
 [[package]]
@@ -2622,11 +2140,11 @@ version = "0.2.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "scipy" },
-    { name = "torch", version = "2.11.0", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform == 'darwin' and extra == 'extra-14-chatterbox-tts-cpu') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
-    { name = "torch", version = "2.11.0", source = { registry = "https://pypi.org/simple" }, marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra != 'extra-14-chatterbox-tts-rocm')" },
-    { name = "torch", version = "2.11.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform != 'darwin' and extra == 'extra-14-chatterbox-tts-cpu') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
-    { name = "torch", version = "2.11.0+rocm7.2", source = { registry = "https://download.pytorch.org/whl/rocm7.2" }, marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra != 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
+    { name = "torch", version = "2.12.1", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform == 'darwin' and extra == 'extra-14-chatterbox-tts-cpu') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
+    { name = "torch", version = "2.12.1", source = { registry = "https://pypi.org/simple" }, marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra != 'extra-14-chatterbox-tts-rocm')" },
+    { name = "torch", version = "2.12.1+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform != 'darwin' and extra == 'extra-14-chatterbox-tts-cpu') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
     { name = "torch", version = "2.12.1+cu130", source = { registry = "https://download.pytorch.org/whl/cu130" }, marker = "extra == 'extra-14-chatterbox-tts-cuda' or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
+    { name = "torch", version = "2.12.1+rocm7.2", source = { registry = "https://download.pytorch.org/whl/rocm7.2" }, marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra != 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/87/ec/a40aa124660f0ee65e6760cb53df6a82ad91a1a3ef1da5e747f1336644dd/torchdiffeq-0.2.5.tar.gz", hash = "sha256:b50d3760d13fd138dcceac651f4b80396f44fefcebd037a033fecfeaa9cc12e7", size = 31197, upload-time = "2024-11-21T20:20:11.552Z" }
 wheels = [
@@ -2648,11 +2166,11 @@ version = "1.0.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "sympy" },
-    { name = "torch", version = "2.11.0", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform == 'darwin' and extra == 'extra-14-chatterbox-tts-cpu') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
-    { name = "torch", version = "2.11.0", source = { registry = "https://pypi.org/simple" }, marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra != 'extra-14-chatterbox-tts-rocm')" },
-    { name = "torch", version = "2.11.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform != 'darwin' and extra == 'extra-14-chatterbox-tts-cpu') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
-    { name = "torch", version = "2.11.0+rocm7.2", source = { registry = "https://download.pytorch.org/whl/rocm7.2" }, marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra != 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
+    { name = "torch", version = "2.12.1", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform == 'darwin' and extra == 'extra-14-chatterbox-tts-cpu') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
+    { name = "torch", version = "2.12.1", source = { registry = "https://pypi.org/simple" }, marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra != 'extra-14-chatterbox-tts-rocm')" },
+    { name = "torch", version = "2.12.1+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform != 'darwin' and extra == 'extra-14-chatterbox-tts-cpu') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
     { name = "torch", version = "2.12.1+cu130", source = { registry = "https://download.pytorch.org/whl/cu130" }, marker = "extra == 'extra-14-chatterbox-tts-cuda' or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
+    { name = "torch", version = "2.12.1+rocm7.2", source = { registry = "https://download.pytorch.org/whl/rocm7.2" }, marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra != 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
     { name = "torchtyping" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/9e/aa/36cbb79022a17f0cf0127e22693201ed01a8bbfa5efb1f854fe90739ad22/torchode-1.0.1.tar.gz", hash = "sha256:c0faea451a416dc027fa5d93562d661b6f8dbd1da174cd2b38d3377e77a5acee", size = 37324, upload-time = "2026-03-17T15:35:05.832Z" }
@@ -2665,11 +2183,11 @@ name = "torchtyping"
 version = "0.1.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "torch", version = "2.11.0", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform == 'darwin' and extra == 'extra-14-chatterbox-tts-cpu') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
-    { name = "torch", version = "2.11.0", source = { registry = "https://pypi.org/simple" }, marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra != 'extra-14-chatterbox-tts-rocm')" },
-    { name = "torch", version = "2.11.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform != 'darwin' and extra == 'extra-14-chatterbox-tts-cpu') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
-    { name = "torch", version = "2.11.0+rocm7.2", source = { registry = "https://download.pytorch.org/whl/rocm7.2" }, marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra != 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
+    { name = "torch", version = "2.12.1", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform == 'darwin' and extra == 'extra-14-chatterbox-tts-cpu') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
+    { name = "torch", version = "2.12.1", source = { registry = "https://pypi.org/simple" }, marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra != 'extra-14-chatterbox-tts-cuda' and extra != 'extra-14-chatterbox-tts-rocm')" },
+    { name = "torch", version = "2.12.1+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform != 'darwin' and extra == 'extra-14-chatterbox-tts-cpu') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm') or (extra == 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm')" },
     { name = "torch", version = "2.12.1+cu130", source = { registry = "https://download.pytorch.org/whl/cu130" }, marker = "extra == 'extra-14-chatterbox-tts-cuda' or (extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
+    { name = "torch", version = "2.12.1+rocm7.2", source = { registry = "https://download.pytorch.org/whl/rocm7.2" }, marker = "(extra == 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-cuda') or (extra != 'extra-14-chatterbox-tts-cuda' and extra == 'extra-14-chatterbox-tts-rocm') or (extra != 'extra-14-chatterbox-tts-cpu' and extra == 'extra-14-chatterbox-tts-rocm')" },
     { name = "typeguard" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/0c/b2/9099ac2d76ebe538d527ef73844bcfa1296a5c75bd9f2d489e862d47bb42/torchtyping-0.1.5.tar.gz", hash = "sha256:fb51e1792536223e2497b1e106ed0cbe681f7324044599cb718d03be3f2b3851", size = 23067, upload-time = "2024-08-01T02:44:53.579Z" }
@@ -2711,23 +2229,8 @@ wheels = [
 
 [[package]]
 name = "triton"
-version = "3.6.0"
-source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "sys_platform != 'emscripten' and sys_platform != 'win32'",
-]
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/0f/2c/96f92f3c60387e14cc45aed49487f3486f89ea27106c1b1376913c62abe4/triton-3.6.0-cp311-cp311-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:49df5ef37379c0c2b5c0012286f80174fcf0e073e5ade1ca9a86c36814553651", size = 176081190, upload-time = "2026-01-20T16:16:00.523Z" },
-    { url = "https://files.pythonhosted.org/packages/e0/12/b05ba554d2c623bffa59922b94b0775673de251f468a9609bc9e45de95e9/triton-3.6.0-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:e8e323d608e3a9bfcc2d9efcc90ceefb764a82b99dea12a86d643c72539ad5d3", size = 188214640, upload-time = "2026-01-20T16:00:35.869Z" },
-]
-
-[[package]]
-name = "triton"
 version = "3.7.1"
 source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32'",
-]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/7b/f9/19d842d06a08559534fa1eaab6ca551b1bcf40f06620bddec1babaa2772d/triton-3.7.1-cp311-cp311-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:d4a0e1cd4c4a76370ed74a8432a53cea28716827d19e40ffc732233e35ceb3f6", size = 184664887, upload-time = "2026-06-17T20:03:42.913Z" },
     { url = "https://files.pythonhosted.org/packages/cd/5e/fce69606f7f240297f163e25539906732b199530d486ce67ae319877e821/triton-3.7.1-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:6744957e9fd610a29680ec2346057d0c86948ed3812468670719f391e94b44a5", size = 197701306, upload-time = "2026-06-17T19:53:13.673Z" },
@@ -2735,10 +2238,10 @@ wheels = [
 
 [[package]]
 name = "triton-rocm"
-version = "3.6.0"
+version = "3.7.1"
 source = { registry = "https://download.pytorch.org/whl/rocm7.2" }
 wheels = [
-    { url = "https://download-r2.pytorch.org/whl/triton_rocm-3.6.0-cp311-cp311-linux_x86_64.whl", upload-time = "2026-01-20T18:39:32Z" },
+    { url = "https://download-r2.pytorch.org/whl/triton_rocm-3.7.1-cp311-cp311-linux_x86_64.whl", hash = "sha256:bdbebb676e09dd50cdb3acba46c702de434baadd1b9eaca5ace9f9a038b9e37b", upload-time = "2026-06-17T17:04:53Z" },
 ]
 
 [[package]]
