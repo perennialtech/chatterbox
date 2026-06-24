@@ -13,25 +13,25 @@
 # limitations under the License.
 
 import logging
+from functools import lru_cache
+from typing import Optional
 
 import numpy as np
 import torch
 import torch.nn.functional as F
-from functools import lru_cache
-from typing import Optional
 
+from ...audio import resample_audio
 from ..s3tokenizer import S3_SR, SPEECH_VOCAB_SIZE, S3Tokenizer
+from .configs import CFM_PARAMS
 from .const import S3GEN_SR
-from .flow import CausalMaskedDiffWithXvec
-from .xvector import CAMPPlus
-from .utils.mel import mel_spectrogram
+from .decoder import ConditionalDecoder
 from .f0_predictor import ConvRNNF0Predictor
+from .flow import CausalMaskedDiffWithXvec
+from .flow_matching import CausalConditionalCFM
 from .hifigan import HiFTGenerator
 from .transformer.upsample_encoder import UpsampleConformerEncoder
-from .flow_matching import CausalConditionalCFM
-from .decoder import ConditionalDecoder
-from .configs import CFM_PARAMS
-from ...audio import resample_audio
+from .utils.mel import mel_spectrogram
+from .xvector import CAMPPlus
 
 
 def drop_invalid_tokens(x):
@@ -314,7 +314,8 @@ class S3Token2Wav(S3Token2Mel):
         import torch._dynamo
 
         backend = (
-            "tensorrt" if "tensorrt" in torch._dynamo.list_backends() else "inductor"
+            # "tensorrt" if "tensorrt" in torch._dynamo.list_backends() else "inductor"
+            "inductor"  # tensorrt breaks stuff atm
         )
 
         self.flow.encoder = torch.compile(

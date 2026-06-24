@@ -495,7 +495,8 @@ class HiFTGenerator(nn.Module):
         import torch._dynamo
 
         backend = (
-            "tensorrt" if "tensorrt" in torch._dynamo.list_backends() else "inductor"
+            # "tensorrt" if "tensorrt" in torch._dynamo.list_backends() else "inductor"
+            "inductor"  # tensorrt breaks stuff atm
         )
 
         self._forward_features = torch.compile(
