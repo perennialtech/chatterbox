@@ -493,7 +493,10 @@ class HiFTGenerator(nn.Module):
             pass
 
         import torch._dynamo
-        backend = "tensorrt" if "tensorrt" in torch._dynamo.list_backends() else "inductor"
+
+        backend = (
+            "tensorrt" if "tensorrt" in torch._dynamo.list_backends() else "inductor"
+        )
 
         self._decode_fast = torch.compile(
             self._decode_fast,

@@ -273,7 +273,7 @@ class MultiHeadAttention(nn.Module):
         p_attn = torch.nn.functional.softmax(scores, dim=-1)
         p_attn = self.drop(p_attn)
         output = torch.matmul(p_attn, value)
-        output = output.transpose(2, 3).contiguous().view(b, d, t_t)
+        output = output.transpose(2, 3).reshape(b, d, t_t)
         return output, p_attn
 
     @staticmethod

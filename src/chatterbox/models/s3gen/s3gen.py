@@ -312,7 +312,10 @@ class S3Token2Wav(S3Token2Mel):
             pass
 
         import torch._dynamo
-        backend = "tensorrt" if "tensorrt" in torch._dynamo.list_backends() else "inductor"
+
+        backend = (
+            "tensorrt" if "tensorrt" in torch._dynamo.list_backends() else "inductor"
+        )
 
         self.flow.encoder = torch.compile(
             self.flow.encoder,
