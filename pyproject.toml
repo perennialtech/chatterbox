@@ -15,7 +15,6 @@ dependencies = [
     "librosa>=0.11",
     "numpy>=1.24",
     "omegaconf>=2.3",
-    "peft>=0.19",
     "s3tokenizer>=0.3",
     "safetensors>=0.8",
 ]
