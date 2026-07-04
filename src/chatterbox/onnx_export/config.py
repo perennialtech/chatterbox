@@ -2,16 +2,16 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
-ExportProfile = Literal["vc_minimal", "vc_reference", "vc_full_tensor", "vc_bucketed"]
+ExportProfile = Literal["vc_full_tensor", "vc_bucketed"]
 Precision = Literal["fp32", "fp16"]
-Quantization = Literal["none", "int8", "q4", "q4f16"]
+Quantization = Literal["none"]
 
 
 @dataclass(frozen=True)
 class ExportConfig:
     checkpoint_dir: Path
     output_dir: Path
-    profile: ExportProfile = "vc_minimal"
+    profile: ExportProfile = "vc_full_tensor"
     opset: int = 18
     precision: Precision = "fp32"
     quantization: Quantization = "none"

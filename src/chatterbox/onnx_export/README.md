@@ -4,8 +4,6 @@ This package exports stable tensor-only neural subgraphs for the VC-only fork. T
 
 ## Profiles
 
-- `vc_minimal`: exports `token_to_mu.onnx`, `conditional_decoder_step.onnx`, `flow_decoder_meanflow2.onnx`, and `vocoder_hift.onnx`.
-- `vc_reference`: extends the minimal surface with reference conditioning graphs.
 - `vc_full_tensor`: exposes tensor-level frontend preprocessing graphs.
 - `vc_bucketed`: exports static-shape bucket variants for production runtime.
 
@@ -141,7 +139,7 @@ The manifest records checkpoint hash, opset, profile, precision, quantization mo
 python -m chatterbox.onnx_export export \
   --checkpoint-dir /path/to/chatterbox-turbo \
   --output-dir ./onnx-out \
-  --profile vc_minimal \
+  --profile vc_full_tensor \
   --precision fp32 \
   --opset 18
 
@@ -154,6 +152,3 @@ python -m chatterbox.onnx_export validate \
 
 - Validate exported fp32 artifacts on the production checkpoint with ONNX Runtime and store parity reports.
 - Enable fp16 conversion in the CLI only after fp32 parity reports pass.
-- Enable int8 quantization in the CLI only after fp32 and fp16 parity reports pass.
-- Implement q4 and q4f16 quantization after stable ONNX Runtime parity exists.
-- Add mobile and browser runtime conformance tests for the real-valued ISTFT vocoder path.

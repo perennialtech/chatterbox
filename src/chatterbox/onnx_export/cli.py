@@ -50,8 +50,6 @@ def export(config: ExportConfig) -> None:
     artifacts = []
 
     if config.profile in (
-        "vc_minimal",
-        "vc_reference",
         "vc_full_tensor",
         "vc_bucketed",
     ):
@@ -118,7 +116,7 @@ def parse_args():
     export_p = sub.add_parser("export")
     export_p.add_argument("--checkpoint-dir", required=True, type=Path)
     export_p.add_argument("--output-dir", required=True, type=Path)
-    export_p.add_argument("--profile", default="vc_minimal")
+    export_p.add_argument("--profile", default="vc_full_tensor")
     export_p.add_argument("--precision", default="fp32")
     export_p.add_argument("--opset", default=18, type=int)
     export_p.add_argument("--device", default="cpu")
