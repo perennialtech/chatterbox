@@ -18,7 +18,11 @@ def parse_args():
     build.add_argument("--engine-precision", choices=["fp32", "fp16"], default="fp16")
     build.add_argument("--workspace-gb", type=float, default=8.0)
     build.add_argument("--shape-plan", type=Path)
-    build.add_argument("--strict-types", action="store_true")
+    build.add_argument(
+        "--strongly-typed",
+        action="store_true",
+        help="Build a strongly typed TensorRT network using the ONNX tensor dtypes.",
+    )
 
     return parser.parse_args()
 
@@ -33,7 +37,7 @@ def main() -> None:
             engine_precision=args.engine_precision,
             workspace_bytes=int(args.workspace_gb * 1024**3),
             shape_plan=args.shape_plan,
-            strict_types=args.strict_types,
+            strongly_typed=args.strongly_typed,
         )
         records = build_engines(config)
         print(

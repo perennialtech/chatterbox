@@ -13,7 +13,7 @@ class TrtBuildConfig:
     engine_precision: Literal["fp32", "fp16"] = "fp16"
     workspace_bytes: int = 8 * 1024**3
     shape_plan: Path | None = None
-    strict_types: bool = False
+    strongly_typed: bool = False
 
     @property
     def resolved_output_dir(self) -> Path:

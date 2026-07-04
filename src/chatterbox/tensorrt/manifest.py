@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ..onnx_export.artifacts import manifest_hash
+from .api import require_tensorrt_10
 from .cuda import cuda_runtime_version
 from .types import ShapeRange
 
@@ -28,6 +29,8 @@ def write_trt_manifest(
     constants: dict,
 ) -> None:
     import tensorrt as trt
+
+    require_tensorrt_10(trt)
 
     engine_dir.mkdir(parents=True, exist_ok=True)
     manifest = {
