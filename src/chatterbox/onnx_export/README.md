@@ -5,7 +5,7 @@ The exporter emits the complete tensor-level VC graph set for deterministic serv
 ## Export
 
 ```bash
-python -m chatterbox.onnx_export export \
+uv run python -m chatterbox.onnx_export export \
   --checkpoint-dir /path/to/chatterbox-turbo \
   --output-dir ./artifacts \
   --precision both \
@@ -25,7 +25,7 @@ FP16 ONNX artifacts keep FP32 graph inputs and outputs while converting eligible
 ## Validation
 
 ```bash
-python -m chatterbox.onnx_export validate \
+uv run python -m chatterbox.onnx_export validate \
   --artifact-dir ./artifacts \
   --checkpoint-dir /path/to/chatterbox-turbo \
   --precision both \
@@ -173,7 +173,7 @@ Outputs:
 Build TensorRT engines from exported ONNX artifacts:
 
 ```bash
-python -m chatterbox.tensorrt build \
+uv run python -m chatterbox.tensorrt build \
   --artifact-dir ./artifacts \
   --onnx-precision fp16 \
   --engine-precision fp16 \
@@ -219,7 +219,7 @@ Override ranges with JSON:
 Build with:
 
 ```bash
-python -m chatterbox.tensorrt build \
+uv run python -m chatterbox.tensorrt build \
   --artifact-dir ./artifacts \
   --shape-plan ./shape-plan.json
 ```
