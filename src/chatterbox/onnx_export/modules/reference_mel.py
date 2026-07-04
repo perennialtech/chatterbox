@@ -1,11 +1,11 @@
 import torch
 
 from ...audio import S3GEN_SR, MelSpectrogram
-from ..dynamic_axes import REFERENCE_MEL_DYNAMIC_AXES
+from ..dynamic_shapes import REFERENCE_MEL_DYNAMIC_SHAPES
 
 input_names = ["wav_24k"]
 output_names = ["prompt_feat", "prompt_feat_len"]
-dynamic_axes = REFERENCE_MEL_DYNAMIC_AXES
+dynamic_axes = REFERENCE_MEL_DYNAMIC_SHAPES
 
 
 class ReferenceMel24kExport(torch.nn.Module):

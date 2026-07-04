@@ -69,7 +69,7 @@ artifacts/
     fp16.json
 ```
 
-The root manifest uses schema version `2` and records checkpoint hash, opset, exported precisions, graph signatures, dtype expectations, dynamic axes, sample rates, hop sizes, token rate, vocabulary size, source hop, meanflow schedule, and trim-fade length.
+The root manifest uses schema version `2` and records checkpoint hash, opset, exported precisions, graph signatures, dtype expectations, dynamic shapes, sample rates, hop sizes, token rate, vocabulary size, source hop, meanflow schedule, and trim-fade length.
 
 ## Graph signatures
 

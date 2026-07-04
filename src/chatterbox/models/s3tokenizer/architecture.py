@@ -63,7 +63,10 @@ def make_non_pad_mask(lengths: Tensor, max_len: Optional[int] = None) -> Tensor:
     if max_len is None:
         max_len = int(lengths.max().item())
 
-    seq_range = torch.arange(max_len, dtype=torch.int64, device=lengths.device)
+    range_dtype = (
+        lengths.dtype if lengths.dtype in (torch.int32, torch.int64) else torch.int32
+    )
+    seq_range = torch.arange(max_len, dtype=range_dtype, device=lengths.device)
     seq_range = seq_range.unsqueeze(0).expand(lengths.size(0), max_len)
     return seq_range < lengths.unsqueeze(-1)
 
@@ -116,7 +119,7 @@ class FSQCodebook(nn.Module):
         self.embed = None
         self.register_buffer(
             "powers",
-            torch.tensor([level**i for i in range(8)], dtype=torch.int64),
+            torch.tensor([level**i for i in range(8)], dtype=torch.int32),
             persistent=False,
         )
 
@@ -127,11 +130,12 @@ class FSQCodebook(nn.Module):
         h = self.project_down(x).float()
         h = h.tanh()
         h = h * 0.9990000128746033
-        h = h.round() + 1.0
+        codes = (h.round() + 1.0).to(dtype=torch.int32)
 
-        powers = self.powers.to(dtype=h.dtype).unsqueeze(0)
-        indices = torch.sum(h * powers, dim=-1)
-        return indices.reshape(*x_shape[:-1]).to(dtype=torch.int32)
+        indices = codes[:, 0] * self.powers[0]
+        for i in range(1, 8):
+            indices = indices + codes[:, i] * self.powers[i]
+        return indices.reshape(*x_shape[:-1])
 
     def decode(self, embed_ind: Tensor) -> Tensor:
         raise NotImplementedError("FSQ decoding requires the unavailable up-projector")
@@ -324,7 +328,7 @@ class AudioEncoderV2(nn.Module):
         )
 
     def forward(self, x: Tensor, x_len: Tensor) -> Tuple[Tensor, Tensor]:
-        x_len = x_len.to(dtype=torch.int64)
+        x_len = x_len.to(dtype=torch.int32)
 
         t = x.shape[-1]
         mask = make_non_pad_mask(x_len, t).unsqueeze(1)

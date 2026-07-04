@@ -1,10 +1,10 @@
 import torch
 
-from ..dynamic_axes import VOCODER_DYNAMIC_AXES
+from ..dynamic_shapes import VOCODER_DYNAMIC_SHAPES
 
 input_names = ["speech_feat", "source_phase", "source_noise"]
 output_names = ["wav", "source"]
-dynamic_axes = VOCODER_DYNAMIC_AXES
+dynamic_axes = VOCODER_DYNAMIC_SHAPES
 
 
 class VocoderExport(torch.nn.Module):

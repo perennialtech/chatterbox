@@ -3,13 +3,13 @@ from __future__ import annotations
 import torch
 
 from ..constants import GRAPH_VOCODER_HIFT
-from ..dynamic_axes import VOCODER_DYNAMIC_AXES
+from ..dynamic_shapes import VOCODER_DYNAMIC_SHAPES
 from ..graph_spec import GraphSpec
 from ..names import VOCODER_HIFT
 
 input_names = ["speech_feat", "source_phase", "source_noise"]
 output_names = ["wav", "source"]
-dynamic_axes = VOCODER_DYNAMIC_AXES
+dynamic_shapes = VOCODER_DYNAMIC_SHAPES
 
 
 class VocoderExport(torch.nn.Module):
@@ -53,7 +53,7 @@ VOCODER_HIFT_SPEC = GraphSpec(
     filename=VOCODER_HIFT,
     input_names=input_names,
     output_names=output_names,
-    dynamic_axes=dynamic_axes,
+    dynamic_shapes=dynamic_shapes,
     make_module=make_module,
     make_dummy_inputs=lambda: make_dummy_inputs(),
     input_dtypes={

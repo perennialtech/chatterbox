@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable
+from typing import Any, Callable
 
 import torch
 
@@ -14,7 +14,7 @@ class GraphSpec:
     filename: str
     input_names: list[str]
     output_names: list[str]
-    dynamic_axes: dict[str, dict[int, str]]
+    dynamic_shapes: dict[str, Any] | tuple[Any, ...]
     make_module: Callable[[S3Gen], torch.nn.Module]
     make_dummy_inputs: Callable[[], tuple[torch.Tensor, ...]]
     input_dtypes: dict[str, str]

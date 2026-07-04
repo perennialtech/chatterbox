@@ -20,7 +20,7 @@ class ArtifactRecord:
     path: str
     inputs: list[str]
     outputs: list[str]
-    dynamic_axes: dict[str, Any]
+    dynamic_shapes: Any
 
 
 def sha256_file(path: Path) -> str:
@@ -90,11 +90,20 @@ def write_manifest(
             "files": precision_files,
             "inputs": spec.input_names,
             "outputs": spec.output_names,
-            "dynamic_axes": spec.dynamic_axes,
+            "dynamic_shapes": _serialize_dynamic_shapes(spec.dynamic_shapes),
             "input_dtypes": spec.input_dtypes,
             "output_dtypes": spec.output_dtypes,
             "required_for_runtime": spec.required_for_runtime,
         }
+
+    # make sure artifact dynamic shapes are also clean
+    serializable_artifacts = []
+    for artifact in artifacts:
+        art_dict = asdict(artifact)
+        art_dict["dynamic_shapes"] = _serialize_dynamic_shapes(
+            art_dict["dynamic_shapes"]
+        )
+        serializable_artifacts.append(art_dict)
 
     manifest = {
         "schema_version": 2,
@@ -110,7 +119,7 @@ def write_manifest(
         },
         "constants": _constants(source_hop),
         "graphs": graphs,
-        "artifacts": [asdict(artifact) for artifact in artifacts],
+        "artifacts": serializable_artifacts,
     }
     if ort_version is not None:
         manifest["onnxruntime_version"] = ort_version
@@ -132,3 +141,15 @@ def load_manifest(artifact_dir: Path) -> dict[str, Any]:
     if not path.exists():
         raise FileNotFoundError(f"Missing ONNX manifest: {path}")
     return json.loads(path.read_text())
+
+
+def _serialize_dynamic_shapes(shapes: Any) -> Any:
+    """Recursively convert torch.export.Dim objects to string representations."""
+    if isinstance(shapes, dict):
+        return {str(k): _serialize_dynamic_shapes(v) for k, v in shapes.items()}
+    elif isinstance(shapes, (list, tuple)):
+        return [_serialize_dynamic_shapes(v) for v in shapes]
+    elif str(type(shapes)).find("Dim") != -1 or hasattr(shapes, "__name__"):
+        # Extracts name / string representation of the Dim
+        return getattr(shapes, "__name__", str(shapes))
+    return shapes

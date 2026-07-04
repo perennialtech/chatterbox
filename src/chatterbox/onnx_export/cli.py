@@ -43,7 +43,7 @@ def export(config: ExportConfig) -> None:
                 inputs=dummy_inputs,
                 input_names=spec.input_names,
                 output_names=spec.output_names,
-                dynamic_axes=spec.dynamic_axes,
+                dynamic_shapes=spec.dynamic_shapes,
             )
         )
 
@@ -57,7 +57,7 @@ def export(config: ExportConfig) -> None:
                     path=str(fp16_path),
                     inputs=spec.input_names,
                     outputs=spec.output_names,
-                    dynamic_axes=spec.dynamic_axes,
+                    dynamic_shapes=spec.dynamic_shapes,
                 )
             )
 

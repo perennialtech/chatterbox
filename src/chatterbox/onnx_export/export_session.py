@@ -24,7 +24,7 @@ class ExportSession:
         inputs: tuple[torch.Tensor, ...],
         input_names: list[str],
         output_names: list[str],
-        dynamic_axes: dict[str, Any] | None = None,
+        dynamic_shapes: tuple[Any, ...] | dict[str, Any] | None = None,
     ) -> ArtifactRecord:
         path.parent.mkdir(parents=True, exist_ok=True)
         module.eval()
@@ -34,33 +34,28 @@ class ExportSession:
                 assert not m.training, f"BatchNorm still training: {m}"
 
         with torch.inference_mode():
-            try:
-                torch.onnx.export(
-                    module,
-                    inputs,
-                    str(path),
-                    input_names=input_names,
-                    output_names=output_names,
-                    dynamic_axes=dynamic_axes,
-                    opset_version=self.opset,
-                    do_constant_folding=True,
-                    external_data=self.external_data,
-                    dynamo=True,
-                    # dynamo=False,
-                )
-            except TypeError:
-                torch.onnx.export(
-                    module,
-                    inputs,
-                    str(path),
-                    input_names=input_names,
-                    output_names=output_names,
-                    dynamic_axes=dynamic_axes,
-                    opset_version=self.opset,
-                    do_constant_folding=True,
-                )
-            except Exception as exc:
-                raise OnnxExportError(f"Failed to export {path.name}: {exc}") from exc
+            export_kwargs = {
+                "input_names": input_names,
+                "output_names": output_names,
+                "opset_version": self.opset,
+                "do_constant_folding": True,
+                "external_data": self.external_data,
+                "dynamo": True,
+            }
+
+            if dynamic_shapes is not None:
+                # FIXME: Review this fix:
+                # Dynamo is overly strict. If dynamic_shapes is a dict, we
+                # must strip out extra keys that don't belong to this specific graph's inputs.
+                if isinstance(dynamic_shapes, dict):
+                    filtered_shapes = {
+                        k: v for k, v in dynamic_shapes.items() if k in input_names
+                    }
+                    export_kwargs["dynamic_shapes"] = filtered_shapes
+                else:
+                    export_kwargs["dynamic_shapes"] = dynamic_shapes
+
+            torch.onnx.export(module, inputs, str(path), **export_kwargs)
 
         self.check(path)
         return ArtifactRecord(
@@ -69,7 +64,7 @@ class ExportSession:
             path=str(path),
             inputs=input_names,
             outputs=output_names,
-            dynamic_axes=dynamic_axes or {},
+            dynamic_shapes=dynamic_shapes or {},
         )
 
     @staticmethod
@@ -78,4 +73,5 @@ class ExportSession:
             import onnx
         except ImportError as exc:
             raise OnnxExportError("onnx is required to check exported graphs") from exc
+
         onnx.checker.check_model(str(path))

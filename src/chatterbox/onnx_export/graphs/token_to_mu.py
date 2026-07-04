@@ -5,7 +5,7 @@ import torch.nn.functional as F
 
 from ...models.s3gen.utils.mask import make_pad_mask
 from ..constants import GRAPH_TOKEN_TO_MU
-from ..dynamic_axes import TOKEN_TO_MU_DYNAMIC_AXES
+from ..dynamic_shapes import TOKEN_TO_MU_DYNAMIC_SHAPES
 from ..graph_spec import GraphSpec
 from ..names import TOKEN_TO_MU
 
@@ -17,7 +17,7 @@ input_names = [
     "embedding",
 ]
 output_names = ["mu", "mask", "spks", "prompt_mel_len", "output_mel_len"]
-dynamic_axes = TOKEN_TO_MU_DYNAMIC_AXES
+dynamic_shapes = TOKEN_TO_MU_DYNAMIC_SHAPES
 
 
 class TokenToMuExport(torch.nn.Module):
@@ -74,7 +74,7 @@ TOKEN_TO_MU_SPEC = GraphSpec(
     filename=TOKEN_TO_MU,
     input_names=input_names,
     output_names=output_names,
-    dynamic_axes=dynamic_axes,
+    dynamic_shapes=dynamic_shapes,
     make_module=make_module,
     make_dummy_inputs=make_dummy_inputs,
     input_dtypes={

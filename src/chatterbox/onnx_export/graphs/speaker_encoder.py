@@ -4,13 +4,13 @@ import torch
 
 from ...models.speaker.exportable import SpeakerEncoderExport
 from ..constants import GRAPH_SPEAKER_ENCODER
-from ..dynamic_axes import SPEAKER_ENCODER_DYNAMIC_AXES
+from ..dynamic_shapes import SPEAKER_ENCODER_DYNAMIC_SHAPES
 from ..graph_spec import GraphSpec
 from ..names import SPEAKER_ENCODER
 
 input_names = ["fbank", "fbank_lengths"]
 output_names = ["embedding"]
-dynamic_axes = SPEAKER_ENCODER_DYNAMIC_AXES
+dynamic_shapes = SPEAKER_ENCODER_DYNAMIC_SHAPES
 
 
 def make_module(model):
@@ -29,7 +29,7 @@ SPEAKER_ENCODER_SPEC = GraphSpec(
     filename=SPEAKER_ENCODER,
     input_names=input_names,
     output_names=output_names,
-    dynamic_axes=dynamic_axes,
+    dynamic_shapes=dynamic_shapes,
     make_module=make_module,
     make_dummy_inputs=make_dummy_inputs,
     input_dtypes={"fbank": "float32", "fbank_lengths": "int64"},

@@ -3,13 +3,13 @@ from __future__ import annotations
 import torch
 
 from ..constants import GRAPH_FLOW_DECODER_MEANFLOW2, MEANFLOW_T_SPAN
-from ..dynamic_axes import FLOW_DECODER_DYNAMIC_AXES
+from ..dynamic_shapes import FLOW_DECODER_DYNAMIC_SHAPES
 from ..graph_spec import GraphSpec
 from ..names import FLOW_DECODER_MEANFLOW2
 
 input_names = ["noise", "mask", "mu", "spks", "cond"]
 output_names = ["mel"]
-dynamic_axes = FLOW_DECODER_DYNAMIC_AXES
+dynamic_shapes = FLOW_DECODER_DYNAMIC_SHAPES
 
 
 class FlowDecoderMeanflow2Export(torch.nn.Module):
@@ -57,7 +57,7 @@ FLOW_DECODER_MEANFLOW2_SPEC = GraphSpec(
     filename=FLOW_DECODER_MEANFLOW2,
     input_names=input_names,
     output_names=output_names,
-    dynamic_axes=dynamic_axes,
+    dynamic_shapes=dynamic_shapes,
     make_module=make_module,
     make_dummy_inputs=make_dummy_inputs,
     input_dtypes={

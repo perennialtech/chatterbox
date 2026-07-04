@@ -1,10 +1,10 @@
 import torch
 
-from ..dynamic_axes import FLOW_DECODER_DYNAMIC_AXES
+from ..dynamic_shapes import FLOW_DECODER_DYNAMIC_SHAPES
 
 input_names = ["noise", "mask", "mu", "spks", "cond"]
 output_names = ["mel"]
-dynamic_axes = FLOW_DECODER_DYNAMIC_AXES
+dynamic_axes = FLOW_DECODER_DYNAMIC_SHAPES
 
 
 class FlowDecoderMeanflow2Export(torch.nn.Module):

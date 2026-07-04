@@ -5,7 +5,8 @@ from pathlib import Path
 import numpy as np
 
 from .api import require_tensorrt_10
-from .cuda import CudaStream, DeviceBuffer, memcpy_dtoh_async, memcpy_htod_async
+from .cuda import (CudaStream, DeviceBuffer, memcpy_dtoh_async,
+                   memcpy_htod_async)
 from .errors import TensorRTRuntimeError, TensorRTShapeError
 
 

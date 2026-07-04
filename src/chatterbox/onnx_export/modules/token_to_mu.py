@@ -2,7 +2,7 @@ import torch
 import torch.nn.functional as F
 
 from ...models.s3gen.utils.mask import make_pad_mask
-from ..dynamic_axes import TOKEN_TO_MU_DYNAMIC_AXES
+from ..dynamic_shapes import TOKEN_TO_MU_DYNAMIC_SHAPES
 
 input_names = [
     "prompt_token",
@@ -12,7 +12,7 @@ input_names = [
     "embedding",
 ]
 output_names = ["mu", "mask", "spks", "prompt_mel_len", "output_mel_len"]
-dynamic_axes = TOKEN_TO_MU_DYNAMIC_AXES
+dynamic_axes = TOKEN_TO_MU_DYNAMIC_SHAPES
 
 
 class TokenToMuExport(torch.nn.Module):

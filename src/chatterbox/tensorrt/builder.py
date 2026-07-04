@@ -44,7 +44,12 @@ def _validate_profile_shape(
     network_shape: tuple[int, ...],
     shape_range: ShapeRange,
 ) -> None:
-    if not (len(network_shape) == len(shape_range.min) == len(shape_range.opt) == len(shape_range.max)):
+    if not (
+        len(network_shape)
+        == len(shape_range.min)
+        == len(shape_range.opt)
+        == len(shape_range.max)
+    ):
         raise TensorRTBuildError(
             f"{graph_name}.{input_name}: TensorRT profile rank does not match ONNX input rank"
         )
@@ -124,7 +129,9 @@ def build_engines(config: TrtBuildConfig) -> list[EngineRecord]:
         source_rel_path = Path(source_rel)
         source_onnx = artifact_dir / source_rel_path
         if not source_onnx.exists():
-            raise TensorRTBuildError(f"Missing ONNX artifact for {graph_name}: {source_onnx}")
+            raise TensorRTBuildError(
+                f"Missing ONNX artifact for {graph_name}: {source_onnx}"
+            )
 
         engine_path = output_dir / f"{graph_name}.engine"
 
@@ -133,7 +140,7 @@ def build_engines(config: TrtBuildConfig) -> list[EngineRecord]:
         network = builder.create_network(flags)
         parser = trt.OnnxParser(network, logger)
 
-        if not parser.parse(source_onnx.read_bytes()):
+        if not parser.parse_from_file(str(source_onnx)):
             raise TensorRTBuildError(
                 f"Failed to parse {source_onnx}:\n{_parser_errors(parser)}"
             )

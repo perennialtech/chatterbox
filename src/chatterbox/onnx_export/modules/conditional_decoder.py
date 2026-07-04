@@ -1,10 +1,10 @@
 import torch
 
-from ..dynamic_axes import CONDITIONAL_DECODER_DYNAMIC_AXES
+from ..dynamic_shapes import CONDITIONAL_DECODER_DYNAMIC_SHAPES
 
 input_names = ["x", "mask", "mu", "spks", "cond", "t", "r"]
 output_names = ["dxdt"]
-dynamic_axes = CONDITIONAL_DECODER_DYNAMIC_AXES
+dynamic_axes = CONDITIONAL_DECODER_DYNAMIC_SHAPES
 
 
 class ConditionalDecoderStepExport(torch.nn.Module):

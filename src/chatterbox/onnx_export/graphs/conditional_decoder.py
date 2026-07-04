@@ -3,13 +3,13 @@ from __future__ import annotations
 import torch
 
 from ..constants import GRAPH_CONDITIONAL_DECODER_STEP
-from ..dynamic_axes import CONDITIONAL_DECODER_DYNAMIC_AXES
+from ..dynamic_shapes import CONDITIONAL_DECODER_DYNAMIC_SHAPES
 from ..graph_spec import GraphSpec
 from ..names import CONDITIONAL_DECODER_STEP
 
 input_names = ["x", "mask", "mu", "spks", "cond", "t", "r"]
 output_names = ["dxdt"]
-dynamic_axes = CONDITIONAL_DECODER_DYNAMIC_AXES
+dynamic_shapes = CONDITIONAL_DECODER_DYNAMIC_SHAPES
 
 
 class ConditionalDecoderStepExport(torch.nn.Module):
@@ -50,7 +50,7 @@ CONDITIONAL_DECODER_STEP_SPEC = GraphSpec(
     filename=CONDITIONAL_DECODER_STEP,
     input_names=input_names,
     output_names=output_names,
-    dynamic_axes=dynamic_axes,
+    dynamic_shapes=dynamic_shapes,
     make_module=make_module,
     make_dummy_inputs=make_dummy_inputs,
     input_dtypes={

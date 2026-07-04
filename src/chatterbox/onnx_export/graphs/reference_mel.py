@@ -8,13 +8,13 @@ import torch.nn.functional as F
 
 from ...audio import S3GEN_SR
 from ..constants import GRAPH_REFERENCE_MEL_24K
-from ..dynamic_axes import REFERENCE_MEL_DYNAMIC_AXES
+from ..dynamic_shapes import REFERENCE_MEL_DYNAMIC_SHAPES
 from ..graph_spec import GraphSpec
 from ..names import REFERENCE_MEL_24K
 
 input_names = ["wav_24k"]
 output_names = ["prompt_feat", "prompt_feat_len"]
-dynamic_axes = REFERENCE_MEL_DYNAMIC_AXES
+dynamic_shapes = REFERENCE_MEL_DYNAMIC_SHAPES
 
 
 class ExportableMelSpectrogram(torch.nn.Module):
@@ -109,7 +109,7 @@ REFERENCE_MEL_24K_SPEC = GraphSpec(
     filename=REFERENCE_MEL_24K,
     input_names=input_names,
     output_names=output_names,
-    dynamic_axes=dynamic_axes,
+    dynamic_shapes=dynamic_shapes,
     make_module=make_module,
     make_dummy_inputs=make_dummy_inputs,
     input_dtypes={"wav_24k": "float32"},

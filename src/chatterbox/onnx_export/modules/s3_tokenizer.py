@@ -1,10 +1,10 @@
 import torch
 
-from ..dynamic_axes import S3_TOKENIZER_DYNAMIC_AXES
+from ..dynamic_shapes import S3_TOKENIZER_DYNAMIC_SHAPES
 
 input_names = ["log_mel", "mel_lengths"]
 output_names = ["speech_tokens", "speech_token_lengths"]
-dynamic_axes = S3_TOKENIZER_DYNAMIC_AXES
+dynamic_axes = S3_TOKENIZER_DYNAMIC_SHAPES
 
 
 def make_dummy_inputs(batch: int = 1, mel_frames: int = 128, n_mels: int = 128):

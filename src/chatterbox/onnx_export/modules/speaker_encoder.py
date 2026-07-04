@@ -1,11 +1,11 @@
 import torch
 
-from ..dynamic_axes import SPEAKER_ENCODER_DYNAMIC_AXES
+from ..dynamic_shapes import SPEAKER_ENCODER_DYNAMIC_SHAPES
 
 # input_names = ["fbank", "fbank_lengths"]
 input_names = ["fbank"]
 output_names = ["embedding"]
-dynamic_axes = SPEAKER_ENCODER_DYNAMIC_AXES
+dynamic_axes = SPEAKER_ENCODER_DYNAMIC_SHAPES
 
 
 def make_dummy_inputs(batch: int = 1, frames: int = 256):

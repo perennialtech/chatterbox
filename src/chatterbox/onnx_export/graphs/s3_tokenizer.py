@@ -4,13 +4,13 @@ import torch
 
 from ...models.s3tokenizer.exportable import S3TokenizerQuantizerExport
 from ..constants import GRAPH_S3_TOKENIZER_QUANTIZER
-from ..dynamic_axes import S3_TOKENIZER_DYNAMIC_AXES
+from ..dynamic_shapes import S3_TOKENIZER_DYNAMIC_SHAPES
 from ..graph_spec import GraphSpec
 from ..names import S3_TOKENIZER_QUANTIZER
 
 input_names = ["log_mel", "mel_lengths"]
 output_names = ["speech_tokens", "speech_token_lengths"]
-dynamic_axes = S3_TOKENIZER_DYNAMIC_AXES
+dynamic_shapes = S3_TOKENIZER_DYNAMIC_SHAPES
 
 
 def make_module(model):
@@ -29,7 +29,7 @@ S3_TOKENIZER_QUANTIZER_SPEC = GraphSpec(
     filename=S3_TOKENIZER_QUANTIZER,
     input_names=input_names,
     output_names=output_names,
-    dynamic_axes=dynamic_axes,
+    dynamic_shapes=dynamic_shapes,
     make_module=make_module,
     make_dummy_inputs=make_dummy_inputs,
     input_dtypes={"log_mel": "float32", "mel_lengths": "int64"},
