@@ -7,7 +7,6 @@ class S3TokenizerQuantizerExport(torch.nn.Module):
         self.tokenizer = tokenizer
 
     def forward(self, log_mel: torch.Tensor, mel_lengths: torch.Tensor):
-        speech_tokens, speech_token_lengths = self.tokenizer.quantize(
-            log_mel, mel_lengths
-        )
+        hidden, speech_token_lengths = self.tokenizer.encoder(log_mel, mel_lengths)
+        speech_tokens = self.tokenizer.quantizer.encode(hidden)
         return speech_tokens.long(), speech_token_lengths.long()

@@ -63,7 +63,8 @@ def load_torch_model(
     _check_missing_keys(list(incompatible.missing_keys))
 
     unexpected = [
-        k for k in incompatible.unexpected_keys
+        k
+        for k in incompatible.unexpected_keys
         if not any(frag in k for frag in _ALLOWED_MISSING_SUBSTRINGS)
     ]
     if unexpected:

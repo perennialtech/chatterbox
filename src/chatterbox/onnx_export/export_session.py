@@ -29,6 +29,10 @@ class ExportSession:
         path.parent.mkdir(parents=True, exist_ok=True)
         module.eval()
 
+        for m in module.modules():
+            if isinstance(m, (torch.nn.BatchNorm1d, torch.nn.BatchNorm2d)):
+                assert not m.training, f"BatchNorm still training: {m}"
+
         with torch.inference_mode():
             try:
                 torch.onnx.export(
@@ -42,6 +46,7 @@ class ExportSession:
                     do_constant_folding=True,
                     external_data=self.external_data,
                     dynamo=True,
+                    # dynamo=False,
                 )
             except TypeError:
                 torch.onnx.export(
@@ -73,5 +78,4 @@ class ExportSession:
             import onnx
         except ImportError as exc:
             raise OnnxExportError("onnx is required to check exported graphs") from exc
-        model = onnx.load(str(path), load_external_data=False)
-        onnx.checker.check_model(model)
+        onnx.checker.check_model(str(path))

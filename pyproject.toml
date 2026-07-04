@@ -15,7 +15,6 @@ dependencies = [
     "librosa>=0.11",
     "numpy>=1.24",
     "omegaconf>=2.3",
-    "s3tokenizer>=0.3",
     "safetensors>=0.8",
 ]
 
@@ -66,8 +65,10 @@ dev = [
     "basedpyright>=1.39.7",
     "black>=26.5.1",
     "isort>=8.0.1",
+    "onnxconverter-common>=1.16.0",
     "onnxscript>=0.7.1",
     "ruff>=0.15.17",
+    "torchvision>=0.27.1",
 ]
 
 [tool.uv]

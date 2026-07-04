@@ -192,11 +192,18 @@ class CAMLayer(torch.nn.Module):
 
     def seg_pooling(self, x, seg_len=100, stype="avg"):
         if stype == "avg":
-            seg = F.avg_pool1d(x, kernel_size=seg_len, stride=seg_len, ceil_mode=True)
+            seg = F.avg_pool1d(
+                x,
+                kernel_size=seg_len,
+                stride=seg_len,
+                ceil_mode=True,
+                count_include_pad=False,
+            )
         elif stype == "max":
             seg = F.max_pool1d(x, kernel_size=seg_len, stride=seg_len, ceil_mode=True)
         else:
             raise ValueError("Wrong segment pooling type.")
+
         shape = seg.shape
         seg = seg.unsqueeze(-1).expand(*shape, seg_len).reshape(*shape[:-1], -1)
         seg = seg[..., : x.shape[-1]]

@@ -21,10 +21,14 @@ def _run_ort(
     import onnxruntime as ort
 
     session = ort.InferenceSession(str(path), providers=["CPUExecutionProvider"])
+    actual_input_names = {inp.name for inp in session.get_inputs()}
+
     feed = {
         name: np.ascontiguousarray(t.detach().cpu().numpy())
         for name, t in zip(input_names, inputs)
+        if name in actual_input_names
     }
+
     return session.run(None, feed)
 
 

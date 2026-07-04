@@ -2,10 +2,9 @@ from typing import List, Tuple
 
 import numpy as np
 import torch
-from s3tokenizer.model_v2 import ModelConfig, S3TokenizerV2
-from s3tokenizer.utils import padding
 
 from ...audio.constants import S3_TOKEN_RATE
+from .architecture import ModelConfig, S3TokenizerV2, pad_mel_batch
 from .features import S3TokenizerLogMel
 
 
@@ -18,10 +17,13 @@ class S3Tokenizer(S3TokenizerV2):
     def __init__(
         self,
         name: str = "speech_tokenizer_v2_25hz",
-        config: ModelConfig = ModelConfig(),
+        config: ModelConfig | None = None,
     ):
-        super().__init__(name)
-        self.feature_extractor = S3TokenizerLogMel(n_fft=400, n_mels=config.n_mels)
+        super().__init__(name, config=config)
+        self.feature_extractor = S3TokenizerLogMel(
+            n_fft=400,
+            n_mels=self.config.n_mels,
+        )
 
     def pad(self, wavs, sr) -> List[torch.Tensor]:
         processed_wavs = []
@@ -68,7 +70,7 @@ class S3Tokenizer(S3TokenizerV2):
                 mel = mel[..., : max_len * 4]
             mels.append(mel.squeeze(0))
 
-        mels, mel_lens = padding(mels)
+        mels, mel_lens = pad_mel_batch(mels)
         if accelerator is None:
             tokenizer = self
         else:

@@ -5,8 +5,8 @@ The exporter emits the complete tensor-level VC graph set for deterministic serv
 ## Export
 
 ```bash
-uv run python -m chatterbox.onnx_export export \
-  --checkpoint-dir /path/to/chatterbox-turbo \
+uv run --extra cuda,tensorrt,onnx python -m chatterbox.onnx_export export \
+  --checkpoint-dir checkpoints \
   --output-dir ./artifacts \
   --precision both \
   --opset 18 \
@@ -27,7 +27,7 @@ FP16 ONNX artifacts keep FP32 graph inputs and outputs while converting eligible
 ```bash
 uv run python -m chatterbox.onnx_export validate \
   --artifact-dir ./artifacts \
-  --checkpoint-dir /path/to/chatterbox-turbo \
+  --checkpoint-dir checkpoints \
   --precision both \
   --device cuda
 ```
@@ -173,11 +173,11 @@ Outputs:
 Build TensorRT engines from exported ONNX artifacts:
 
 ```bash
-uv run python -m chatterbox.tensorrt build \
+uv run --extra cuda,tensorrt,onnx python -m chatterbox.tensorrt build \
   --artifact-dir ./artifacts \
-  --onnx-precision fp16 \
-  --engine-precision fp16 \
-  --workspace-gb 8
+  --onnx-precision fp32 \
+  --engine-precision fp32 \
+  --workspace-gb 4
 ```
 
 Output:

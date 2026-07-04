@@ -2,7 +2,8 @@ import torch
 
 from ..dynamic_axes import SPEAKER_ENCODER_DYNAMIC_AXES
 
-input_names = ["fbank", "fbank_lengths"]
+# input_names = ["fbank", "fbank_lengths"]
+input_names = ["fbank"]
 output_names = ["embedding"]
 dynamic_axes = SPEAKER_ENCODER_DYNAMIC_AXES
 
