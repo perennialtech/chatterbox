@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import numpy as np
-from cuda import cudart
+from cuda.bindings import runtime as cudart
 
 from .errors import TensorRTRuntimeError
 

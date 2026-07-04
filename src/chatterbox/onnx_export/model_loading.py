@@ -16,6 +16,9 @@ _ALLOWED_MISSING_SUBSTRINGS = (
     "tokenizer.window",
     "feature_extractor._mel_filters",
     "feature_extractor.window",
+    "token_encoder.",
+    "real_stft.",
+    "real_istft.",
 )
 
 

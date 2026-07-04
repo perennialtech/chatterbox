@@ -1,5 +1,6 @@
-from .model import (S3_HOP, S3_SR, S3_TOKEN_HOP, S3_TOKEN_RATE,
-                    SPEECH_VOCAB_SIZE, S3Tokenizer)
+from ...audio import (S3_HOP, S3_SR, S3_TOKEN_HOP, S3_TOKEN_RATE,
+                      SPEECH_VOCAB_SIZE)
+from .model import S3Tokenizer
 
 SOS = SPEECH_VOCAB_SIZE
 EOS = SPEECH_VOCAB_SIZE + 1
