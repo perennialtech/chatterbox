@@ -7,7 +7,7 @@ import torch.nn.functional as F
 from s3tokenizer.model_v2 import ModelConfig, S3TokenizerV2
 from s3tokenizer.utils import padding
 
-from ...audio.constants import (S3_HOP, S3_SR, S3_TOKEN_RATE)
+from ...audio.constants import S3_HOP, S3_SR, S3_TOKEN_RATE
 
 
 class S3Tokenizer(S3TokenizerV2):

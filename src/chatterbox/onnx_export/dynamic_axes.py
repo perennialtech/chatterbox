@@ -22,8 +22,10 @@ TOKEN_TO_MU_DYNAMIC_AXES = {
     "prompt_token_len": {0: "batch"},
     "speech_token": {0: "batch", 1: "speech_tokens"},
     "speech_token_len": {0: "batch"},
+    "embedding": {0: "batch"},
     "mu": {0: "batch", 2: "total_mel_frames"},
     "mask": {0: "batch", 2: "total_mel_frames"},
+    "spks": {0: "batch"},
     "prompt_mel_len": {0: "batch"},
     "output_mel_len": {0: "batch"},
 }

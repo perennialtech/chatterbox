@@ -138,7 +138,6 @@ class ConditionalDecoder(nn.Module):
         self.mid_blocks = nn.ModuleList([])
         self.up_blocks = nn.ModuleList([])
 
-        # NOTE jrm: `static_chunk_size` is missing?
         self.static_chunk_size = 0
 
         output_channel = in_channels
@@ -186,7 +185,6 @@ class ConditionalDecoder(nn.Module):
 
         for _ in range(num_mid_blocks):
             input_channel = channels[-1]
-            out_channels = channels[-1]
             resnet = (
                 CausalResnetBlock1D(
                     dim=input_channel,

@@ -4,7 +4,6 @@ import math
 
 import torch
 import torch.nn as nn
-from einops import rearrange
 
 
 def sequence_mask(length, max_length=None):
@@ -180,10 +179,10 @@ class RotaryPositionalEmbeddings(nn.Module):
 
     def forward(self, x: torch.Tensor):
         """
-        * `x` is the Tensor at the head of a key or a query with shape `[seq_len, batch_size, n_heads, d]`
+        * `x` is the Tensor at the head of a key or a query with shape `[batch_size, n_heads, seq_len, d]`
         """
         # Cache $\cos$ and $\sin$ values
-        x = rearrange(x, "b h t d -> t b h d")
+        x = x.permute(2, 0, 1, 3).contiguous()
 
         self._build_cache(x)
 
@@ -198,7 +197,7 @@ class RotaryPositionalEmbeddings(nn.Module):
             neg_half_x * self.sin_cached[: x.shape[0]]
         )
 
-        return rearrange(torch.cat((x_rope, x_pass), dim=-1), "t b h d -> b h t d")
+        return torch.cat((x_rope, x_pass), dim=-1).permute(1, 2, 0, 3).contiguous()
 
 
 class MultiHeadAttention(nn.Module):
@@ -254,9 +253,22 @@ class MultiHeadAttention(nn.Module):
 
     def attention(self, query, key, value, mask=None):
         b, d, t_s, t_t = (*key.size(), query.size(2))
-        query = rearrange(query, "b (h c) t-> b h t c", h=self.n_heads)
-        key = rearrange(key, "b (h c) t-> b h t c", h=self.n_heads)
-        value = rearrange(value, "b (h c) t-> b h t c", h=self.n_heads)
+
+        query = (
+            query.view(b, self.n_heads, d // self.n_heads, t_t)
+            .transpose(2, 3)
+            .contiguous()
+        )
+        key = (
+            key.view(b, self.n_heads, d // self.n_heads, t_s)
+            .transpose(2, 3)
+            .contiguous()
+        )
+        value = (
+            value.view(b, self.n_heads, d // self.n_heads, t_s)
+            .transpose(2, 3)
+            .contiguous()
+        )
 
         query = self.query_rotary_pe(query)
         key = self.key_rotary_pe(key)

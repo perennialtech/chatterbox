@@ -27,6 +27,7 @@ from torch.nn import Conv1d, ConvTranspose1d, Parameter
 from torch.nn.utils import parametrize
 from torch.nn.utils.parametrizations import weight_norm
 
+from .source import DeterministicSourceModuleHnNSF
 from .stft import RealISTFT, RealSTFT
 
 
@@ -410,7 +411,7 @@ class HiFTGenerator(nn.Module):
         self.num_upsamples = len(upsample_rates)
         self.source_hop = math.prod(upsample_rates) * self.hop_len
 
-        self.m_source = SourceModuleHnNSF(
+        self.m_source = DeterministicSourceModuleHnNSF(
             sampling_rate=sampling_rate,
             harmonic_num=nb_harmonics,
             sine_amp=nsf_alpha,
@@ -540,7 +541,22 @@ class HiFTGenerator(nn.Module):
         source_noise: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         source_f0 = f0[:, None].repeat_interleave(self.source_hop, dim=2)
-        source, _ = self.m_source(source_f0, phase=source_phase, noise=source_noise)
+        if source_phase is None:
+            source_phase = torch.empty(
+                source_f0.size(0),
+                self.nb_harmonics + 1,
+                1,
+                device=source_f0.device,
+                dtype=source_f0.dtype,
+            )
+            source_phase.uniform_(-math.pi, math.pi)
+            source_phase[:, :1, :] = 0.0
+        if source_noise is None:
+            source_noise = torch.randn_like(
+                source_f0.expand(-1, self.nb_harmonics + 1, -1)
+            )
+
+        source, _ = self.m_source(source_f0, source_phase, source_noise)
         return source
 
     def _source_stft(self, s: torch.Tensor) -> torch.Tensor:
