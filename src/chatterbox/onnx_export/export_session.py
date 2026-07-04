@@ -1,9 +1,12 @@
+from __future__ import annotations
+
 from pathlib import Path
 from typing import Any
 
 import torch
 
 from .artifacts import ArtifactRecord
+from .config import SinglePrecision
 from .errors import OnnxExportError
 
 
@@ -14,6 +17,8 @@ class ExportSession:
 
     def export(
         self,
+        graph_name: str,
+        precision: SinglePrecision,
         module: torch.nn.Module,
         path: Path,
         inputs: tuple[torch.Tensor, ...],
@@ -54,7 +59,8 @@ class ExportSession:
 
         self.check(path)
         return ArtifactRecord(
-            name=path.name,
+            graph_name=graph_name,
+            precision=precision,
             path=str(path),
             inputs=input_names,
             outputs=output_names,

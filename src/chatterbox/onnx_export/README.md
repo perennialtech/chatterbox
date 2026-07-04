@@ -1,11 +1,75 @@
-# Chatterbox VC ONNX export
+# Chatterbox VC ONNX and TensorRT export
 
-This package exports stable tensor-only neural subgraphs for the VC-only fork. The high-level Python service remains orchestration code; ONNX graphs do not accept file paths, dictionaries, devices, optional host objects, or raw Python control-flow flags.
+The exporter emits the complete tensor-level VC graph set for deterministic service orchestration. File IO, audio loading, target voice caching, Euler orchestration choices, and backend selection remain outside the ONNX graphs.
 
-## Profiles
+## Export
 
-- `vc_full_tensor`: exposes tensor-level frontend preprocessing graphs.
-- `vc_bucketed`: exports static-shape bucket variants for production runtime.
+```bash
+python -m chatterbox.onnx_export export \
+  --checkpoint-dir /path/to/chatterbox-turbo \
+  --output-dir ./artifacts \
+  --precision both \
+  --opset 18 \
+  --device cuda \
+  --validate
+```
+
+Supported ONNX precisions:
+
+- `fp32`
+- `fp16`
+- `both`
+
+FP16 ONNX artifacts keep FP32 graph inputs and outputs while converting eligible internal tensors and initializers to FP16.
+
+## Validation
+
+```bash
+python -m chatterbox.onnx_export validate \
+  --artifact-dir ./artifacts \
+  --checkpoint-dir /path/to/chatterbox-turbo \
+  --precision both \
+  --device cuda
+```
+
+Validation runs graph-by-graph parity against Torch with deterministic dummy tensors and writes reports to:
+
+```text
+artifacts/validation/fp32.json
+artifacts/validation/fp16.json
+```
+
+Tokenizer outputs are checked exactly. Speaker embeddings use cosine similarity. Neural float outputs use graph-specific absolute-difference tolerances.
+
+## Artifact layout
+
+```text
+artifacts/
+  manifest.json
+  metadata.json
+  onnx/
+    fp32/
+      s3_tokenizer_quantizer.onnx
+      speaker_encoder.onnx
+      reference_mel_24k.onnx
+      token_to_mu.onnx
+      conditional_decoder_step.onnx
+      flow_decoder_meanflow2.onnx
+      vocoder_hift.onnx
+    fp16/
+      s3_tokenizer_quantizer.onnx
+      speaker_encoder.onnx
+      reference_mel_24k.onnx
+      token_to_mu.onnx
+      conditional_decoder_step.onnx
+      flow_decoder_meanflow2.onnx
+      vocoder_hift.onnx
+  validation/
+    fp32.json
+    fp16.json
+```
+
+The root manifest uses schema version `2` and records checkpoint hash, opset, exported precisions, graph signatures, dtype expectations, dynamic axes, sample rates, hop sizes, token rate, vocabulary size, source hop, meanflow schedule, and trim-fade length.
 
 ## Graph signatures
 
@@ -13,7 +77,7 @@ This package exports stable tensor-only neural subgraphs for the VC-only fork. T
 
 Inputs:
 
-- `log_mel`: `float32[B, n_mels, T_mel_16k]`
+- `log_mel`: `float32[B, 128, T_mel_16k]`
 - `mel_lengths`: `int64[B]`
 
 Outputs:
@@ -25,7 +89,7 @@ Outputs:
 
 Inputs:
 
-- `fbank`: `float32[B, T, 80]`
+- `fbank`: `float32[B, T_fbank, 80]`
 - `fbank_lengths`: `int64[B]`
 
 Outputs:
@@ -51,11 +115,13 @@ Inputs:
 - `prompt_token_len`: `int64[B]`
 - `speech_token`: `int64[B, N]`
 - `speech_token_len`: `int64[B]`
+- `embedding`: `float32[B, 192]`
 
 Outputs:
 
-- `mu`: `float[B, 80, 2 * (P + N)]`
-- `mask`: `float[B, 1, 2 * (P + N)]`
+- `mu`: `float32[B, 80, 2 * (P + N)]`
+- `mask`: `float32[B, 1, 2 * (P + N)]`
+- `spks`: `float32[B, 80]`
 - `prompt_mel_len`: `int64[B]`
 - `output_mel_len`: `int64[B]`
 
@@ -63,92 +129,119 @@ Outputs:
 
 Inputs:
 
-- `x`: `float[B, 80, T]`
-- `mask`: `float[B, 1, T]`
-- `mu`: `float[B, 80, T]`
-- `spks`: `float[B, 80]`
-- `cond`: `float[B, 80, T]`
-- `t`: `float[B]`
-- `r`: `float[B]`
+- `x`: `float32[B, 80, T]`
+- `mask`: `float32[B, 1, T]`
+- `mu`: `float32[B, 80, T]`
+- `spks`: `float32[B, 80]`
+- `cond`: `float32[B, 80, T]`
+- `t`: `float32[B]`
+- `r`: `float32[B]`
 
 Outputs:
 
-- `dxdt`: `float[B, 80, T]`
+- `dxdt`: `float32[B, 80, T]`
 
 ### `flow_decoder_meanflow2.onnx`
 
 Inputs:
 
-- `noise`: `float[B, 80, T]`
-- `mask`: `float[B, 1, T]`
-- `mu`: `float[B, 80, T]`
-- `spks`: `float[B, 80]`
-- `cond`: `float[B, 80, T]`
+- `noise`: `float32[B, 80, T]`
+- `mask`: `float32[B, 1, T]`
+- `mu`: `float32[B, 80, T]`
+- `spks`: `float32[B, 80]`
+- `cond`: `float32[B, 80, T]`
 
 Outputs:
 
-- `mel`: `float[B, 80, T]`
+- `mel`: `float32[B, 80, T]`
 
 ### `vocoder_hift.onnx`
 
 Inputs:
 
-- `speech_feat`: `float[B, 80, T_mel]`
-- `source_phase`: `float[B, 9, 1]`
-- `source_noise`: `float[B, 9, T_audio_source]`
+- `speech_feat`: `float32[B, 80, T_mel]`
+- `source_phase`: `float32[B, 9, 1]`
+- `source_noise`: `float32[B, 9, T_mel * source_hop]`
 
 Outputs:
 
-- `wav`: `float[B, samples]`
-- `source`: `float[B, 1, samples]`
+- `wav`: `float32[B, samples]`
+- `source`: `float32[B, 1, samples]`
 
-## Artifact layout
+## TensorRT build
 
-```text
-out/
-  manifest.json
-  metadata.json
-  fp32/
-    token_to_mu.onnx
-    conditional_decoder_step.onnx
-    flow_decoder_meanflow2.onnx
-    vocoder_hift.onnx
-  fp16/
-  validation/
-```
-
-The manifest records checkpoint hash, opset, profile, precision, quantization mode, dynamic axes, sample rates, hop sizes, token rate, vocabulary size, prompt limits, and bucket sizes.
-
-## Runtime
-
-`onnx_export/runtime/vc.py` performs token bucketing, token padding, decoder condition construction, optional host-side Euler stepping, mel cropping, vocoding, and trim fade. File IO remains outside the ONNX runtime.
-
-## Validation thresholds
-
-- tokenizer tokens: exact match
-- speaker embedding: cosine similarity `>= 0.999`
-- token-to-mu fp32: `max_abs <= 1e-4`, `mean_abs <= 1e-5`
-- conditional decoder step fp32: `max_abs <= 2e-3`, `mean_abs <= 2e-4`
-- conditional decoder step fp16: `max_abs <= 2e-2`, `mean_abs <= 2e-3`
-- vocoder fp32: waveform `mean_abs <= 1e-4`, length exact
-- vocoder fp16: waveform `mean_abs <= 5e-3`, length exact
-
-## CLI
+Build TensorRT engines from exported ONNX artifacts:
 
 ```bash
-python -m chatterbox.onnx_export export \
-  --checkpoint-dir /path/to/chatterbox-turbo \
-  --output-dir ./onnx-out \
-  --profile vc_full_tensor \
-  --precision fp32 \
-  --opset 18
-
-python -m chatterbox.onnx_export validate \
-  --artifacts ./onnx-out/fp32 \
-  --checkpoint-dir /path/to/chatterbox-turbo
+python -m chatterbox.tensorrt build \
+  --artifact-dir ./artifacts \
+  --onnx-precision fp16 \
+  --engine-precision fp16 \
+  --workspace-gb 8
 ```
 
-## TODO
+Output:
 
-- Validate exported fp32 artifacts on the production checkpoint with ONNX Runtime and store parity reports.
-- Enable fp16 conversion in the CLI only after fp32 parity reports pass.
+```text
+artifacts/
+  tensorrt/
+    fp16/
+      trt_manifest.json
+      s3_tokenizer_quantizer.engine
+      speaker_encoder.engine
+      reference_mel_24k.engine
+      token_to_mu.engine
+      conditional_decoder_step.engine
+      flow_decoder_meanflow2.engine
+      vocoder_hift.engine
+```
+
+## TensorRT shape plan
+
+TensorRT builds require optimization profiles. Defaults target batch size `1` and up to `3072` total tokens / `6144` mel frames.
+
+Override ranges with JSON:
+
+```json
+{
+  "graphs": {
+    "flow_decoder_meanflow2": {
+      "noise": {
+        "min": [1, 80, 2],
+        "opt": [1, 80, 512],
+        "max": [1, 80, 4096]
+      }
+    }
+  }
+}
+```
+
+Build with:
+
+```bash
+python -m chatterbox.tensorrt build \
+  --artifact-dir ./artifacts \
+  --shape-plan ./shape-plan.json
+```
+
+## Runtime examples
+
+ONNX Runtime:
+
+```python
+from chatterbox import ChatterboxVC
+
+vc = ChatterboxVC.from_onnx_artifacts("./artifacts", precision="fp32")
+wav, sr, timings = vc.generate("source.wav", target_voice_path="target.wav")
+```
+
+Native TensorRT:
+
+```python
+from chatterbox import ChatterboxVC
+
+vc = ChatterboxVC.from_tensorrt_engines("./artifacts/tensorrt/fp16")
+wav, sr, timings = vc.generate("source.wav", target_voice_path="target.wav")
+```
+
+The ONNX and TensorRT VC backends require all seven exported graphs. Missing artifacts or engines fail at backend construction or first use with explicit backend errors.

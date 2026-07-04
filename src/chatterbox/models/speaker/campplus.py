@@ -12,7 +12,6 @@ import torch.nn.functional as F
 import torch.utils.checkpoint as cp
 
 
-
 class BasicResBlock(torch.nn.Module):
     expansion = 1
 

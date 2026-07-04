@@ -1,25 +1,29 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
-ExportProfile = Literal["vc_full_tensor", "vc_bucketed"]
-Precision = Literal["fp32", "fp16"]
-Quantization = Literal["none"]
+Precision = Literal["fp32", "fp16", "both"]
+SinglePrecision = Literal["fp32", "fp16"]
 
 
 @dataclass(frozen=True)
 class ExportConfig:
     checkpoint_dir: Path
     output_dir: Path
-    profile: ExportProfile = "vc_full_tensor"
     opset: int = 18
     precision: Precision = "fp32"
-    quantization: Quantization = "none"
     external_data: bool = True
-    buckets: tuple[int, ...] = (384, 512, 768, 1024)
     validate: bool = True
     device: str = "cpu"
+    max_positional_frames: int = 6144
 
     @property
-    def precision_dir(self) -> Path:
-        return self.output_dir / self.precision
+    def precisions(self) -> tuple[SinglePrecision, ...]:
+        if self.precision == "both":
+            return ("fp32", "fp16")
+        return (self.precision,)
+
+    def onnx_precision_dir(self, precision: SinglePrecision) -> Path:
+        return self.output_dir / "onnx" / precision
