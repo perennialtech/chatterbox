@@ -52,7 +52,6 @@ class TorchVCBackend:
         self.sr = S3GEN_SR
         self.s3gen = s3gen
         self.device = device
-        self._target_voice_cache_key = None
         self._target_voice_cache = None
         self.ref_dict = (
             None if ref_dict is None else self.s3gen.prepare_ref_dict(ref_dict)
@@ -132,32 +131,33 @@ class TorchVCBackend:
             compile=compile,
         )
 
-    @torch.inference_mode()
-    def set_target_voice(self, wav_fpath):
-        wav_fpath = Path(wav_fpath).expanduser().resolve(strict=False)
-        wav_stat = wav_fpath.stat()
-        cache_key = (wav_fpath, wav_stat.st_mtime_ns, wav_stat.st_size)
+    def set_target_voice_from_tensors(self, target_voice: dict) -> None:
+        self._target_voice_cache = target_voice
+        self.ref_dict = target_voice
 
-        if self._target_voice_cache_key == cache_key:
-            self.ref_dict = self._target_voice_cache
-            return
-
-        s3gen_ref_wav = load_audio_mono(
-            wav_fpath,
-            S3GEN_SR,
-            self.device,
-            max_len=DEC_COND_LEN,
-        )
-        self.ref_dict = self.s3gen.embed_ref(
-            s3gen_ref_wav, S3GEN_SR, device=self.device
-        )
-        self._target_voice_cache_key = cache_key
-        self._target_voice_cache = self.ref_dict
-
-    def generate(
+    def convert_from_path(
         self,
-        audio,
-        target_voice_path=None,
+        audio_path: str | Path,
+        target_voice_path: str | Path | None = None,
+        profile: bool = False,
+        upscale: bool = False,
+    ) -> VCResult:
+        if target_voice_path:
+            s3gen_ref_wav = load_audio_mono(
+                target_voice_path, S3GEN_SR, self.device, max_len=DEC_COND_LEN
+            )
+            self.ref_dict = self.s3gen.embed_ref(
+                s3gen_ref_wav, S3GEN_SR, device=self.device
+            )
+            self._target_voice_cache = self.ref_dict
+
+        audio_16k = load_audio_mono(audio_path, S3_SR, self.device).unsqueeze(0)
+        return self.convert_from_tensors(audio_16k, self.ref_dict, profile, upscale)
+
+    def convert_from_tensors(
+        self,
+        audio_16k: torch.Tensor,
+        target_voice: dict | None = None,
         profile: bool = False,
         upscale: bool = False,
     ) -> VCResult:
@@ -170,17 +170,13 @@ class TorchVCBackend:
         active_sr = self.sr
 
         with torch.inference_mode():
-            if target_voice_path:
-                self.set_target_voice(target_voice_path)
-            elif self.ref_dict is None:
+            if target_voice is None:
                 raise VoiceConditioningError("Target voice is not set.")
 
-            audio_16 = load_audio_mono(audio, S3_SR, self.device).unsqueeze(0)
-            s3_tokens, _ = self.s3gen.tokenizer(audio_16)
-
+            s3_tokens, _ = self.s3gen.tokenizer(audio_16k)
             output_mels = self.s3gen.flow_inference(
                 speech_tokens=s3_tokens,
-                ref_dict=self.ref_dict,
+                ref_dict=target_voice,
                 finalize=True,
             )
 
@@ -205,7 +201,6 @@ class TorchVCBackend:
             "audio_duration_sec": audio_duration,
             "rtf": wall_total / audio_duration if audio_duration > 0 else 0,
         }
-
         return VCResult(wav=wav, sample_rate=active_sr, timings=timings)
 
 
@@ -259,9 +254,6 @@ class ChatterboxVC:
             )
         )
 
-    def set_target_voice(self, wav_fpath):
-        return self.backend.set_target_voice(wav_fpath)
-
     def generate(
         self,
         audio,
@@ -269,10 +261,19 @@ class ChatterboxVC:
         profile: bool = False,
         upscale: bool = False,
     ):
-        result = self.backend.generate(
-            audio,
-            target_voice_path=target_voice_path,
-            profile=profile,
-            upscale=upscale,
-        )
+        if isinstance(audio, (str, Path)):
+            result = self.backend.convert_from_path(
+                audio,
+                target_voice_path=target_voice_path,
+                profile=profile,
+                upscale=upscale,
+            )
+        else:
+            result = self.backend.convert_from_tensors(
+                audio,
+                target_voice=None,  # if user passes tensors, they need to have used set_target_voice_from_tensors previously (or modified kwargs directly)
+                profile=profile,
+                upscale=upscale,
+            )
+
         return result.wav, result.sample_rate, result.timings

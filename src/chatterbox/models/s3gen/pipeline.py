@@ -7,16 +7,125 @@ import torch.nn.functional as F
 
 from ...audio import S3_SR, S3GEN_SR, mel_spectrogram, resample_audio
 from ..s3tokenizer import SPEECH_VOCAB_SIZE, S3Tokenizer
+from ..speaker.campplus import CAMPPlus
 from .conditioning import S3ReferenceCondition
 from .configs import CFM_PARAMS
 from .decoder import ConditionalDecoder
 from .f0_predictor import ConvRNNF0Predictor
-from .flow import CausalMaskedDiffWithXvec
 from .flow_matching import CausalConditionalCFM
-from .hifigan import HiFTGenerator
 from .token_encoder import S3TokenEncoder
 from .transformer.upsample_encoder import UpsampleConformerEncoder
-from .xvector import CAMPPlus
+from .utils.mask import make_pad_mask
+from .vocoder import HiFTGenerator
+
+
+def _repeat_batch_dim(tnsr, B, ndim):
+    if tnsr is not None:
+        while tnsr.ndim < ndim:
+            tnsr = tnsr[None]
+        if B > 1 and tnsr.size(0) == 1:
+            tnsr = tnsr.repeat(B, *([1] * (ndim - 1)))
+        assert tnsr.ndim == ndim, f"Expected {ndim=}, got {tnsr.ndim=}"
+    return tnsr
+
+
+class CausalMaskedDiffWithXvec(torch.nn.Module):
+    def __init__(
+        self,
+        input_size: int = 512,
+        output_size: int = 80,
+        spk_embed_dim: int = 192,
+        output_type: str = "mel",
+        vocab_size: int = 6561,
+        input_frame_rate: int = 25,
+        only_mask_loss: bool = True,
+        token_mel_ratio: int = 2,
+        pre_lookahead_len: int = 3,
+        encoder: torch.nn.Module = None,
+        decoder: torch.nn.Module = None,
+    ):
+        super().__init__()
+        self.input_size = input_size
+        self.output_size = output_size
+        self.vocab_size = vocab_size
+        self.output_type = output_type
+        self.input_frame_rate = input_frame_rate
+        self.input_embedding = torch.nn.Embedding(vocab_size, input_size)
+        self.spk_embed_affine_layer = torch.nn.Linear(spk_embed_dim, output_size)
+        self.encoder = encoder
+        self.encoder_proj = torch.nn.Linear(self.encoder.output_size(), output_size)
+        self.decoder = decoder
+        self.only_mask_loss = only_mask_loss
+        self.token_mel_ratio = token_mel_ratio
+        self.pre_lookahead_len = pre_lookahead_len
+
+    @torch.inference_mode()
+    def inference(
+        self,
+        token,
+        token_len,
+        prompt_token,
+        prompt_token_len,
+        prompt_feat,
+        prompt_feat_len,
+        embedding,
+        finalize,
+        n_timesteps=10,
+        noised_mels=None,
+        meanflow=False,
+    ):
+        B = token.size(0)
+        embedding = torch.atleast_2d(embedding)
+        embedding = F.normalize(embedding, dim=1)
+        embedding = self.spk_embed_affine_layer(embedding)
+
+        prompt_token = _repeat_batch_dim(prompt_token, B, ndim=2)
+        prompt_token_len = _repeat_batch_dim(prompt_token_len, B, ndim=1)
+        prompt_feat = _repeat_batch_dim(prompt_feat, B, ndim=3)
+        prompt_feat_len = _repeat_batch_dim(prompt_feat_len, B, ndim=1)
+        embedding = _repeat_batch_dim(embedding, B, ndim=2)
+
+        token, token_len = (
+            torch.cat([prompt_token, token], dim=1),
+            prompt_token_len + token_len,
+        )
+        mask = (
+            (~make_pad_mask(token_len, max_len=token.size(1)))
+            .unsqueeze(-1)
+            .to(embedding)
+        )
+
+        token = self.input_embedding(token.long()) * mask
+
+        h, h_masks = self.encoder(token, token_len)
+        if finalize is False:
+            h = h[:, : -self.pre_lookahead_len * self.token_mel_ratio]
+
+        h_lengths = h_masks.sum(dim=-1).squeeze(dim=-1)
+        mel_len1, mel_len2 = prompt_feat.shape[1], h.shape[1] - prompt_feat.shape[1]
+        h = self.encoder_proj(h)
+
+        conds = torch.zeros(
+            [B, mel_len1 + mel_len2, self.output_size], device=token.device
+        ).to(h.dtype)
+        conds[:, :mel_len1] = prompt_feat
+        conds = conds.transpose(1, 2)
+
+        mask = (~make_pad_mask(h_lengths, max_len=h.shape[1])).unsqueeze(1).to(h)
+        if mask.shape[0] != B:
+            mask = mask.repeat(B, 1, 1)
+
+        feat, _ = self.decoder(
+            mu=h.transpose(1, 2).contiguous(),
+            mask=mask,
+            spks=embedding,
+            cond=conds,
+            n_timesteps=n_timesteps,
+            meanflow=meanflow,
+        )
+        feat = feat[:, :, mel_len1:]
+        return feat, None
+
 
 logger = logging.getLogger(__name__)
 

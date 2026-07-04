@@ -122,7 +122,7 @@ def parse_args():
     export_p.add_argument("--precision", default="fp32")
     export_p.add_argument("--opset", default=18, type=int)
     export_p.add_argument("--device", default="cpu")
-    export_p.add_argument("--no-validate", action="store_true")
+    export_p.add_argument("--validate", action="store_true")
 
     val_p = sub.add_parser("validate")
     val_p.add_argument("--artifacts", required=True, type=Path)
@@ -140,7 +140,7 @@ def main() -> None:
             profile=args.profile,
             precision=args.precision,
             opset=args.opset,
-            validate=not args.no_validate,
+            validate=args.validate,
             device=args.device,
         )
         export(config)

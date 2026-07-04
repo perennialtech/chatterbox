@@ -15,9 +15,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .local_transformer import BasicTransformerBlock
-from .matcha.decoder import (Block1D, Downsample1D, ResnetBlock1D,
-                             SinusoidalPosEmb, TimestepEmbedding, Upsample1D)
+from .resnet import (Block1D, Downsample1D, ResnetBlock1D, SinusoidalPosEmb,
+                     TimestepEmbedding, Upsample1D)
+from .transformer_block import BasicTransformerBlock
 from .utils.intmeanflow import get_intmeanflow_time_mixer
 from .utils.mask import add_optional_chunk_mask
 
@@ -116,10 +116,6 @@ class ConditionalDecoder(nn.Module):
         act_fn="gelu",
         meanflow=False,
     ):
-        """
-        This decoder requires an input with the same shape of the target. So, if your text content
-        is shorter or longer than the outputs, please re-sampling it before feeding to the decoder.
-        """
         super().__init__()
         channels = tuple(channels)
         self.meanflow = meanflow
@@ -141,7 +137,7 @@ class ConditionalDecoder(nn.Module):
         self.static_chunk_size = 0
 
         output_channel = in_channels
-        for i in range(len(channels)):  # pylint: disable=consider-using-enumerate
+        for i in range(len(channels)):
             input_channel = output_channel
             output_channel = channels[i]
             is_last = i == len(channels) - 1
@@ -283,24 +279,19 @@ class ConditionalDecoder(nn.Module):
                 if m.bias is not None:
                     nn.init.constant_(m.bias, 0)
 
-    def forward(self, x, mask, mu, t, spks=None, cond=None, r=None):
+    def forward(self, x, mask, mu, t, spks, cond, r):
         t = self.time_embeddings(t).to(dtype=x.dtype)
         t = self.time_mlp(t)
 
         if self.meanflow:
-            if r is None:
-                raise ValueError("r is required when ConditionalDecoder.meanflow=True")
             r = self.time_embeddings(r).to(dtype=x.dtype)
             r = self.time_mlp(r)
             t = self.time_embed_mixer(torch.cat([t, r], dim=1))
 
         x = torch.cat([x, mu], dim=1)
 
-        if spks is not None:
-            spks = spks.unsqueeze(-1).expand(-1, -1, x.size(-1))
-            x = torch.cat([x, spks], dim=1)
-        if cond is not None:
-            x = torch.cat([x, cond], dim=1)
+        spks = spks.unsqueeze(-1).expand(-1, -1, x.size(-1))
+        x = torch.cat([x, spks, cond], dim=1)
 
         attn_mask = add_optional_chunk_mask(
             x.transpose(1, 2).contiguous(),
@@ -363,4 +354,4 @@ class ConditionalDecoder(nn.Module):
         return output * mask
 
     def forward_export(self, x, mask, mu, spks, cond, t, r):
-        return self.forward(x=x, mask=mask, mu=mu, t=t, spks=spks, cond=cond, r=r)
+        return self.forward(x, mask, mu, t, spks, cond, r)

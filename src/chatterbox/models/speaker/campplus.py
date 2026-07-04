@@ -11,7 +11,6 @@ import torch
 import torch.nn.functional as F
 import torch.utils.checkpoint as cp
 
-from ...audio.fbank import extract_fbank_features
 
 
 class BasicResBlock(torch.nn.Module):
@@ -315,7 +314,6 @@ class DenseLayer(torch.nn.Module):
         return x
 
 
-# @tables.register("model_classes", "CAMPPlus")
 class CAMPPlus(torch.nn.Module):
     def __init__(
         self,
@@ -403,7 +401,3 @@ class CAMPPlus(torch.nn.Module):
         if self.output_level == "frame":
             x = x.transpose(1, 2)
         return x
-
-    def inference(self, audio_list):
-        speech, _, _ = extract_fbank_features(audio_list)
-        return self.forward(speech.to(torch.float32))

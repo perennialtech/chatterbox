@@ -1,8 +1,9 @@
+from abc import ABC
+
 import torch
 import torch.nn.functional as F
 
 from .configs import CFM_PARAMS
-from .matcha.flow_matching import BASECFM
 
 
 def cast_all(*args, dtype):
@@ -14,6 +15,57 @@ def cast_all(*args, dtype):
         )
         for a in args
     ]
+
+
+class BASECFM(torch.nn.Module, ABC):
+    def __init__(
+        self,
+        n_feats,
+        cfm_params,
+        n_spks=1,
+        spk_emb_dim=128,
+    ):
+        super().__init__()
+        self.n_feats = n_feats
+        self.n_spks = n_spks
+        self.spk_emb_dim = spk_emb_dim
+        self.solver = cfm_params.solver
+        if hasattr(cfm_params, "sigma_min"):
+            self.sigma_min = cfm_params.sigma_min
+        else:
+            self.sigma_min = 1e-4
+        self.estimator = None
+
+    @torch.inference_mode()
+    def forward(self, mu, mask, n_timesteps, temperature=1.0, spks=None, cond=None):
+        z = torch.randn_like(mu) * temperature
+        t_span = torch.linspace(0, 1, n_timesteps + 1, device=mu.device)
+        return self.solve_euler(
+            z, t_span=t_span, mu=mu, mask=mask, spks=spks, cond=cond
+        )
+
+    def solve_euler(self, x, t_span, mu, mask, spks, cond):
+        t, _, dt = t_span[0], t_span[-1], t_span[1] - t_span[0]
+        sol = []
+        for step in range(1, len(t_span)):
+            dphi_dt = self.estimator(x, mask, mu, t, spks, cond)
+            x = x + dt * dphi_dt
+            t = t + dt
+            sol.append(x)
+            if step < len(t_span) - 1:
+                dt = t_span[step + 1] - t
+        return sol[-1]
+
+    def compute_loss(self, x1, mask, mu, spks=None, cond=None):
+        b, _, t = mu.shape
+        t = torch.rand([b, 1, 1], device=mu.device, dtype=mu.dtype)
+        z = torch.randn_like(x1)
+        y = (1 - (1 - self.sigma_min) * t) * z + t * x1
+        u = x1 - (1 - self.sigma_min) * z
+        loss = F.mse_loss(
+            self.estimator(y, mask, mu, t.squeeze(), spks), u, reduction="sum"
+        ) / (torch.sum(mask) * u.shape[1])
+        return loss, y
 
 
 class ConditionalCFM(BASECFM):
@@ -110,13 +162,7 @@ class ConditionalCFM(BASECFM):
             r_in[:batch] = r_in[batch:] = r
 
             dxdt = self.estimator(
-                x=x_in,
-                mask=mask_in,
-                mu=mu_in,
-                t=t_in,
-                spks=spks_in,
-                cond=cond_in,
-                r=r_in if meanflow else None,
+                x_in, mask_in, mu_in, t_in, spks_in, cond_in, r_in if meanflow else None
             )
 
             dxdt, cfg_dxdt = torch.split(dxdt, [batch, batch], dim=0)
@@ -136,40 +182,10 @@ class ConditionalCFM(BASECFM):
         for t, r in zip(t_span[:-1], t_span[1:]):
             t_batch = t.expand(x.size(0))
             r_batch = r.expand(x.size(0))
-            dxdt = self.estimator(
-                x=x,
-                mask=mask,
-                mu=mu,
-                t=t_batch,
-                spks=spks,
-                cond=cond,
-                r=r_batch,
-            )
+            dxdt = self.estimator(x, mask, mu, t_batch, spks, cond, r_batch)
             x = x + (r - t) * dxdt
 
         return x.to(in_dtype)
-
-    def compute_loss(self, x1, mask, mu, spks=None, cond=None):
-        b, _, _ = mu.shape
-        t = torch.rand([b, 1, 1], device=mu.device, dtype=mu.dtype)
-        if self.t_scheduler == "cosine":
-            t = 1 - torch.cos(t * 0.5 * torch.pi)
-        z = torch.randn_like(x1)
-
-        y = (1 - (1 - self.sigma_min) * t) * z + t * x1
-        u = x1 - (1 - self.sigma_min) * z
-
-        if self.training_cfg_rate > 0:
-            cfg_mask = torch.rand(b, device=x1.device) > self.training_cfg_rate
-            mu = mu * cfg_mask.view(-1, 1, 1)
-            spks = spks * cfg_mask.view(-1, 1)
-            cond = cond * cfg_mask.view(-1, 1, 1)
-
-        pred = self.estimator(y, mask, mu, t.squeeze(), spks, cond)
-        loss = F.mse_loss(pred * mask, u * mask, reduction="sum") / (
-            torch.sum(mask) * u.shape[1]
-        )
-        return loss, y
 
 
 class CausalConditionalCFM(ConditionalCFM):

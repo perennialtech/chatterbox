@@ -3,10 +3,12 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
+import torch
 
-from ...audio import DEC_COND_LEN, S3_SR, S3GEN_SR, load_audio_mono
+from ...audio import DEC_COND_LEN, S3GEN_SR
 from ...vc.errors import VoiceConditioningError
 from ...vc.types import VCResult
+from .preprocess import load_reference_wav, load_source_wav
 from .sessions import OnnxSessions
 from .solver import meanflow_euler
 from .tensors import bucket_length, pad_tokens
@@ -22,30 +24,39 @@ class OnnxVCBackend:
         self._target_voice_cache_key = None
         self._target_voice_cache = None
 
-    def set_target_voice(self, wav_fpath: str | Path) -> None:
+    def set_target_voice_from_tensors(self, target_voice: dict) -> None:
+        self._target_voice_cache = target_voice
 
-        wav_fpath = Path(wav_fpath).expanduser().resolve(strict=False)
-        wav_stat = wav_fpath.stat()
-        cache_key = (str(wav_fpath), wav_stat.st_mtime_ns, wav_stat.st_size)
+    def convert_from_path(
+        self,
+        audio_path: str | Path,
+        target_voice_path: str | Path | None = None,
+        profile: bool = False,
+        upscale: bool = False,
+    ) -> VCResult:
+        if target_voice_path:
+            ref_wav_24k = load_reference_wav(
+                target_voice_path, "cpu", max_len=DEC_COND_LEN
+            ).numpy()
+            ref_wav_16k = load_source_wav(target_voice_path, "cpu").numpy()
 
-        if self._target_voice_cache_key == cache_key:
-            return
+            target_voice = self._extract_target_voice_tensors(ref_wav_24k, ref_wav_16k)
+            self.set_target_voice_from_tensors(target_voice)
 
-        ref_wav_24k = (
-            load_audio_mono(wav_fpath, S3GEN_SR, "cpu", max_len=DEC_COND_LEN)
-            .unsqueeze(0)
-            .numpy()
+        audio_16k = load_source_wav(audio_path, "cpu")
+        return self.convert_from_tensors(
+            audio_16k, self._target_voice_cache, profile, upscale
         )
-        ref_wav_16k = load_audio_mono(wav_fpath, S3_SR, "cpu").unsqueeze(0).numpy()
 
+    def _extract_target_voice_tensors(
+        self, ref_wav_24k: np.ndarray, ref_wav_16k: np.ndarray
+    ) -> dict:
         prompt_feat, prompt_feat_len = None, None
         if self.sessions.reference_mel_24k is not None:
             prompt_feat, prompt_feat_len = self.sessions.reference_mel_24k.run(
                 None, {"wav_24k": ref_wav_24k}
             )
         else:
-            import torch
-
             from ...models.s3gen.utils.mel import mel_spectrogram
 
             with torch.inference_mode():
@@ -54,9 +65,7 @@ class OnnxVCBackend:
                 prompt_feat_len = np.array([prompt_feat.shape[1]], dtype=np.int64)
 
         if self.sessions.speaker_encoder is not None:
-            import torch
-
-            from ...audio.fbank import extract_fbank_features
+            from ...models.speaker.features import extract_fbank_features
 
             with torch.inference_mode():
                 fbank, _, _ = extract_fbank_features(torch.from_numpy(ref_wav_16k))
@@ -68,10 +77,8 @@ class OnnxVCBackend:
                     },
                 )[0]
         else:
-            import torch
-
-            from ...audio.fbank import extract_fbank_features
-            from ...models.s3gen.xvector import CAMPPlus
+            from ...models.speaker.campplus import CAMPPlus
+            from ...models.speaker.features import extract_fbank_features
 
             with torch.inference_mode():
                 fbank, _, _ = extract_fbank_features(torch.from_numpy(ref_wav_16k))
@@ -79,9 +86,7 @@ class OnnxVCBackend:
                 embedding = spk_enc(fbank).numpy()
 
         if self.sessions.s3_tokenizer_quantizer is not None:
-            import torch
-
-            from ...models.s3tokenizer.s3tokenizer import S3Tokenizer
+            from ...models.s3tokenizer.model import S3Tokenizer
 
             with torch.inference_mode():
                 tokenizer = S3Tokenizer()
@@ -95,9 +100,7 @@ class OnnxVCBackend:
                     )
                 )
         else:
-            import torch
-
-            from ...models.s3tokenizer.s3tokenizer import S3Tokenizer
+            from ...models.s3tokenizer.model import S3Tokenizer
 
             with torch.inference_mode():
                 tokenizer = S3Tokenizer().eval()
@@ -112,40 +115,31 @@ class OnnxVCBackend:
             prompt_token = prompt_token[:, :target_len]
             prompt_token_len = np.array([target_len], dtype=np.int64)
 
-        self._target_voice_cache = {
+        return {
             "prompt_token": prompt_token,
             "prompt_token_len": prompt_token_len,
             "prompt_feat": prompt_feat,
             "embedding": embedding,
         }
-        self._target_voice_cache_key = cache_key
 
-    def generate(
+    def convert_from_tensors(
         self,
-        audio,
-        target_voice_path: str | Path | None = None,
+        audio_16k: torch.Tensor,
+        target_voice: dict | None = None,
         profile: bool = False,
         upscale: bool = False,
     ) -> VCResult:
         wall_start = time.perf_counter()
 
-        if target_voice_path:
-            self.set_target_voice(target_voice_path)
-        elif self._target_voice_cache is None:
+        if target_voice is None:
             raise VoiceConditioningError("Target voice is not set.")
 
-        import torch
-
-        from ...models.s3tokenizer.s3tokenizer import S3Tokenizer
-
-        audio_16k = load_audio_mono(audio, S3_SR, "cpu").unsqueeze(0).numpy()
+        from ...models.s3tokenizer.model import S3Tokenizer
 
         if self.sessions.s3_tokenizer_quantizer is not None:
             with torch.inference_mode():
                 tokenizer = S3Tokenizer()
-                log_mel = tokenizer.log_mel_spectrogram(
-                    torch.from_numpy(audio_16k)
-                ).numpy()
+                log_mel = tokenizer.log_mel_spectrogram(audio_16k).numpy()
                 mel_lens = np.array([log_mel.shape[-1]], dtype=np.int64)
                 speech_tokens, speech_token_lens = (
                     self.sessions.s3_tokenizer_quantizer.run(
@@ -155,20 +149,17 @@ class OnnxVCBackend:
         else:
             with torch.inference_mode():
                 tokenizer = S3Tokenizer().eval()
-                speech_tokens, speech_token_lens = tokenizer(
-                    torch.from_numpy(audio_16k)
-                )
+                speech_tokens, speech_token_lens = tokenizer(audio_16k)
                 speech_tokens = speech_tokens.numpy()
                 speech_token_lens = speech_token_lens.numpy()
 
-        cache = self._target_voice_cache
-        wav, _ = self.convert_from_tokens(
+        wav, _ = self._convert_from_tokens(
             speech_tokens=speech_tokens,
             speech_token_lens=speech_token_lens,
-            prompt_token=cache["prompt_token"],
-            prompt_token_len=cache["prompt_token_len"],
-            prompt_feat=cache["prompt_feat"],
-            embedding=cache["embedding"],
+            prompt_token=target_voice["prompt_token"],
+            prompt_token_len=target_voice["prompt_token_len"],
+            prompt_feat=target_voice["prompt_feat"],
+            embedding=target_voice["embedding"],
         )
 
         if upscale:
@@ -187,7 +178,7 @@ class OnnxVCBackend:
 
         return VCResult(wav=torch.from_numpy(wav), sample_rate=self.sr, timings=timings)
 
-    def convert_from_tokens(
+    def _convert_from_tokens(
         self,
         speech_tokens: np.ndarray,
         speech_token_lens: np.ndarray,

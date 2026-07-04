@@ -23,9 +23,3 @@ class ExportConfig:
     @property
     def precision_dir(self) -> Path:
         return self.output_dir / self.precision
-
-
-@dataclass(frozen=True)
-class BucketConfig:
-    token_bucket: int
-    mel_bucket: int
