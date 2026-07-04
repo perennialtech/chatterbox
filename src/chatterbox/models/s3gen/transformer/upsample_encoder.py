@@ -22,17 +22,14 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
+from ..utils.class_utils import (COSYVOICE_ACTIVATION_CLASSES,
+                                 COSYVOICE_ATTENTION_CLASSES,
+                                 COSYVOICE_EMB_CLASSES,
+                                 COSYVOICE_SUBSAMPLE_CLASSES)
+from ..utils.mask import add_optional_chunk_mask, make_pad_mask
 from .convolution import ConvolutionModule
 from .encoder_layer import ConformerEncoderLayer
 from .positionwise_feed_forward import PositionwiseFeedForward
-from ..utils.class_utils import (
-    COSYVOICE_EMB_CLASSES,
-    COSYVOICE_SUBSAMPLE_CLASSES,
-    COSYVOICE_ATTENTION_CLASSES,
-    COSYVOICE_ACTIVATION_CLASSES,
-)
-from ..utils.mask import make_pad_mask
-from ..utils.mask import add_optional_chunk_mask
 
 
 class Upsample1D(nn.Module):
@@ -107,7 +104,6 @@ class PreLookaheadLayer(nn.Module):
 
 
 class UpsampleConformerEncoder(torch.nn.Module):
-
     def __init__(
         self,
         input_size: int = 512,

@@ -1,14 +1,19 @@
+import logging
 import os
-from pathlib import Path
 import time
+from pathlib import Path
 
 import torch
-from huggingface_hub import hf_hub_download
 from safetensors.torch import load_file
 
-from .audio import load_audio_mono
-from .models.s3tokenizer import S3_SR
-from .models.s3gen import S3GEN_SR, S3Gen
+from ..audio import DEC_COND_LEN, S3_SR, S3GEN_SR, load_audio_mono
+from ..models.s3gen import S3Gen
+from ..models.s3gen.checkpoint_conversion import \
+    convert_diffusers_transformer_keys
+from .errors import BackendUnavailableError, VoiceConditioningError
+from .types import VCBackend, VCResult
+
+logger = logging.getLogger(__name__)
 
 REPO_ID = "ResembleAI/chatterbox-turbo"
 
@@ -20,23 +25,28 @@ def _is_cuda_device(device) -> bool:
 def _configure_cuda_runtime(device) -> None:
     if not _is_cuda_device(device):
         return
-
     torch.backends.cuda.matmul.allow_tf32 = True
     torch.backends.cudnn.allow_tf32 = True
-    # Broken on rocm
-    # torch.backends.cudnn.benchmark = True
     torch.set_float32_matmul_precision("high")
 
 
-class ChatterboxVC:
-    ENC_COND_LEN = 6 * S3_SR
-    DEC_COND_LEN = 10 * S3GEN_SR
+def download_pretrained_checkpoint(repo_id: str = REPO_ID) -> Path:
+    from huggingface_hub import hf_hub_download
 
+    local_path = None
+    for fpath in ["s3gen_meanflow.safetensors", "conds.pt"]:
+        local_path = hf_hub_download(repo_id=repo_id, filename=fpath)
+    if local_path is None:
+        raise FileNotFoundError("No checkpoint files were downloaded.")
+    return Path(local_path).parent
+
+
+class TorchVCBackend:
     def __init__(
         self,
         s3gen: S3Gen,
         device: str,
-        ref_dict: dict = None,
+        ref_dict: dict | None = None,
         flowhigh=None,
     ):
         self.sr = S3GEN_SR
@@ -51,20 +61,25 @@ class ChatterboxVC:
 
     @classmethod
     def from_local(
-        cls, ckpt_dir, device, load_flowhigh: bool = True, compile: bool = False
-    ) -> "ChatterboxVC":
+        cls,
+        ckpt_dir,
+        device,
+        load_flowhigh: bool = True,
+        compile: bool = False,
+    ) -> "TorchVCBackend":
         ckpt_dir = Path(ckpt_dir)
         map_location = torch.device("cpu")
 
         ref_dict = None
-        if (builtin_voice := ckpt_dir / "conds.pt").exists():
+        builtin_voice = ckpt_dir / "conds.pt"
+        if builtin_voice.exists():
             states = torch.load(builtin_voice, map_location=map_location)
             ref_dict = states["gen"]
 
         s3gen = S3Gen(meanflow=True)
-        s3gen.load_state_dict(
-            load_file(ckpt_dir / "s3gen_meanflow.safetensors"), strict=False
-        )
+        state = load_file(ckpt_dir / "s3gen_meanflow.safetensors")
+        state = convert_diffusers_transformer_keys(state)
+        s3gen.load_state_dict(state, strict=False)
         s3gen.to(device).eval()
 
         s3gen.mel2wav.optimize_for_inference()
@@ -96,25 +111,22 @@ class ChatterboxVC:
 
     @classmethod
     def from_pretrained(
-        cls, device, load_flowhigh: bool = True, compile: bool = False
-    ) -> "ChatterboxVC":
-        # Check if MPS is available on macOS
+        cls,
+        device,
+        load_flowhigh: bool = True,
+        compile: bool = False,
+    ) -> "TorchVCBackend":
         if device == "mps" and not torch.backends.mps.is_available():
             if not torch.backends.mps.is_built():
-                print(
-                    "MPS not available because the current PyTorch install was not built with MPS enabled."
+                logger.warning(
+                    "MPS unavailable because this PyTorch install was not built with MPS."
                 )
             else:
-                print(
-                    "MPS not available because the current MacOS version is not 12.3+ and/or you do not have an MPS-enabled device on this machine."
-                )
+                logger.warning("MPS unavailable on this macOS/device combination.")
             device = "cpu"
 
-        for fpath in ["s3gen_meanflow.safetensors", "conds.pt"]:
-            local_path = hf_hub_download(repo_id=REPO_ID, filename=fpath)
-
         return cls.from_local(
-            Path(local_path).parent,
+            download_pretrained_checkpoint(),
             device,
             load_flowhigh=load_flowhigh,
             compile=compile,
@@ -134,7 +146,7 @@ class ChatterboxVC:
             wav_fpath,
             S3GEN_SR,
             self.device,
-            max_len=self.DEC_COND_LEN,
+            max_len=DEC_COND_LEN,
         )
         self.ref_dict = self.s3gen.embed_ref(
             s3gen_ref_wav, S3GEN_SR, device=self.device
@@ -148,23 +160,20 @@ class ChatterboxVC:
         target_voice_path=None,
         profile: bool = False,
         upscale: bool = False,
-    ):
+    ) -> VCResult:
         if upscale and self.flowhigh is None:
-            raise ValueError(
-                "FlowHigh model is not loaded. Initialize ChatterboxVC with load_flowhigh=True."
+            raise BackendUnavailableError(
+                "FlowHigh model is not loaded. Initialize with load_flowhigh=True."
             )
 
         wall_start = time.perf_counter()
-
         active_sr = self.sr
 
         with torch.inference_mode():
             if target_voice_path:
                 self.set_target_voice(target_voice_path)
-            else:
-                assert (
-                    self.ref_dict is not None
-                ), "Please `prepare_conditionals` first or specify `target_voice_path`"
+            elif self.ref_dict is None:
+                raise VoiceConditioningError("Target voice is not set.")
 
             audio_16 = load_audio_mono(audio, S3_SR, self.device).unsqueeze(0)
             s3_tokens, _ = self.s3gen.tokenizer(audio_16)
@@ -176,10 +185,7 @@ class ChatterboxVC:
             )
 
             output_mels = output_mels.to(dtype=self.s3gen.dtype)
-            output_wavs, _ = self.s3gen.hift_inference(
-                output_mels,
-                None,
-            )
+            output_wavs, _ = self.s3gen.hift_inference(output_mels, None)
             output_wavs[:, : len(self.s3gen.trim_fade)] *= self.s3gen.trim_fade
 
             if upscale:
@@ -187,7 +193,6 @@ class ChatterboxVC:
                 output_wavs = (
                     output_wavs.unsqueeze(0) if output_wavs.ndim == 1 else output_wavs
                 )
-
                 active_sr = self.flowhigh.codec.sampling_rate
 
             wav = output_wavs.detach().cpu()
@@ -201,4 +206,73 @@ class ChatterboxVC:
             "rtf": wall_total / audio_duration if audio_duration > 0 else 0,
         }
 
-        return wav, active_sr, timings
+        return VCResult(wav=wav, sample_rate=active_sr, timings=timings)
+
+
+class ChatterboxVC:
+    def __init__(self, backend: VCBackend):
+        self.backend = backend
+        self.sr = backend.sr
+
+    @classmethod
+    def from_local(
+        cls,
+        ckpt_dir,
+        device,
+        load_flowhigh: bool = True,
+        compile: bool = False,
+    ) -> "ChatterboxVC":
+        return cls(
+            TorchVCBackend.from_local(
+                ckpt_dir,
+                device,
+                load_flowhigh=load_flowhigh,
+                compile=compile,
+            )
+        )
+
+    @classmethod
+    def from_pretrained(
+        cls,
+        device,
+        load_flowhigh: bool = True,
+        compile: bool = False,
+    ) -> "ChatterboxVC":
+        return cls(
+            TorchVCBackend.from_pretrained(
+                device,
+                load_flowhigh=load_flowhigh,
+                compile=compile,
+            )
+        )
+
+    @classmethod
+    def from_onnx_artifacts(
+        cls, artifact_dir: str | Path, providers: list[str] | None = None
+    ):
+        from ..onnx_export.runtime.sessions import OnnxSessions
+        from ..onnx_export.runtime.vc import OnnxVCBackend
+
+        return cls(
+            OnnxVCBackend(
+                OnnxSessions.from_dir(Path(artifact_dir), providers=providers)
+            )
+        )
+
+    def set_target_voice(self, wav_fpath):
+        return self.backend.set_target_voice(wav_fpath)
+
+    def generate(
+        self,
+        audio,
+        target_voice_path=None,
+        profile: bool = False,
+        upscale: bool = False,
+    ):
+        result = self.backend.generate(
+            audio,
+            target_voice_path=target_voice_path,
+            profile=profile,
+            upscale=upscale,
+        )
+        return result.wav, result.sample_rate, result.timings

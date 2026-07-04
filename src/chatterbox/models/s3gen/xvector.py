@@ -6,56 +6,12 @@
 
 
 from collections import OrderedDict
+
 import torch
 import torch.nn.functional as F
 import torch.utils.checkpoint as cp
-import torchaudio.compliance.kaldi as Kaldi
 
-
-def pad_list(xs, pad_value):
-    """Perform padding for the list of tensors.
-
-    Args:
-        xs (List): List of Tensors [(T_1, `*`), (T_2, `*`), ..., (T_B, `*`)].
-        pad_value (float): Value for padding.
-
-    Returns:
-        Tensor: Padded tensor (B, Tmax, `*`).
-
-    Examples:
-        >>> x = [torch.ones(4), torch.ones(2), torch.ones(1)]
-        >>> x
-        [tensor([1., 1., 1., 1.]), tensor([1., 1.]), tensor([1.])]
-        >>> pad_list(x, 0)
-        tensor([[1., 1., 1., 1.],
-                [1., 1., 0., 0.],
-                [1., 0., 0., 0.]])
-
-    """
-    n_batch = len(xs)
-    max_len = max(x.size(0) for x in xs)
-    pad = xs[0].new(n_batch, max_len, *xs[0].size()[1:]).fill_(pad_value)
-
-    for i in range(n_batch):
-        pad[i, : xs[i].size(0)] = xs[i]
-
-    return pad
-
-
-def extract_feature(audio):
-    features = []
-    feature_times = []
-    feature_lengths = []
-    for au in audio:
-        feature = Kaldi.fbank(au.unsqueeze(0), num_mel_bins=80)
-        feature = feature - feature.mean(dim=0, keepdim=True)
-        features.append(feature)
-        feature_times.append(au.shape[0])
-        feature_lengths.append(feature.shape[0])
-    # padding for batch inference
-    features_padded = pad_list(features, pad_value=0)
-    # features = torch.cat(features)
-    return features_padded, feature_lengths, feature_times
+from ...audio.fbank import extract_fbank_features
 
 
 class BasicResBlock(torch.nn.Module):
@@ -179,10 +135,10 @@ class TDNNLayer(torch.nn.Module):
     ):
         super(TDNNLayer, self).__init__()
         if padding < 0:
-            assert (
-                kernel_size % 2 == 1
-            ), "Expect equal paddings, but got even kernel size ({})".format(
-                kernel_size
+            assert kernel_size % 2 == 1, (
+                "Expect equal paddings, but got even kernel size ({})".format(
+                    kernel_size
+                )
             )
             padding = (kernel_size - 1) // 2 * dilation
         self.linear = torch.nn.Conv1d(
@@ -263,9 +219,9 @@ class CAMDenseTDNNLayer(torch.nn.Module):
         memory_efficient=False,
     ):
         super(CAMDenseTDNNLayer, self).__init__()
-        assert (
-            kernel_size % 2 == 1
-        ), "Expect equal paddings, but got even kernel size ({})".format(kernel_size)
+        assert kernel_size % 2 == 1, (
+            "Expect equal paddings, but got even kernel size ({})".format(kernel_size)
+        )
         padding = (kernel_size - 1) // 2 * dilation
         self.memory_efficient = memory_efficient
         self.nonlinear1 = get_nonlinear(config_str, in_channels)
@@ -430,9 +386,9 @@ class CAMPPlus(torch.nn.Module):
                 DenseLayer(channels * 2, embedding_size, config_str="batchnorm_"),
             )
         else:
-            assert (
-                self.output_level == "frame"
-            ), "`output_level` should be set to 'segment' or 'frame'. "
+            assert self.output_level == "frame", (
+                "`output_level` should be set to 'segment' or 'frame'. "
+            )
 
         for m in self.modules():
             if isinstance(m, (torch.nn.Conv1d, torch.nn.Linear)):
@@ -449,6 +405,5 @@ class CAMPPlus(torch.nn.Module):
         return x
 
     def inference(self, audio_list):
-        speech, speech_lengths, speech_times = extract_feature(audio_list)
-        results = self.forward(speech.to(torch.float32))
-        return results
+        speech, _, _ = extract_fbank_features(audio_list)
+        return self.forward(speech.to(torch.float32))

@@ -21,7 +21,6 @@ import torch
 
 
 class BaseSubsampling(torch.nn.Module):
-
     def __init__(self):
         super().__init__()
         self.right_context = 0

@@ -27,6 +27,8 @@ from torch.nn import Conv1d, ConvTranspose1d, Parameter
 from torch.nn.utils import parametrize
 from torch.nn.utils.parametrizations import weight_norm
 
+from .stft import RealISTFT, RealSTFT
+
 
 class Snake(nn.Module):
     """
@@ -216,11 +218,12 @@ class SineGen(torch.nn.Module):
         return (f0 > self.voiced_threshold).to(dtype=f0.dtype)
 
     @torch.no_grad()
-    def forward(self, f0: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-        """
-        :param f0: [B, 1, T], Hz
-        :return: sine_waves [B, harmonic_num + 1, T], uv [B, 1, T]
-        """
+    def forward(
+        self,
+        f0: torch.Tensor,
+        phase: Optional[torch.Tensor] = None,
+        noise: Optional[torch.Tensor] = None,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         if f0.dtype != torch.float32:
             f0 = f0.float()
 
@@ -228,24 +231,27 @@ class SineGen(torch.nn.Module):
         theta = torch.remainder(base_cycles * self.harmonic_factors, 1.0)
         theta.mul_(2.0 * math.pi)
 
-        phase_vec = torch.empty(
-            f0.size(0),
-            self.harmonic_num + 1,
-            1,
-            device=f0.device,
-            dtype=f0.dtype,
-        )
-        phase_vec.uniform_(-math.pi, math.pi)
-        phase_vec[:, :1, :] = 0.0
+        if phase is None:
+            phase = torch.empty(
+                f0.size(0),
+                self.harmonic_num + 1,
+                1,
+                device=f0.device,
+                dtype=f0.dtype,
+            )
+            phase.uniform_(-math.pi, math.pi)
+            phase[:, :1, :] = 0.0
+        theta.add_(phase.to(device=f0.device, dtype=f0.dtype))
 
-        theta.add_(phase_vec)
         sine_waves = torch.sin(theta)
         sine_waves.mul_(self.sine_amp)
 
         uv = self._f02uv(f0)
 
         noise_amp = uv * self.noise_std + (1.0 - uv) * (self.sine_amp / 3.0)
-        noise = torch.randn_like(sine_waves)
+        if noise is None:
+            noise = torch.randn_like(sine_waves)
+        noise = noise.to(device=f0.device, dtype=f0.dtype)
         noise.mul_(noise_amp)
 
         sine_waves.mul_(uv)
@@ -289,8 +295,13 @@ class SourceModuleHnNSF(torch.nn.Module):
         self.l_linear = torch.nn.Linear(harmonic_num + 1, 1)
         self.l_tanh = torch.nn.Tanh()
 
-    def forward(self, f0: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-        sine_wavs, uv = self.l_sin_gen(f0)
+    def forward(
+        self,
+        f0: torch.Tensor,
+        phase: Optional[torch.Tensor] = None,
+        noise: Optional[torch.Tensor] = None,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        sine_wavs, uv = self.l_sin_gen(f0, phase=phase, noise=noise)
 
         source = self.l_linear(sine_wavs.transpose(1, 2))
         source = self.l_tanh(source)
@@ -474,6 +485,8 @@ class HiFTGenerator(nn.Module):
             torch.hann_window(self.n_fft, periodic=True, dtype=torch.float32),
             persistent=False,
         )
+        self.real_stft = RealSTFT(self.n_fft, self.hop_len, center=True)
+        self.real_istft = RealISTFT(self.n_fft, self.hop_len, center=True)
 
         self.f0_predictor = f0_predictor
 
@@ -510,42 +523,24 @@ class HiFTGenerator(nn.Module):
     def _stft(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         if x.dtype not in (torch.float32, torch.float64):
             x = x.float()
-
-        window = self.stft_window.to(device=x.device, dtype=x.dtype)
-
-        spec = torch.stft(
-            x,
-            self.n_fft,
-            self.hop_len,
-            self.n_fft,
-            window=window,
-            return_complex=True,
-        )
-        spec = torch.view_as_real(spec)
-        return spec[..., 0], spec[..., 1]
+        return self.real_stft(x)
 
     def _istft(self, magnitude: torch.Tensor, phase: torch.Tensor) -> torch.Tensor:
         magnitude = magnitude.clamp_max(1e2)
-
         if magnitude.dtype not in (torch.float32, torch.float64):
             magnitude = magnitude.float()
         if phase.dtype != magnitude.dtype:
             phase = phase.to(dtype=magnitude.dtype)
+        return self.real_istft(magnitude, phase)
 
-        window = self.stft_window.to(device=magnitude.device, dtype=magnitude.dtype)
-        spec = torch.polar(magnitude, phase)
-
-        return torch.istft(
-            spec,
-            self.n_fft,
-            self.hop_len,
-            self.n_fft,
-            window=window,
-        )
-
-    def _source_from_f0(self, f0: torch.Tensor) -> torch.Tensor:
+    def _source_from_f0(
+        self,
+        f0: torch.Tensor,
+        source_phase: Optional[torch.Tensor] = None,
+        source_noise: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
         source_f0 = f0[:, None].repeat_interleave(self.source_hop, dim=2)
-        source, _ = self.m_source(source_f0)
+        source, _ = self.m_source(source_f0, phase=source_phase, noise=source_noise)
         return source
 
     def _source_stft(self, s: torch.Tensor) -> torch.Tensor:
@@ -622,33 +617,32 @@ class HiFTGenerator(nn.Module):
 
     def forward(
         self,
-        batch: dict,
-        device: torch.device,
+        speech_feat: torch.Tensor,
+        source_phase: Optional[torch.Tensor] = None,
+        source_noise: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        speech_feat = (
-            batch["speech_feat"]
-            .to(device, non_blocking=True)
-            .transpose(1, 2)
-            .contiguous()
-        )
-
+        speech_feat = speech_feat.contiguous()
         f0 = self.f0_predictor(speech_feat)
-        s = self._source_from_f0(f0)
-
+        s = self._source_from_f0(
+            f0, source_phase=source_phase, source_noise=source_noise
+        )
         generated_speech = self.decode(x=speech_feat, s=s)
-        return generated_speech, f0
+        return generated_speech, s
 
     @torch.inference_mode()
     def inference(
         self,
         speech_feat: torch.Tensor,
         cache_source: Optional[torch.Tensor] = None,
+        source_phase: Optional[torch.Tensor] = None,
+        source_noise: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         speech_feat = speech_feat.contiguous()
 
         f0 = self.f0_predictor(speech_feat)
-        s = f0[:, None].repeat_interleave(self.source_hop, dim=2)
-        s, _ = self.m_source(s)
+        s = self._source_from_f0(
+            f0, source_phase=source_phase, source_noise=source_noise
+        )
 
         if cache_source is not None and cache_source.numel() != 0:
             s[:, :, : cache_source.shape[2]].copy_(cache_source)

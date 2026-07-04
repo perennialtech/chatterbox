@@ -14,30 +14,21 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from einops import pack, rearrange, repeat
 
-from .utils.mask import add_optional_chunk_mask
-from .matcha.decoder import (
-    SinusoidalPosEmb,
-    Block1D,
-    ResnetBlock1D,
-    Downsample1D,
-    TimestepEmbedding,
-    Upsample1D,
-)
-from .matcha.transformer import BasicTransformerBlock
+from .local_transformer import BasicTransformerBlock
+from .matcha.decoder import (Block1D, Downsample1D, ResnetBlock1D,
+                             SinusoidalPosEmb, TimestepEmbedding, Upsample1D)
 from .utils.intmeanflow import get_intmeanflow_time_mixer
+from .utils.mask import add_optional_chunk_mask
 
 
 def mask_to_bias(mask: torch.Tensor, dtype: torch.dtype) -> torch.Tensor:
-    assert mask.dtype == torch.bool
-    assert dtype in [torch.float32, torch.bfloat16, torch.float16]
-    mask = mask.to(dtype)
-    # attention mask bias
-    # NOTE(Mddct): torch.finfo jit issues
-    #     chunk_masks = (1.0 - chunk_masks) * torch.finfo(dtype).min
-    mask = (1.0 - mask) * -1.0e10
-    return mask
+    if mask.dtype != torch.bool:
+        raise TypeError("attention mask must be bool before bias conversion")
+    neg = -1.0e4 if dtype in (torch.float16, torch.bfloat16) else -1.0e9
+    zeros = torch.zeros((), dtype=dtype, device=mask.device)
+    negs = torch.full((), neg, dtype=dtype, device=mask.device)
+    return torch.where(mask, zeros, negs)
 
 
 class Transpose(torch.nn.Module):
@@ -295,59 +286,49 @@ class ConditionalDecoder(nn.Module):
                     nn.init.constant_(m.bias, 0)
 
     def forward(self, x, mask, mu, t, spks=None, cond=None, r=None):
-        """Forward pass of the UNet1DConditional model.
-
-        Args:
-            x: (B, 80, T)
-            mask (_type_)
-            t (_type_): shape (batch_size)
-            spks (_type_, optional) Defaults to None.
-            cond (_type_, optional)
-            r: end time for meanflow mode (shape (1,) tensor)
-
-        Raises:
-            ValueError: _description_
-            ValueError: _description_
-
-        Returns:
-            _type_: _description_
-        """
-        t = self.time_embeddings(t).to(t.dtype)
+        t = self.time_embeddings(t).to(dtype=x.dtype)
         t = self.time_mlp(t)
 
         if self.meanflow:
-            r = self.time_embeddings(r).to(t.dtype)
+            if r is None:
+                raise ValueError("r is required when ConditionalDecoder.meanflow=True")
+            r = self.time_embeddings(r).to(dtype=x.dtype)
             r = self.time_mlp(r)
-            concat_embed = torch.cat([t, r], dim=1)
-            t = self.time_embed_mixer(concat_embed)
+            t = self.time_embed_mixer(torch.cat([t, r], dim=1))
 
-        x = pack([x, mu], "b * t")[0]
+        x = torch.cat([x, mu], dim=1)
 
         if spks is not None:
-            spks = repeat(spks, "b c -> b c t", t=x.shape[-1])
-            x = pack([x, spks], "b * t")[0]
+            spks = spks.unsqueeze(-1).expand(-1, -1, x.size(-1))
+            x = torch.cat([x, spks], dim=1)
         if cond is not None:
-            x = pack([x, cond], "b * t")[0]
+            x = torch.cat([x, cond], dim=1)
 
         attn_mask = add_optional_chunk_mask(
-            x, mask.bool(), False, False, 0, self.static_chunk_size, -1
+            x.transpose(1, 2).contiguous(),
+            mask.bool(),
+            False,
+            False,
+            0,
+            self.static_chunk_size,
+            -1,
         )
-        attn_bias = mask_to_bias(attn_mask == 1, x.dtype)
+        attn_bias = mask_to_bias(attn_mask, x.dtype)
 
         hiddens = []
         masks = [mask]
         for resnet, transformer_blocks, downsample in self.down_blocks:
             mask_down = masks[-1]
             x = resnet(x, mask_down, t)
-            x = rearrange(x, "b c t -> b t c").contiguous()
+            x = x.transpose(1, 2).contiguous()
             for transformer_block in transformer_blocks:
                 x = transformer_block(
                     hidden_states=x,
                     attention_mask=attn_bias,
                     timestep=t,
                 )
-            x = rearrange(x, "b t c -> b c t").contiguous()
-            hiddens.append(x)  # Save hidden states for skip connections
+            x = x.transpose(1, 2).contiguous()
+            hiddens.append(x)
             x = downsample(x * mask_down)
             masks.append(mask_down[:, :, ::2])
         masks = masks[:-1]
@@ -355,29 +336,33 @@ class ConditionalDecoder(nn.Module):
 
         for resnet, transformer_blocks in self.mid_blocks:
             x = resnet(x, mask_mid, t)
-            x = rearrange(x, "b c t -> b t c").contiguous()
+            x = x.transpose(1, 2).contiguous()
             for transformer_block in transformer_blocks:
                 x = transformer_block(
                     hidden_states=x,
                     attention_mask=attn_bias,
                     timestep=t,
                 )
-            x = rearrange(x, "b t c -> b c t").contiguous()
+            x = x.transpose(1, 2).contiguous()
 
+        mask_up = masks[-1]
         for resnet, transformer_blocks, upsample in self.up_blocks:
             mask_up = masks.pop()
             skip = hiddens.pop()
-            x = pack([x[:, :, : skip.shape[-1]], skip], "b * t")[0]
+            x = torch.cat([x[:, :, : skip.shape[-1]], skip], dim=1)
             x = resnet(x, mask_up, t)
-            x = rearrange(x, "b c t -> b t c").contiguous()
+            x = x.transpose(1, 2).contiguous()
             for transformer_block in transformer_blocks:
                 x = transformer_block(
                     hidden_states=x,
                     attention_mask=attn_bias,
                     timestep=t,
                 )
-            x = rearrange(x, "b t c -> b c t").contiguous()
+            x = x.transpose(1, 2).contiguous()
             x = upsample(x * mask_up)
         x = self.final_block(x, mask_up)
         output = self.final_proj(x * mask_up)
         return output * mask
+
+    def forward_export(self, x, mask, mu, spks, cond, t, r):
+        return self.forward(x=x, mask=mask, mu=mu, t=t, spks=spks, cond=cond, r=r)

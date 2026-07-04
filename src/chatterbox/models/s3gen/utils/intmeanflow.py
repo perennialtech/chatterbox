@@ -17,7 +17,6 @@ def get_intmeanflow_time_mixer(dims):
 
 
 if __name__ == "__main__":
-
     D_example = 6
 
     W_layer = get_intmeanflow_time_mixer(D_example)

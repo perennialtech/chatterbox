@@ -2,13 +2,8 @@ from typing import Any, Dict, Optional
 
 import torch
 import torch.nn as nn
-from diffusers.models.attention import (
-    GEGLU,
-    GELU,
-    AdaLayerNorm,
-    AdaLayerNormZero,
-    ApproximateGELU,
-)
+from diffusers.models.attention import (GEGLU, GELU, AdaLayerNorm,
+                                        AdaLayerNormZero, ApproximateGELU)
 from diffusers.models.attention_processor import Attention
 from diffusers.models.lora import LoRACompatibleLinear
 from diffusers.utils.torch_utils import maybe_allow_in_graph

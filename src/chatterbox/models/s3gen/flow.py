@@ -177,7 +177,8 @@ class CausalMaskedDiffWithXvec(torch.nn.Module):
         # token: (B, n_toks)
         # token_len: (B,)
         B = token.size(0)
-        assert B == 1, "Only batch size 1 is supported"
+        if B != 1:
+            raise ValueError("Only batch size 1 is supported")
 
         # xvec projection
         embedding = torch.atleast_2d(embedding)
@@ -195,7 +196,7 @@ class CausalMaskedDiffWithXvec(torch.nn.Module):
 
         # concat text and prompt_text
         token, token_len = (
-            torch.concat([prompt_token, token], dim=1),
+            torch.cat([prompt_token, token], dim=1),
             prompt_token_len + token_len,
         )
         mask = (

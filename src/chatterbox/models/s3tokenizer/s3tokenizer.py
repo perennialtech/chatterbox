@@ -1,21 +1,13 @@
 from typing import List, Tuple
 
-import numpy as np
 import librosa
+import numpy as np
 import torch
 import torch.nn.functional as F
+from s3tokenizer.model_v2 import ModelConfig, S3TokenizerV2
 from s3tokenizer.utils import padding
-from s3tokenizer.model_v2 import (
-    S3TokenizerV2,
-    ModelConfig,
-)
 
-# Sampling rate of the inputs to S3TokenizerV2
-S3_SR = 16_000
-S3_HOP = 160  # 100 frames/sec
-S3_TOKEN_HOP = 640  # 25 tokens/sec
-S3_TOKEN_RATE = 25
-SPEECH_VOCAB_SIZE = 6561
+from ...audio.constants import (S3_HOP, S3_SR, S3_TOKEN_RATE)
 
 
 class S3Tokenizer(S3TokenizerV2):

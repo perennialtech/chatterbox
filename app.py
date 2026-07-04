@@ -1,5 +1,6 @@
-import torch
 import gradio as gr
+import torch
+
 from chatterbox.vc import ChatterboxVC
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
