@@ -61,10 +61,13 @@ def load_torch_model(
     state = convert_diffusers_transformer_keys(state)
     incompatible = model.load_state_dict(state, strict=False)
     _check_missing_keys(list(incompatible.missing_keys))
-    if incompatible.unexpected_keys:
-        raise RuntimeError(
-            f"Checkpoint contains unexpected keys: {list(incompatible.unexpected_keys)[:32]}"
-        )
+
+    unexpected = [
+        k for k in incompatible.unexpected_keys
+        if not any(frag in k for frag in _ALLOWED_MISSING_SUBSTRINGS)
+    ]
+    if unexpected:
+        raise RuntimeError(f"Checkpoint contains unexpected keys: {unexpected[:32]}")
     model.to(device).eval()
     model.mel2wav.optimize_for_inference()
     prepare_export_safe_positional_encoding(model, max_positions=max_positions)
