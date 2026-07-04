@@ -20,7 +20,7 @@ def make_module(model):
 def make_dummy_inputs(batch: int = 1, mel_frames: int = 256, n_mels: int = 128):
     return (
         torch.randn(batch, n_mels, mel_frames, dtype=torch.float32),
-        torch.full((batch,), mel_frames, dtype=torch.long),
+        torch.full((batch,), mel_frames, dtype=torch.int32),
     )
 
 
@@ -32,6 +32,6 @@ S3_TOKENIZER_QUANTIZER_SPEC = GraphSpec(
     dynamic_shapes=dynamic_shapes,
     make_module=make_module,
     make_dummy_inputs=make_dummy_inputs,
-    input_dtypes={"log_mel": "float32", "mel_lengths": "int64"},
-    output_dtypes={"speech_tokens": "int64", "speech_token_lengths": "int64"},
+    input_dtypes={"log_mel": "float32", "mel_lengths": "int32"},
+    output_dtypes={"speech_tokens": "int32", "speech_token_lengths": "int32"},
 )

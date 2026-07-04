@@ -52,9 +52,9 @@ def make_dummy_inputs(
     dtype=torch.float32,
 ):
     return (
-        torch.zeros(batch, prompt_tokens, dtype=torch.long),
-        torch.full((batch,), prompt_tokens, dtype=torch.long),
-        torch.zeros(batch, speech_tokens, dtype=torch.long),
-        torch.full((batch,), speech_tokens, dtype=torch.long),
+        torch.zeros(batch, prompt_tokens, dtype=torch.int32),
+        torch.full((batch,), prompt_tokens, dtype=torch.int32),
+        torch.zeros(batch, speech_tokens, dtype=torch.int32),
+        torch.full((batch,), speech_tokens, dtype=torch.int32),
         torch.randn(batch, 192, dtype=dtype),
     )

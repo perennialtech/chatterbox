@@ -61,10 +61,10 @@ def make_dummy_inputs(
     dtype=torch.float32,
 ):
     return (
-        torch.zeros(batch, prompt_tokens, dtype=torch.long),
-        torch.full((batch,), prompt_tokens, dtype=torch.long),
-        torch.zeros(batch, speech_tokens, dtype=torch.long),
-        torch.full((batch,), speech_tokens, dtype=torch.long),
+        torch.zeros(batch, prompt_tokens, dtype=torch.int32),
+        torch.full((batch,), prompt_tokens, dtype=torch.int32),
+        torch.zeros(batch, speech_tokens, dtype=torch.int32),
+        torch.full((batch,), speech_tokens, dtype=torch.int32),
         torch.randn(batch, 192, dtype=dtype),
     )
 
@@ -78,17 +78,17 @@ TOKEN_TO_MU_SPEC = GraphSpec(
     make_module=make_module,
     make_dummy_inputs=make_dummy_inputs,
     input_dtypes={
-        "prompt_token": "int64",
-        "prompt_token_len": "int64",
-        "speech_token": "int64",
-        "speech_token_len": "int64",
+        "prompt_token": "int32",
+        "prompt_token_len": "int32",
+        "speech_token": "int32",
+        "speech_token_len": "int32",
         "embedding": "float32",
     },
     output_dtypes={
         "mu": "float32",
         "mask": "float32",
         "spks": "float32",
-        "prompt_mel_len": "int64",
-        "output_mel_len": "int64",
+        "prompt_mel_len": "int32",
+        "output_mel_len": "int32",
     },
 )

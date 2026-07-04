@@ -90,7 +90,7 @@ class ReferenceMel24kExport(torch.nn.Module):
         prompt_feat_len = torch.full(
             (prompt_feat.size(0),),
             prompt_feat.size(1),
-            dtype=torch.long,
+            dtype=torch.int32,
             device=prompt_feat.device,
         )
         return prompt_feat, prompt_feat_len
@@ -113,5 +113,5 @@ REFERENCE_MEL_24K_SPEC = GraphSpec(
     make_module=make_module,
     make_dummy_inputs=make_dummy_inputs,
     input_dtypes={"wav_24k": "float32"},
-    output_dtypes={"prompt_feat": "float32", "prompt_feat_len": "int64"},
+    output_dtypes={"prompt_feat": "float32", "prompt_feat_len": "int32"},
 )

@@ -14,8 +14,8 @@ from .types import ShapeRange
 
 MAX_TOTAL_TOKENS = 3072
 MAX_PROMPT_TOKENS = 250
-MAX_SPEECH_TOKENS = 3072
-MAX_MEL_FRAMES = 6144
+MAX_SPEECH_TOKENS = MAX_TOTAL_TOKENS - MAX_PROMPT_TOKENS
+MAX_MEL_FRAMES = 2 * MAX_TOTAL_TOKENS
 MAX_REF_24K_SAMPLES = 240000
 MAX_SOURCE_LOGMEL_FRAMES = 8192
 MAX_FBANK_FRAMES = 2000
@@ -31,7 +31,6 @@ DEFAULT_SHAPE_RANGES: dict[str, dict[str, ShapeRange]] = {
     },
     GRAPH_SPEAKER_ENCODER: {
         "fbank": ShapeRange((1, 16, 80), (1, 400, 80), (1, MAX_FBANK_FRAMES, 80)),
-        "fbank_lengths": ShapeRange((1,), (1,), (1,)),
     },
     GRAPH_REFERENCE_MEL_24K: {
         "wav_24k": ShapeRange((1, 2400), (1, 144000), (1, MAX_REF_24K_SAMPLES)),
@@ -87,6 +86,18 @@ def _validate_range(graph: str, name: str, value: ShapeRange) -> None:
             raise TensorRTShapeError(f"{graph}.{name}: invalid range {value}")
 
 
+def _validate_token_budget(plan: dict[str, dict[str, ShapeRange]]) -> None:
+    token_shapes = plan[GRAPH_TOKEN_TO_MU]
+    prompt_max = token_shapes["prompt_token"].max[1]
+    speech_max = token_shapes["speech_token"].max[1]
+    total_max = prompt_max + speech_max
+    if total_max > MAX_TOTAL_TOKENS:
+        raise TensorRTShapeError(
+            "token_to_mu prompt_token.max[1] + speech_token.max[1] must be "
+            f"<= {MAX_TOTAL_TOKENS}; got {prompt_max} + {speech_max} = {total_max}"
+        )
+
+
 def load_shape_plan(path: Path | None = None) -> dict[str, dict[str, ShapeRange]]:
     plan = {graph: dict(inputs) for graph, inputs in DEFAULT_SHAPE_RANGES.items()}
     if path is not None:
@@ -100,6 +111,7 @@ def load_shape_plan(path: Path | None = None) -> dict[str, dict[str, ShapeRange]
     for graph, inputs in plan.items():
         for name, value in inputs.items():
             _validate_range(graph, name, value)
+    _validate_token_budget(plan)
     return plan
 
 

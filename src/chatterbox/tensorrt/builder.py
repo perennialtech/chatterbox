@@ -5,6 +5,7 @@ from pathlib import Path
 from ..onnx_export.artifacts import load_manifest, sha256_file
 from .api import network_creation_flags, require_tensorrt_10
 from .config import TrtBuildConfig
+from .cuda import cuda_memory_info
 from .errors import TensorRTBuildError
 from .manifest import EngineRecord, write_trt_manifest
 from .shapes import load_shape_plan
@@ -36,6 +37,17 @@ def _configure_precision(trt, builder_config, config: TrtBuildConfig) -> None:
 
     if config.engine_precision == "fp16":
         builder_config.set_flag(trt.BuilderFlag.FP16)
+
+
+def _effective_workspace_bytes(requested_bytes: int) -> int:
+    try:
+        free_bytes, _ = cuda_memory_info()
+    except Exception:
+        return requested_bytes
+
+    reserve_bytes = max(512 * 1024**2, free_bytes // 4)
+    cap_bytes = max(1 * 1024**2, free_bytes - reserve_bytes)
+    return min(requested_bytes, cap_bytes)
 
 
 def _validate_profile_shape(
@@ -147,7 +159,8 @@ def build_engines(config: TrtBuildConfig) -> list[EngineRecord]:
 
         builder_config = builder.create_builder_config()
         builder_config.set_memory_pool_limit(
-            trt.MemoryPoolType.WORKSPACE, int(config.workspace_bytes)
+            trt.MemoryPoolType.WORKSPACE,
+            int(_effective_workspace_bytes(config.workspace_bytes)),
         )
         _configure_precision(trt, builder_config, config)
 

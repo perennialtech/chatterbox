@@ -6,5 +6,5 @@ class SpeakerEncoderExport(torch.nn.Module):
         super().__init__()
         self.speaker_encoder = speaker_encoder
 
-    def forward(self, fbank: torch.Tensor, fbank_lengths: torch.Tensor):
+    def forward(self, fbank: torch.Tensor):
         return self.speaker_encoder(fbank)

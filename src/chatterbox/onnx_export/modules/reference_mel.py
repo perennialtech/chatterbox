@@ -18,7 +18,7 @@ class ReferenceMel24kExport(torch.nn.Module):
         prompt_feat_len = torch.full(
             (prompt_feat.size(0),),
             prompt_feat.size(1),
-            dtype=torch.long,
+            dtype=torch.int32,
             device=prompt_feat.device,
         )
         return prompt_feat, prompt_feat_len

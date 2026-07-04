@@ -24,6 +24,11 @@ def cuda_runtime_version() -> str:
     return f"{major}.{minor}"
 
 
+def cuda_memory_info() -> tuple[int, int]:
+    free, total = check_cuda(cudart.cudaMemGetInfo(), "cudaMemGetInfo failed")
+    return int(free), int(total)
+
+
 class CudaStream:
     def __init__(self):
         self.handle = check_cuda(cudart.cudaStreamCreate(), "cudaStreamCreate failed")

@@ -78,19 +78,18 @@ The root manifest uses schema version `2` and records checkpoint hash, opset, ex
 Inputs:
 
 - `log_mel`: `float32[B, 128, T_mel_16k]`
-- `mel_lengths`: `int64[B]`
+- `mel_lengths`: `int32[B]`
 
 Outputs:
 
-- `speech_tokens`: `int64[B, T_token]`
-- `speech_token_lengths`: `int64[B]`
+- `speech_tokens`: `int32[B, T_token]`
+- `speech_token_lengths`: `int32[B]`
 
 ### `speaker_encoder.onnx`
 
 Inputs:
 
 - `fbank`: `float32[B, T_fbank, 80]`
-- `fbank_lengths`: `int64[B]`
 
 Outputs:
 
@@ -105,16 +104,16 @@ Inputs:
 Outputs:
 
 - `prompt_feat`: `float32[B, T_mel, 80]`
-- `prompt_feat_len`: `int64[B]`
+- `prompt_feat_len`: `int32[B]`
 
 ### `token_to_mu.onnx`
 
 Inputs:
 
-- `prompt_token`: `int64[B, P]`
-- `prompt_token_len`: `int64[B]`
-- `speech_token`: `int64[B, N]`
-- `speech_token_len`: `int64[B]`
+- `prompt_token`: `int32[B, P]`
+- `prompt_token_len`: `int32[B]`
+- `speech_token`: `int32[B, N]`
+- `speech_token_len`: `int32[B]`
 - `embedding`: `float32[B, 192]`
 
 Outputs:
@@ -122,8 +121,8 @@ Outputs:
 - `mu`: `float32[B, 80, 2 * (P + N)]`
 - `mask`: `float32[B, 1, 2 * (P + N)]`
 - `spks`: `float32[B, 80]`
-- `prompt_mel_len`: `int64[B]`
-- `output_mel_len`: `int64[B]`
+- `prompt_mel_len`: `int32[B]`
+- `output_mel_len`: `int32[B]`
 
 ### `conditional_decoder_step.onnx`
 
