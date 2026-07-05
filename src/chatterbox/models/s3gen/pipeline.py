@@ -8,6 +8,7 @@ import torch.nn.functional as F
 from ...audio import S3_SR, S3GEN_SR, mel_spectrogram, resample_audio
 from ..s3tokenizer import SPEECH_VOCAB_SIZE, S3Tokenizer
 from ..speaker.campplus import CAMPPlus
+from ..speaker.features import extract_fbank_features  # <-- ADD THIS IMPORT
 from .conditioning import S3ReferenceCondition
 from .configs import CFM_PARAMS
 from .decoder import ConditionalDecoder
@@ -251,7 +252,10 @@ class S3Token2Mel(torch.nn.Module):
         )
 
         ref_wav_16 = resample_audio(ref_wav, ref_sr, S3_SR, device)
-        ref_x_vector = self.speaker_encoder.inference(ref_wav_16.to(dtype=self.dtype))
+        ref_fbank, _, _ = extract_fbank_features(ref_wav_16)
+        ref_x_vector = self.speaker_encoder(
+            ref_fbank.to(dtype=self.dtype, device=device)
+        )
         ref_speech_tokens, ref_speech_token_lens = self.tokenizer(ref_wav_16.float())
 
         if ref_mels_24.shape[1] != 2 * ref_speech_tokens.shape[1]:

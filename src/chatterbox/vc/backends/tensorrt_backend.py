@@ -88,9 +88,7 @@ class TensorRTVCBackend:
             )
 
         audio_16k = load_wav_16k(audio_path, "cpu")
-        return self.convert_from_tensors(
-            audio_16k, self._target_voice_cache, profile
-        )
+        return self.convert_from_tensors(audio_16k, self._target_voice_cache, profile)
 
     def _tokenize_audio(self, audio_16k: torch.Tensor) -> tuple[np.ndarray, np.ndarray]:
         log_mel, mel_lengths = compute_s3_log_mel(audio_16k)

@@ -288,7 +288,9 @@ def parse_args() -> tuple[AppSettings, LaunchSettings]:
 
 
 def _split_providers(value: str) -> tuple[str, ...]:
-    providers = tuple(provider.strip() for provider in value.split(",") if provider.strip())
+    providers = tuple(
+        provider.strip() for provider in value.split(",") if provider.strip()
+    )
     if not providers:
         raise ValueError("At least one ONNX Runtime provider is required.")
     return providers
@@ -566,8 +568,7 @@ def build_demo(settings: AppSettings) -> gr.Blocks:
         return output_audio, status, _jsonable(details)
 
     with gr.Blocks(title=APP_TITLE) as demo:
-        gr.Markdown(
-            f"""
+        gr.Markdown(f"""
 # {APP_TITLE}
 
 Upload source speech and a target-voice reference, and run voice conversion.
@@ -575,8 +576,7 @@ The configured runtime is loaded lazily and cached.
 
 Use clean target speech for best voice conditioning. ONNX and TensorRT modes
 require exported artifacts from this repository.
-"""
-        )
+""")
 
         with gr.Row():
             source_audio = gr.Audio(

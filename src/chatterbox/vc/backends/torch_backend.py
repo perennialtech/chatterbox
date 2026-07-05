@@ -13,7 +13,7 @@ from ...models.s3gen import S3Gen
 from ...models.s3gen.checkpoint_conversion import \
     convert_diffusers_transformer_keys
 from ..conditioning import VoiceConditionTensors
-from ..errors import BackendUnavailableError, VoiceConditioningError
+from ..errors import VoiceConditioningError
 from ..preprocess import load_wav_16k, load_wav_24k
 from ..types import VCResult
 

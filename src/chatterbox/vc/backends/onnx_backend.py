@@ -78,9 +78,7 @@ class OnnxVCBackend:
             )
 
         audio_16k = load_wav_16k(audio_path, "cpu")
-        return self.convert_from_tensors(
-            audio_16k, self._target_voice_cache, profile
-        )
+        return self.convert_from_tensors(audio_16k, self._target_voice_cache, profile)
 
     def _require_runner(self, name: str):
         if name not in self.runners:
