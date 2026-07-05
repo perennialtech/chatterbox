@@ -30,13 +30,15 @@ def _validate_precision_config(config: TrtBuildConfig) -> None:
 
 
 def _configure_precision(trt, builder_config, config: TrtBuildConfig) -> None:
-    builder_config.clear_flag(trt.BuilderFlag.TF32)
+    if hasattr(trt.BuilderFlag, "TF32"):
+        builder_config.clear_flag(trt.BuilderFlag.TF32)
 
     if config.strongly_typed:
         return
 
     if config.engine_precision == "fp16":
-        builder_config.set_flag(trt.BuilderFlag.FP16)
+        if hasattr(trt.BuilderFlag, "FP16"):
+            builder_config.set_flag(trt.BuilderFlag.FP16)
 
 
 def _effective_workspace_bytes(requested_bytes: int) -> int:

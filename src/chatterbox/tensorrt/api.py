@@ -24,6 +24,8 @@ def require_tensorrt_10(
 
 def network_creation_flags(trt_module, *, strongly_typed: bool) -> int:
     flags = 0
-    if strongly_typed:
+    if strongly_typed and hasattr(
+        trt_module.NetworkDefinitionCreationFlag, "STRONGLY_TYPED"
+    ):
         flags |= 1 << int(trt_module.NetworkDefinitionCreationFlag.STRONGLY_TYPED)
     return flags
