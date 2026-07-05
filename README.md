@@ -40,19 +40,19 @@ Install the project with the runtime extras needed by your workflow.
 uv sync
 
 # Gradio UI with CPU PyTorch execution
-uv sync --extra cpu --extra ui
+uv sync --extra cpu,ui
 
 # ONNX export and ONNX Runtime execution
-uv sync --extra cpu --extra onnx
+uv sync --extra cpu,onnx
 
 # ONNX Runtime with the Gradio UI
-uv sync --extra cpu --extra onnx --extra ui
+uv sync --extra cpu,onnx,ui
 
 # CUDA PyTorch execution, export, plus ONNX/TensorRT tooling
-uv sync --extra cuda --extra onnx --extra tensorrt
+uv sync --extra cuda,onnx,tensorrt
 
 # CUDA execution with the Gradio UI
-uv sync --extra cuda --extra onnx --extra tensorrt --extra ui
+uv sync --extra cuda,onnx,tensorrt,ui
 ```
 
 TensorRT builds require a compatible NVIDIA driver, CUDA runtime, TensorRT Python package, and `cuda-python`. Use `python -m chatterbox.tensorrt build --help` and TensorRT's own diagnostics when validating a deployment image.
