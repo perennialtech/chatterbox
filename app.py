@@ -64,20 +64,19 @@ class RuntimeResult:
 class RuntimeManager:
     """Lazily loads and serializes access to the selected Chatterbox backend."""
 
-    def __init__(self) -> None:
+    def __init__(self, config: RuntimeConfig) -> None:
         self._lock = RLock()
-        self._config: RuntimeConfig | None = None
+        self._config = config
         self._vc: Any | None = None
         self._load_seconds = 0.0
 
     def generate(
         self,
-        config: RuntimeConfig,
         source_path: Path,
         target_voice_path: Path,
     ) -> RuntimeResult:
         with self._lock:
-            vc, loaded, load_seconds = self._runtime(config)
+            vc, loaded, load_seconds = self._runtime()
             started = time.perf_counter()
             wav, sample_rate, timings = vc.generate(
                 source_path,
@@ -94,17 +93,16 @@ class RuntimeManager:
             generation_seconds=generation_seconds,
         )
 
-    def _runtime(self, config: RuntimeConfig) -> tuple[Any, bool, float]:
-        if self._vc is not None and self._config == config:
+    def _runtime(self) -> tuple[Any, bool, float]:
+        if self._vc is not None:
             return self._vc, False, self._load_seconds
 
-        LOGGER.info("Loading Chatterbox runtime: %s", _runtime_label(config))
+        LOGGER.info("Loading Chatterbox runtime: %s", _runtime_label(self._config))
         started = time.perf_counter()
-        vc = self._load_runtime(config)
+        vc = self._load_runtime(self._config)
         load_seconds = time.perf_counter() - started
 
         self._vc = vc
-        self._config = config
         self._load_seconds = load_seconds
         LOGGER.info("Loaded Chatterbox runtime in %.3fs", load_seconds)
         return vc, True, load_seconds
@@ -209,7 +207,7 @@ def parse_args() -> tuple[AppSettings, LaunchSettings]:
         "--backend",
         choices=BACKEND_CHOICES,
         default=app_defaults.backend,
-        help="Runtime backend selected by default in the UI.",
+        help="Runtime backend to use.",
     )
     parser.add_argument(
         "--device",
@@ -227,7 +225,7 @@ def parse_args() -> tuple[AppSettings, LaunchSettings]:
         "--onnx-precision",
         choices=("fp32", "fp16"),
         default=app_defaults.onnx_precision,
-        help="ONNX artifact precision selected by default.",
+        help="ONNX artifact precision to use.",
     )
     parser.add_argument(
         "--onnx-providers",
@@ -292,20 +290,20 @@ def parse_args() -> tuple[AppSettings, LaunchSettings]:
 def _split_providers(value: str) -> tuple[str, ...]:
     providers = tuple(provider.strip() for provider in value.split(",") if provider.strip())
     if not providers:
-        raise gr.Error("At least one ONNX Runtime provider is required.")
+        raise ValueError("At least one ONNX Runtime provider is required.")
     return providers
 
 
 def _existing_directory(value: str, label: str) -> Path:
     text = str(value or "").strip()
     if not text:
-        raise gr.Error(f"{label} is required for the selected backend.")
+        raise ValueError(f"{label} is required for the selected backend.")
 
     path = Path(text).expanduser()
     if not path.exists():
-        raise gr.Error(f"{label} does not exist: {path}")
+        raise ValueError(f"{label} does not exist: {path}")
     if not path.is_dir():
-        raise gr.Error(f"{label} must be a directory: {path}")
+        raise ValueError(f"{label} must be a directory: {path}")
     return path.resolve()
 
 
@@ -341,7 +339,7 @@ def _runtime_config(
 ) -> RuntimeConfig:
     selected_backend = str(backend or "").strip().lower()
     if selected_backend not in BACKEND_CHOICES:
-        raise gr.Error(f"Unsupported backend: {backend}")
+        raise ValueError(f"Unsupported backend: {backend}")
 
     if selected_backend == "pytorch":
         return RuntimeConfig(
@@ -352,7 +350,7 @@ def _runtime_config(
     if selected_backend == "onnx":
         precision = str(onnx_precision or "fp32").strip().lower()
         if precision not in {"fp32", "fp16"}:
-            raise gr.Error("ONNX precision must be fp32 or fp16.")
+            raise ValueError("ONNX precision must be fp32 or fp16.")
 
         artifact_dir = _existing_directory(onnx_artifact_dir, "ONNX artifact directory")
         return RuntimeConfig(
@@ -522,32 +520,26 @@ def _status_markdown(
 
 
 def build_demo(settings: AppSettings) -> gr.Blocks:
-    manager = RuntimeManager()
+    config = _runtime_config(
+        backend=settings.backend,
+        device=settings.device,
+        onnx_artifact_dir=settings.onnx_artifact_dir,
+        onnx_precision=settings.onnx_precision,
+        onnx_providers=settings.onnx_providers,
+        tensorrt_engine_dir=settings.tensorrt_engine_dir,
+    )
+    manager = RuntimeManager(config)
 
     def convert_voice(
         source_audio: Any,
         target_voice_audio: Any,
-        backend: str,
-        device: str,
-        onnx_artifact_dir: str,
-        onnx_precision: str,
-        onnx_providers: str,
-        tensorrt_engine_dir: str,
     ) -> tuple[tuple[int, np.ndarray], str, dict[str, Any]]:
         source_path = _audio_path(source_audio, "Source")
         target_voice_path = _audio_path(target_voice_audio, "Target voice")
-        config = _runtime_config(
-            backend=backend,
-            device=device,
-            onnx_artifact_dir=onnx_artifact_dir,
-            onnx_precision=onnx_precision,
-            onnx_providers=onnx_providers,
-            tensorrt_engine_dir=tensorrt_engine_dir,
-        )
 
         request_started = time.perf_counter()
         try:
-            result = manager.generate(config, source_path, target_voice_path)
+            result = manager.generate(source_path, target_voice_path)
         except gr.Error:
             raise
         except Exception as exc:
@@ -578,9 +570,8 @@ def build_demo(settings: AppSettings) -> gr.Blocks:
             f"""
 # {APP_TITLE}
 
-Upload source speech and a target-voice reference, choose a runtime backend, and
-run voice conversion. The selected runtime is loaded lazily and cached. Changing
-backend settings loads the matching runtime on the next conversion.
+Upload source speech and a target-voice reference, and run voice conversion.
+The configured runtime is loaded lazily and cached.
 
 Use clean target speech for best voice conditioning. ONNX and TensorRT modes
 require exported artifacts from this repository.
@@ -588,48 +579,14 @@ require exported artifacts from this repository.
         )
 
         with gr.Row():
-            with gr.Column(scale=1):
-                source_audio = gr.Audio(
-                    label="Source speech",
-                    type="filepath",
-                )
-                target_voice_audio = gr.Audio(
-                    label="Target voice reference",
-                    type="filepath",
-                )
-
-            with gr.Column(scale=1):
-                gr.Markdown("### Runtime")
-                backend = gr.Radio(
-                    choices=list(BACKEND_CHOICES),
-                    value=settings.backend,
-                    label="Backend",
-                )
-                device = gr.Textbox(
-                    value=settings.device,
-                    label="PyTorch device",
-                    placeholder="cuda",
-                )
-                onnx_artifact_dir = gr.Textbox(
-                    value=settings.onnx_artifact_dir,
-                    label="ONNX artifact directory",
-                    placeholder="artifacts",
-                )
-                onnx_precision = gr.Dropdown(
-                    choices=["fp32", "fp16"],
-                    value=settings.onnx_precision,
-                    label="ONNX precision",
-                )
-                onnx_providers = gr.Textbox(
-                    value=settings.onnx_providers,
-                    label="ONNX Runtime providers",
-                    placeholder="CUDAExecutionProvider,CPUExecutionProvider",
-                )
-                tensorrt_engine_dir = gr.Textbox(
-                    value=settings.tensorrt_engine_dir,
-                    label="TensorRT engine directory",
-                    placeholder="artifacts/tensorrt/fp16",
-                )
+            source_audio = gr.Audio(
+                label="Source speech",
+                type="filepath",
+            )
+            target_voice_audio = gr.Audio(
+                label="Target voice reference",
+                type="filepath",
+            )
 
         convert_button = gr.Button("Convert voice", variant="primary")
 
@@ -640,7 +597,7 @@ require exported artifacts from this repository.
                     type="numpy",
                 )
             with gr.Column(scale=1):
-                status = gr.Markdown("Load audio, select a backend, and press **Convert voice**.")
+                status = gr.Markdown("Load audio and press **Convert voice**.")
                 details = gr.JSON(label="Run details")
 
         convert_button.click(
@@ -648,12 +605,6 @@ require exported artifacts from this repository.
             inputs=[
                 source_audio,
                 target_voice_audio,
-                backend,
-                device,
-                onnx_artifact_dir,
-                onnx_precision,
-                onnx_providers,
-                tensorrt_engine_dir,
             ],
             outputs=[output_audio, status, details],
             api_name="convert",

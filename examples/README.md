@@ -6,6 +6,7 @@ These scripts are small integration examples for downstream consumers. Run them 
 python examples/export_artifacts.py --help
 python examples/ort_voice_conversion.py --help
 python examples/tensorrt_voice_conversion.py --help
+python examples/build_tensorrt_engines.py --help
 python examples/manual_onnx_pipeline.py --help
 ```
 

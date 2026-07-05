@@ -243,7 +243,7 @@ uv run python app.py --backend onnx --onnx-artifact-dir artifacts --onnx-provide
 uv run python app.py --backend tensorrt --tensorrt-engine-dir artifacts/tensorrt/fp16
 ```
 
-The app accepts source speech and target-voice reference audio, exposes runtime settings in the UI, caches the selected backend between conversions, and returns playable/downloadable converted audio plus timing details. Use `--server-name 0.0.0.0` when serving from a container or remote host, and `uv run python app.py --help` for the full launch options.
+The app accepts source speech and target-voice reference audio, and returns playable/downloadable converted audio plus timing details. Use `--server-name 0.0.0.0` when serving from a container or remote host, and `uv run python app.py --help` for the full launch options.
 
 ## Programmatic export
 
@@ -265,6 +265,25 @@ export(config)
 ```
 
 For a full script, see `examples/export_artifacts.py`.
+
+## Programmatic TensorRT build
+
+```python
+from pathlib import Path
+
+from chatterbox.tensorrt import TrtBuildConfig, build_engines
+
+config = TrtBuildConfig(
+    artifact_dir=Path("artifacts"),
+    onnx_precision="fp32",
+    engine_precision="fp16",
+    workspace_bytes=4 * 1024**3,
+)
+
+build_engines(config)
+```
+
+For a full script, see `examples/build_tensorrt_engines.py`.
 
 ## Artifact consumption rules
 
@@ -291,6 +310,7 @@ The [`examples/`](examples/) directory contains:
 - `export_artifacts.py` — programmatic export and optional validation
 - `ort_voice_conversion.py` — high-level ONNX Runtime VC integration
 - `tensorrt_voice_conversion.py` — high-level TensorRT VC integration
+- `build_tensorrt_engines.py` — programmatic TensorRT engine build
 - `manual_onnx_pipeline.py` — low-level ONNX graph orchestration with explicit deterministic tensors
 
 Each example has `--help` output and is intended to be copied into downstream projects as a starting point.
