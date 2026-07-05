@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import threading
 from pathlib import Path
 
 import numpy as np
@@ -8,10 +9,19 @@ from .api import require_tensorrt_10
 from .cuda import (CudaStream, DeviceBuffer, memcpy_dtoh_async,
                    memcpy_htod_async)
 from .errors import TensorRTRuntimeError, TensorRTShapeError
+from .memory import TrtActivationMemoryPool
+from .runtime_api import (create_user_managed_context,
+                          engine_device_memory_size_v2,
+                          set_context_device_memory)
 
 
 class TrtEngineRunner:
-    def __init__(self, engine_path: Path, logger_level=None):
+    def __init__(
+        self,
+        engine_path: Path,
+        logger_level=None,
+        activation_pool: TrtActivationMemoryPool | None = None,
+    ):
         import tensorrt as trt
 
         require_tensorrt_10(trt, TensorRTRuntimeError)
@@ -30,10 +40,33 @@ class TrtEngineRunner:
                 f"Failed to deserialize TensorRT engine: {engine_path}"
             )
 
-        self.context = self.engine.create_execution_context()
+        self.activation_memory_nbytes = engine_device_memory_size_v2(self.engine)
+        self.activation_pool = activation_pool
+        self._run_lock = threading.RLock()
+
+        if self.activation_pool is not None:
+            if self.activation_pool.nbytes < self.activation_memory_nbytes:
+                raise TensorRTRuntimeError(
+                    f"{self.engine_path.name}: shared TensorRT activation pool is too small; "
+                    f"need {self.activation_memory_nbytes} bytes, got {self.activation_pool.nbytes}"
+                )
+            if self.activation_pool.ptr is None:
+                raise TensorRTRuntimeError(
+                    f"{self.engine_path.name}: shared TensorRT activation pool is closed"
+                )
+            self.context = create_user_managed_context(trt, self.engine)
+        else:
+            self.context = self.engine.create_execution_context()
+
         if self.context is None:
             raise TensorRTRuntimeError(
                 f"Failed to create TensorRT execution context: {engine_path}"
+            )
+
+        if self.activation_pool is not None:
+            assert self.activation_pool.ptr is not None
+            set_context_device_memory(
+                self.context, self.activation_pool.ptr, self.activation_pool.nbytes
             )
 
         self.stream: CudaStream | None = CudaStream()
@@ -52,6 +85,29 @@ class TrtEngineRunner:
                 raise TensorRTRuntimeError(
                     f"{self.engine_path.name}: unsupported TensorRT tensor mode for {name}: {mode}"
                 )
+
+    @staticmethod
+    def inspect_activation_memory(engine_path: Path, logger_level=None) -> int:
+        import tensorrt as trt
+
+        require_tensorrt_10(trt, TensorRTRuntimeError)
+
+        if logger_level is None:
+            logger_level = trt.Logger.WARNING
+
+        logger = trt.Logger(logger_level)
+        runtime = trt.Runtime(logger)
+        engine = runtime.deserialize_cuda_engine(Path(engine_path).read_bytes())
+        if engine is None:
+            raise TensorRTRuntimeError(
+                f"Failed to deserialize TensorRT engine: {engine_path}"
+            )
+
+        try:
+            return engine_device_memory_size_v2(engine)
+        finally:
+            engine = None
+            runtime = None
 
     @property
     def input_names(self) -> list[str]:
@@ -119,12 +175,16 @@ class TrtEngineRunner:
         return buf.ensure_capacity(max(1, int(nbytes)))
 
     def _set_tensor_address(self, name: str, ptr: int) -> None:
+        if self.context is None:
+            raise TensorRTRuntimeError(f"{self.engine_path.name}: runner is closed")
         if not self.context.set_tensor_address(name, ptr):
             raise TensorRTRuntimeError(
                 f"{self.engine_path.name}: failed to set tensor address for {name}"
             )
 
     def _infer_shapes(self) -> None:
+        if self.context is None:
+            raise TensorRTRuntimeError(f"{self.engine_path.name}: runner is closed")
         missing = self.context.infer_shapes()
         if missing:
             names = ", ".join(str(name) for name in missing)
@@ -133,8 +193,23 @@ class TrtEngineRunner:
             )
 
     def run(self, inputs: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
+        with self._run_lock:
+            if self.activation_pool is None:
+                return self._run_impl(inputs)
+
+            with self.activation_pool.lock:
+                if self.activation_pool.ptr is None:
+                    raise TensorRTRuntimeError(
+                        f"{self.engine_path.name}: shared TensorRT activation pool is closed"
+                    )
+                return self._run_impl(inputs)
+
+    def _run_impl(self, inputs: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
         stream = self._stream()
         prepared_inputs: dict[str, np.ndarray] = {}
+
+        if self.engine is None or self.context is None:
+            raise TensorRTRuntimeError(f"{self.engine_path.name}: runner is closed")
 
         for name in self._input_names:
             if name not in inputs:
@@ -194,15 +269,32 @@ class TrtEngineRunner:
         return outputs
 
     def close(self) -> None:
-        for buffer in self.buffers.values():
-            buffer.free()
-        self.buffers.clear()
+        run_lock = getattr(self, "_run_lock", None)
+        if run_lock is None:
+            self._close_impl()
+            return
 
-        if self.stream is not None:
-            self.stream.close()
+        with run_lock:
+            self._close_impl()
+
+    def _close_impl(self) -> None:
+        buffers = getattr(self, "buffers", None)
+        if buffers is not None:
+            for buffer in buffers.values():
+                buffer.free()
+            buffers.clear()
+
+        stream = getattr(self, "stream", None)
+        if stream is not None:
+            stream.close()
             self.stream = None
 
-    def __enter__(self) -> TrtEngineRunner:
+        self.context = None
+        self.engine = None
+        self.runtime = None
+        self.activation_pool = None
+
+    def __enter__(self) -> "TrtEngineRunner":
         return self
 
     def __exit__(self, exc_type, exc_value, traceback) -> None:

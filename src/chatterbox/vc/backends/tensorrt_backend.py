@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import time
 from pathlib import Path
 
@@ -14,6 +15,7 @@ from ...onnx_export.constants import (GRAPH_FLOW_DECODER_MEANFLOW2,
                                       GRAPH_VOCODER_HIFT)
 from ...tensorrt.engine import TrtEngineRunner
 from ...tensorrt.manifest import load_trt_manifest
+from ...tensorrt.memory import TrtActivationMemoryPool
 from ..conditioning import VoiceConditionTensors
 from ..errors import BackendUnavailableError, VoiceConditioningError
 from ..postprocess import apply_initial_trim_fade
@@ -21,16 +23,53 @@ from ..preprocess import (compute_fbank, compute_s3_log_mel, load_wav_16k,
                           load_wav_24k)
 from ..types import VCResult
 
+logger = logging.getLogger(__name__)
+
+REQUIRED_TRT_VC_GRAPHS: tuple[str, ...] = (
+    GRAPH_REFERENCE_MEL_24K,
+    GRAPH_SPEAKER_ENCODER,
+    GRAPH_S3_TOKENIZER_QUANTIZER,
+    GRAPH_TOKEN_TO_MU,
+    GRAPH_FLOW_DECODER_MEANFLOW2,
+    GRAPH_VOCODER_HIFT,
+)
+
+
+def _format_mib(nbytes: int) -> str:
+    return f"{nbytes / 1024**2:.2f} MiB"
+
+
+def _log_activation_memory_plan(sizes: dict[str, int]) -> None:
+    total = sum(sizes.values())
+    shared = max(sizes.values()) if sizes else 0
+    saved_pct = (1.0 - (shared / total)) * 100.0 if total > 0 else 0.0
+
+    per_engine = ", ".join(
+        f"{graph_name}={_format_mib(nbytes)}" for graph_name, nbytes in sizes.items()
+    )
+    logger.info("TensorRT VC activation memory by engine: %s", per_engine)
+    logger.info(
+        "TensorRT VC shared activation memory plan: sum=%s shared_pool=%s theoretical_saved=%.1f%%",
+        _format_mib(total),
+        _format_mib(shared),
+        saved_pct,
+    )
+
 
 class TensorRTVCBackend:
     sr: int = S3GEN_SR
 
     def __init__(
-        self, engine_dir: Path, manifest: dict, runners: dict[str, TrtEngineRunner]
+        self,
+        engine_dir: Path,
+        manifest: dict,
+        runners: dict[str, TrtEngineRunner],
+        activation_pool: TrtActivationMemoryPool,
     ):
         self.engine_dir = Path(engine_dir)
         self.manifest = manifest
         self.runners = runners
+        self.activation_pool: TrtActivationMemoryPool | None = activation_pool
         self.constants = manifest["constants"]
         self.source_hop = int(self.constants["source_hop"])
         self.trim_fade_len = int(self.constants["trim_fade_len"])
@@ -40,25 +79,41 @@ class TensorRTVCBackend:
     def from_engine_dir(cls, engine_dir: str | Path) -> "TensorRTVCBackend":
         engine_dir = Path(engine_dir)
         manifest = load_trt_manifest(engine_dir)
-        runners = {}
-        for graph_name, entry in manifest["engines"].items():
-            runners[graph_name] = TrtEngineRunner(engine_dir / entry["engine"])
+        engine_entries = manifest["engines"]
 
-        required = {
-            GRAPH_REFERENCE_MEL_24K,
-            GRAPH_SPEAKER_ENCODER,
-            GRAPH_S3_TOKENIZER_QUANTIZER,
-            GRAPH_TOKEN_TO_MU,
-            GRAPH_FLOW_DECODER_MEANFLOW2,
-            GRAPH_VOCODER_HIFT,
-        }
-        missing = required - set(runners)
+        missing = [
+            graph_name
+            for graph_name in REQUIRED_TRT_VC_GRAPHS
+            if graph_name not in engine_entries
+        ]
         if missing:
-            raise BackendUnavailableError(
-                f"Missing TensorRT engines: {sorted(missing)}"
-            )
+            raise BackendUnavailableError(f"Missing TensorRT engines: {missing}")
 
-        return cls(engine_dir, manifest, runners)
+        activation_sizes = {
+            graph_name: TrtEngineRunner.inspect_activation_memory(
+                engine_dir / engine_entries[graph_name]["engine"]
+            )
+            for graph_name in REQUIRED_TRT_VC_GRAPHS
+        }
+        _log_activation_memory_plan(activation_sizes)
+
+        activation_pool = TrtActivationMemoryPool(max(activation_sizes.values()))
+        runners: dict[str, TrtEngineRunner] = {}
+
+        try:
+            for graph_name in REQUIRED_TRT_VC_GRAPHS:
+                entry = engine_entries[graph_name]
+                runners[graph_name] = TrtEngineRunner(
+                    engine_dir / entry["engine"],
+                    activation_pool=activation_pool,
+                )
+        except Exception:
+            for runner in runners.values():
+                runner.close()
+            activation_pool.close()
+            raise
+
+        return cls(engine_dir, manifest, runners, activation_pool)
 
     def _runner(self, graph_name: str) -> TrtEngineRunner:
         if graph_name not in self.runners:
@@ -216,3 +271,24 @@ class TensorRTVCBackend:
         source = vocoder_out["source"].astype(np.float32)
         apply_initial_trim_fade(wav, self.trim_fade_len)
         return wav, source
+
+    def close(self) -> None:
+        for runner in list(self.runners.values()):
+            runner.close()
+        self.runners.clear()
+
+        if self.activation_pool is not None:
+            self.activation_pool.close()
+            self.activation_pool = None
+
+    def __enter__(self) -> "TensorRTVCBackend":
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
+        self.close()
+
+    def __del__(self):
+        try:
+            self.close()
+        except Exception:
+            pass
