@@ -77,7 +77,6 @@ class TensorRTVCBackend:
         audio_path: str | Path,
         target_voice_path: str | Path | None = None,
         profile: bool = False,
-        upscale: bool = False,
     ) -> VCResult:
         if target_voice_path:
             ref_wav_24k = load_wav_24k(target_voice_path, "cpu", max_len=DEC_COND_LEN)
@@ -90,7 +89,7 @@ class TensorRTVCBackend:
 
         audio_16k = load_wav_16k(audio_path, "cpu")
         return self.convert_from_tensors(
-            audio_16k, self._target_voice_cache, profile, upscale
+            audio_16k, self._target_voice_cache, profile
         )
 
     def _tokenize_audio(self, audio_16k: torch.Tensor) -> tuple[np.ndarray, np.ndarray]:
@@ -140,13 +139,7 @@ class TensorRTVCBackend:
         audio_16k: torch.Tensor,
         target_voice: dict | VoiceConditionTensors | None = None,
         profile: bool = False,
-        upscale: bool = False,
     ) -> VCResult:
-        if upscale:
-            raise BackendUnavailableError(
-                "FlowHigh upscaling is not supported by the TensorRT backend."
-            )
-
         wall_start = time.perf_counter()
 
         if target_voice is None:

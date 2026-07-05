@@ -28,7 +28,6 @@ class VCBackend(Protocol):
         audio_path: str | Path,
         target_voice_path: str | Path | None = None,
         profile: bool = False,
-        upscale: bool = False,
     ) -> VCResult: ...
 
     def convert_from_tensors(
@@ -36,5 +35,4 @@ class VCBackend(Protocol):
         audio_16k: torch.Tensor,
         target_voice: dict | VoiceConditionTensors | None = None,
         profile: bool = False,
-        upscale: bool = False,
     ) -> VCResult: ...

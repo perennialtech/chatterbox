@@ -48,10 +48,6 @@ rocm = [
 ui = [
     "gradio==6.8.0",
 ]
-
-flowhigh = [
-    "flowhigh",
-]
 onnx = [
     "onnx>=1.22.0",
     "onnxconverter-common>=1.16.0",
@@ -123,8 +119,6 @@ pytorch-triton-rocm = [
 triton-rocm = [
     { index = "pytorch-rocm72", extra = "rocm", marker = "sys_platform == 'linux'" },
 ]
-
-flowhigh = { git = "https://github.com/perennialtech/flowhigh" }
 
 [build-system]
 requires = ["setuptools>=61.0"]

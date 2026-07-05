@@ -19,14 +19,12 @@ class ChatterboxVC:
         cls,
         ckpt_dir,
         device,
-        load_flowhigh: bool = True,
         compile: bool = False,
     ) -> "ChatterboxVC":
         return cls(
             TorchVCBackend.from_local(
                 ckpt_dir,
                 device,
-                load_flowhigh=load_flowhigh,
                 compile=compile,
             )
         )
@@ -35,13 +33,11 @@ class ChatterboxVC:
     def from_pretrained(
         cls,
         device,
-        load_flowhigh: bool = True,
         compile: bool = False,
     ) -> "ChatterboxVC":
         return cls(
             TorchVCBackend.from_pretrained(
                 device,
-                load_flowhigh=load_flowhigh,
                 compile=compile,
             )
         )
@@ -73,21 +69,18 @@ class ChatterboxVC:
         audio,
         target_voice_path=None,
         profile: bool = False,
-        upscale: bool = False,
     ):
         if isinstance(audio, (str, Path)):
             result = self.backend.convert_from_path(
                 audio,
                 target_voice_path=target_voice_path,
                 profile=profile,
-                upscale=upscale,
             )
         else:
             result = self.backend.convert_from_tensors(
                 audio,
                 target_voice=None,
                 profile=profile,
-                upscale=upscale,
             )
 
         return result.wav, result.sample_rate, result.timings

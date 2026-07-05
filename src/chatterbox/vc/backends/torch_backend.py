@@ -51,12 +51,10 @@ class TorchVCBackend:
         s3gen: S3Gen,
         device: str,
         ref_dict: dict | VoiceConditionTensors | None = None,
-        flowhigh=None,
     ):
         self.sr = S3GEN_SR
         self.s3gen = s3gen
         self.device = device
-        self.flowhigh = flowhigh
         self._target_voice_cache: VoiceConditionTensors | None = None
         self.ref_dict = None
 
@@ -82,7 +80,6 @@ class TorchVCBackend:
         cls,
         ckpt_dir,
         device,
-        load_flowhigh: bool = True,
         compile: bool = False,
     ) -> "TorchVCBackend":
         ckpt_dir = Path(ckpt_dir)
@@ -119,19 +116,12 @@ class TorchVCBackend:
         if _is_cuda_device(device) or should_compile:
             s3gen.warmup(ref_dict=ref_dict)
 
-        flowhigh = None
-        if load_flowhigh:
-            from flowhigh.flowhighsr import FlowHighSR
-
-            flowhigh = FlowHighSR.from_pretrained(device=device)
-
-        return cls(s3gen, device, ref_dict=ref_dict, flowhigh=flowhigh)
+        return cls(s3gen, device, ref_dict=ref_dict)
 
     @classmethod
     def from_pretrained(
         cls,
         device,
-        load_flowhigh: bool = True,
         compile: bool = False,
     ) -> "TorchVCBackend":
         if device == "mps" and not torch.backends.mps.is_available():
@@ -146,7 +136,6 @@ class TorchVCBackend:
         return cls.from_local(
             download_pretrained_checkpoint(),
             device,
-            load_flowhigh=load_flowhigh,
             compile=compile,
         )
 
@@ -162,7 +151,6 @@ class TorchVCBackend:
         audio_path: str | Path,
         target_voice_path: str | Path | None = None,
         profile: bool = False,
-        upscale: bool = False,
     ) -> VCResult:
         if target_voice_path:
             s3gen_ref_wav = load_wav_24k(
@@ -179,20 +167,14 @@ class TorchVCBackend:
             self._target_voice_cache = VoiceConditionTensors.from_mapping(np_condition)
 
         audio_16k = load_wav_16k(audio_path, self.device)
-        return self.convert_from_tensors(audio_16k, self.ref_dict, profile, upscale)
+        return self.convert_from_tensors(audio_16k, self.ref_dict, profile)
 
     def convert_from_tensors(
         self,
         audio_16k: torch.Tensor,
         target_voice: dict | VoiceConditionTensors | None = None,
         profile: bool = False,
-        upscale: bool = False,
     ) -> VCResult:
-        if upscale and self.flowhigh is None:
-            raise BackendUnavailableError(
-                "FlowHigh model is not loaded. Initialize with load_flowhigh=True."
-            )
-
         wall_start = time.perf_counter()
         active_sr = self.sr
 
@@ -225,13 +207,6 @@ class TorchVCBackend:
             output_wavs, _ = self.s3gen.hift_inference(output_mels, None)
             fade_len = min(output_wavs.size(1), self.s3gen.trim_fade.numel())
             output_wavs[:, :fade_len] *= self.s3gen.trim_fade[:fade_len]
-
-            if upscale:
-                output_wavs = self.flowhigh.enhance(output_wavs, sample_rate=active_sr)
-                output_wavs = (
-                    output_wavs.unsqueeze(0) if output_wavs.ndim == 1 else output_wavs
-                )
-                active_sr = self.flowhigh.codec.sampling_rate
 
             wav = output_wavs.detach().cpu()
 
