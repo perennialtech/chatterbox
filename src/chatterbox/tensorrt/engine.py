@@ -235,9 +235,12 @@ class TrtEngineRunner:
 
         for name in self._input_names:
             arr = prepared_inputs[name]
-            ptr = self._buffer(name, arr.nbytes)
-            memcpy_htod_async(ptr, arr, stream)
-            self._set_tensor_address(name, ptr)
+            if self.engine.get_tensor_location(name) == self.trt.TensorLocation.DEVICE:
+                ptr = self._buffer(name, arr.nbytes)
+                memcpy_htod_async(ptr, arr, stream)
+                self._set_tensor_address(name, ptr)
+            else:
+                self._set_tensor_address(name, arr.ctypes.data)
 
         self._infer_shapes()
 
@@ -251,9 +254,13 @@ class TrtEngineRunner:
 
             dtype = np.dtype(self.trt.nptype(self.engine.get_tensor_dtype(name)))
             arr = np.empty(shape, dtype=dtype)
-            ptr = self._buffer(name, arr.nbytes)
-            self._set_tensor_address(name, ptr)
             outputs[name] = arr
+
+            if self.engine.get_tensor_location(name) == self.trt.TensorLocation.DEVICE:
+                ptr = self._buffer(name, arr.nbytes)
+                self._set_tensor_address(name, ptr)
+            else:
+                self._set_tensor_address(name, arr.ctypes.data)
 
         if not self.context.execute_async_v3(stream_handle=stream.handle):
             raise TensorRTRuntimeError(
@@ -261,9 +268,10 @@ class TrtEngineRunner:
             )
 
         for name, arr in outputs.items():
-            ptr = self.buffers[name].ptr
-            assert ptr is not None
-            memcpy_dtoh_async(arr, ptr, stream)
+            if self.engine.get_tensor_location(name) == self.trt.TensorLocation.DEVICE:
+                ptr = self.buffers[name].ptr
+                assert ptr is not None
+                memcpy_dtoh_async(arr, ptr, stream)
 
         stream.synchronize()
         return outputs
