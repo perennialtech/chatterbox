@@ -303,6 +303,7 @@ class UpsampleConformerEncoder(torch.nn.Module):
             xs = self.global_cmvn(xs)
         xs, pos_emb, masks = self.embed(xs, masks)
         mask_pad = masks  # (B, 1, T/subsample_rate)
+        xs = xs.masked_fill(~mask_pad.transpose(1, 2), 0.0)
         chunk_masks = add_optional_chunk_mask(
             xs,
             masks,
@@ -314,6 +315,7 @@ class UpsampleConformerEncoder(torch.nn.Module):
         )
         # lookahead + conformer encoder
         xs = self.pre_lookahead_layer(xs)
+        xs = xs.masked_fill(~mask_pad.transpose(1, 2), 0.0)
         xs = self.forward_layers(xs, chunk_masks, pos_emb, mask_pad)
 
         # upsample + conformer encoder
@@ -324,6 +326,7 @@ class UpsampleConformerEncoder(torch.nn.Module):
         masks = ~make_pad_mask(xs_lens, T).unsqueeze(1)  # (B, 1, T)
         xs, pos_emb, masks = self.up_embed(xs, masks)
         mask_pad = masks  # (B, 1, T/subsample_rate)
+        xs = xs.masked_fill(~mask_pad.transpose(1, 2), 0.0)
         chunk_masks = add_optional_chunk_mask(
             xs,
             masks,

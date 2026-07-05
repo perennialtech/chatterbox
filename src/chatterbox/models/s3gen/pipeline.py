@@ -11,6 +11,7 @@ from ..speaker.campplus import CAMPPlus
 from ..speaker.features import extract_fbank_features  # <-- ADD THIS IMPORT
 from .conditioning import S3ReferenceCondition
 from .configs import CFM_PARAMS
+from .const import S3GEN_SIL
 from .decoder import ConditionalDecoder
 from .f0_predictor import ConvRNNF0Predictor
 from .flow_matching import CausalConditionalCFM
@@ -347,7 +348,9 @@ class S3Token2Wav(S3Token2Mel):
         n_trim = S3GEN_SR // 50
         trim_fade = torch.zeros(2 * n_trim)
         trim_fade[n_trim:] = (torch.cos(torch.linspace(torch.pi, 0, n_trim)) + 1) / 2
+        end_fade = (torch.cos(torch.linspace(0, torch.pi, 2 * n_trim)) + 1) / 2
         self.register_buffer("trim_fade", trim_fade, persistent=False)
+        self.register_buffer("end_fade", end_fade, persistent=False)
         self.estimator_dtype = "fp32"
 
     def compile_for_inference(self) -> "S3Token2Wav":
@@ -369,6 +372,126 @@ class S3Token2Wav(S3Token2Mel):
         self.mel2wav.compile_for_inference()
         return self
 
+    @property
+    def _token_mel_ratio(self) -> int:
+        return int(getattr(self.flow, "token_mel_ratio", 2))
+
+    @property
+    def _final_context_token_count(self) -> int:
+        return max(0, int(getattr(self.flow, "pre_lookahead_len", 0)))
+
+    def _prepare_flow_inputs(
+        self,
+        speech_tokens: torch.Tensor,
+        speech_token_lens: Optional[torch.Tensor],
+        finalize: bool,
+    ) -> tuple[torch.Tensor, torch.Tensor, int]:
+        speech_tokens = torch.atleast_2d(speech_tokens).to(
+            device=self.device, dtype=torch.long
+        )
+        if speech_tokens.size(0) != 1:
+            raise ValueError("Only batch size 1 is supported")
+
+        if speech_token_lens is None:
+            speech_token_lens = torch.full(
+                (speech_tokens.size(0),),
+                speech_tokens.size(-1),
+                dtype=torch.long,
+                device=self.device,
+            )
+        else:
+            speech_token_lens = speech_token_lens.to(
+                device=self.device, dtype=torch.long
+            )
+
+        if speech_token_lens.numel() != speech_tokens.size(0):
+            raise ValueError("speech_token_lens must have one entry per batch item")
+
+        original_token_len = int(speech_token_lens.max().detach().cpu())
+        if original_token_len <= 0:
+            raise ValueError("At least one speech token is required")
+        if original_token_len > speech_tokens.size(1):
+            raise ValueError("speech_token_lens exceeds speech_tokens length")
+
+        speech_tokens = speech_tokens[:, :original_token_len].contiguous()
+        original_mel_len = original_token_len * self._token_mel_ratio
+
+        # The acoustic encoder uses pre-lookahead. Give finalized utterances
+        # explicit silence lookahead and discard it after synthesis so the last
+        # real frames are not conditioned on padding or missing future context.
+        context_tokens = self._final_context_token_count if finalize else 0
+        if context_tokens > 0:
+            tail = torch.full(
+                (speech_tokens.size(0), context_tokens),
+                S3GEN_SIL,
+                dtype=torch.long,
+                device=self.device,
+            )
+            speech_tokens = torch.cat([speech_tokens, tail], dim=1)
+            speech_token_lens = speech_token_lens + context_tokens
+
+        return speech_tokens, speech_token_lens, original_mel_len
+
+    @torch.inference_mode()
+    def _flow_inference_impl(
+        self,
+        speech_tokens,
+        ref_wav: Optional[torch.Tensor] = None,
+        ref_sr: Optional[int] = None,
+        ref_dict: Optional[dict] = None,
+        n_cfm_timesteps: Optional[int] = None,
+        finalize: bool = False,
+        speech_token_lens: Optional[torch.Tensor] = None,
+        keep_final_context: bool = False,
+    ) -> tuple[torch.Tensor, int]:
+        speech_tokens, speech_token_lens, original_mel_len = self._prepare_flow_inputs(
+            speech_tokens=speech_tokens,
+            speech_token_lens=speech_token_lens,
+            finalize=finalize,
+        )
+        model_mel_len = (
+            int(speech_token_lens.max().detach().cpu()) * self._token_mel_ratio
+        )
+
+        prompt_len = 0
+        if ref_dict is not None and "prompt_token" in ref_dict:
+            prompt_len = ref_dict["prompt_token"].size(1)
+
+        speech_tokens = self._pad_tokens_to_bucket(speech_tokens, prompt_len)
+        n_cfm_timesteps = n_cfm_timesteps or (2 if self.meanflow else 10)
+
+        output_mels = super().forward(
+            speech_tokens,
+            speech_token_lens=speech_token_lens,
+            ref_wav=ref_wav,
+            ref_sr=ref_sr,
+            ref_dict=ref_dict,
+            n_cfm_timesteps=n_cfm_timesteps,
+            finalize=finalize,
+        )
+        trim_len = model_mel_len if keep_final_context else original_mel_len
+        return output_mels[:, :, :trim_len].contiguous(), original_mel_len
+
+    def _apply_output_fades(self, output_wavs: torch.Tensor) -> torch.Tensor:
+        if output_wavs.size(1) == 0:
+            return output_wavs
+
+        start_len = min(output_wavs.size(1), self.trim_fade.numel())
+        if start_len > 0:
+            output_wavs[:, :start_len] *= self.trim_fade[:start_len].to(
+                device=output_wavs.device,
+                dtype=output_wavs.dtype,
+            )
+
+        end_len = min(output_wavs.size(1), self.end_fade.numel())
+        if end_len > 0:
+            output_wavs[:, -end_len:] *= self.end_fade[-end_len:].to(
+                device=output_wavs.device,
+                dtype=output_wavs.dtype,
+            )
+
+        return output_wavs
+
     @torch.inference_mode()
     def warmup(
         self,
@@ -388,11 +511,12 @@ class S3Token2Wav(S3Token2Mel):
             speech_tokens = torch.zeros(
                 1, speech_len, dtype=torch.long, device=self.device
             )
-            output_mels = self.flow_inference(
+            output_mels, _ = self._flow_inference_impl(
                 speech_tokens=speech_tokens,
                 ref_dict=ref_dict,
                 n_cfm_timesteps=2 if self.meanflow else 10,
                 finalize=True,
+                keep_final_context=True,
             )
             self.hift_inference(output_mels.to(dtype=self.dtype), None)
 
@@ -430,8 +554,7 @@ class S3Token2Wav(S3Token2Mel):
         )
 
         if not self.training:
-            fade_len = min(output_wavs.size(1), self.trim_fade.numel())
-            output_wavs[:, :fade_len] *= self.trim_fade[:fade_len]
+            self._apply_output_fades(output_wavs)
 
         return output_wavs, output_sources
 
@@ -455,43 +578,17 @@ class S3Token2Wav(S3Token2Mel):
         finalize: bool = False,
         speech_token_lens: Optional[torch.Tensor] = None,
     ):
-        if speech_tokens.size(0) != 1:
-            raise ValueError("Only batch size 1 is supported")
-        speech_tokens = torch.atleast_2d(speech_tokens).to(
-            device=self.device, dtype=torch.long
-        )
-
-        if speech_token_lens is None:
-            speech_token_lens = torch.full(
-                (speech_tokens.size(0),),
-                speech_tokens.size(-1),
-                dtype=torch.long,
-                device=self.device,
-            )
-        else:
-            speech_token_lens = speech_token_lens.to(
-                device=self.device, dtype=torch.long
-            )
-
-        original_mel_len = int(speech_token_lens.max().detach().cpu()) * 2
-
-        prompt_len = 0
-        if ref_dict is not None and "prompt_token" in ref_dict:
-            prompt_len = ref_dict["prompt_token"].size(1)
-
-        speech_tokens = self._pad_tokens_to_bucket(speech_tokens, prompt_len)
-        n_cfm_timesteps = n_cfm_timesteps or (2 if self.meanflow else 10)
-
-        output_mels = super().forward(
-            speech_tokens,
+        output_mels, _ = self._flow_inference_impl(
+            speech_tokens=speech_tokens,
             speech_token_lens=speech_token_lens,
             ref_wav=ref_wav,
             ref_sr=ref_sr,
             ref_dict=ref_dict,
             n_cfm_timesteps=n_cfm_timesteps,
             finalize=finalize,
+            keep_final_context=False,
         )
-        return output_mels[:, :, :original_mel_len].contiguous()
+        return output_mels
 
     @torch.inference_mode()
     def hift_inference(self, speech_feat, cache_source: torch.Tensor | None = None):
@@ -518,7 +615,7 @@ class S3Token2Wav(S3Token2Mel):
         n_cfm_timesteps: Optional[int] = None,
         speech_token_lens: Optional[torch.Tensor] = None,
     ):
-        output_mels = self.flow_inference(
+        output_mels, original_mel_len = self._flow_inference_impl(
             speech_tokens,
             speech_token_lens=speech_token_lens,
             ref_wav=ref_wav,
@@ -526,9 +623,17 @@ class S3Token2Wav(S3Token2Mel):
             ref_dict=ref_dict,
             n_cfm_timesteps=n_cfm_timesteps,
             finalize=True,
+            keep_final_context=True,
         )
         output_mels = output_mels.to(dtype=self.dtype)
         output_wavs, output_sources = self.hift_inference(output_mels, None)
-        fade_len = min(output_wavs.size(1), self.trim_fade.numel())
-        output_wavs[:, :fade_len] *= self.trim_fade[:fade_len]
+
+        original_samples = min(
+            output_wavs.size(1),
+            original_mel_len * self.mel2wav.source_hop,
+        )
+        output_wavs = output_wavs[:, :original_samples].contiguous()
+        output_sources = output_sources[:, :, :original_samples].contiguous()
+
+        self._apply_output_fades(output_wavs)
         return output_wavs, output_sources
