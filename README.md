@@ -39,11 +39,20 @@ Install the project with the runtime extras needed by your workflow.
 # PyTorch execution
 uv sync
 
+# Gradio UI with CPU PyTorch execution
+uv sync --extra cpu --extra ui
+
 # ONNX export and ONNX Runtime execution
 uv sync --extra cpu --extra onnx
 
+# ONNX Runtime with the Gradio UI
+uv sync --extra cpu --extra onnx --extra ui
+
 # CUDA PyTorch execution, export, plus ONNX/TensorRT tooling
 uv sync --extra cuda --extra onnx --extra tensorrt
+
+# CUDA execution with the Gradio UI
+uv sync --extra cuda --extra onnx --extra tensorrt --extra ui
 ```
 
 TensorRT builds require a compatible NVIDIA driver, CUDA runtime, TensorRT Python package, and `cuda-python`. Use `python -m chatterbox.tensorrt build --help` and TensorRT's own diagnostics when validating a deployment image.
@@ -223,6 +232,18 @@ wav, sample_rate, timings = vc.generate(
 ```
 
 The TensorRT backend accepts the same cached target-voice tensors as the ONNX backend.
+
+## Gradio app
+
+The repository includes a browser UI in [`app.py`](app.py). Install the `ui` extra together with the runtime extras for the backend you plan to use, then launch one of:
+
+```bash
+uv run python app.py --backend pytorch --device cuda
+uv run python app.py --backend onnx --onnx-artifact-dir artifacts --onnx-providers CUDAExecutionProvider,CPUExecutionProvider
+uv run python app.py --backend tensorrt --tensorrt-engine-dir artifacts/tensorrt/fp16
+```
+
+The app accepts source speech and target-voice reference audio, exposes runtime settings in the UI, caches the selected backend between conversions, and returns playable/downloadable converted audio plus timing details. Use `--server-name 0.0.0.0` when serving from a container or remote host, and `uv run python app.py --help` for the full launch options.
 
 ## Programmatic export
 
