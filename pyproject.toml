@@ -51,7 +51,7 @@ ui = [
 onnx = [
     "onnx>=1.22.0",
     "onnxconverter-common>=1.16.0",
-    "onnxruntime>=1.27.0",
+    "onnxruntime-gpu>=1.27.0",
 ]
 tensorrt = [
     "cuda-python>=13.3.1",

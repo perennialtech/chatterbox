@@ -221,7 +221,7 @@ cuda = [
 onnx = [
     { name = "onnx" },
     { name = "onnxconverter-common" },
-    { name = "onnxruntime" },
+    { name = "onnxruntime-gpu" },
 ]
 rocm = [
     { name = "pytorch-triton-rocm", marker = "sys_platform == 'linux'" },
@@ -262,7 +262,7 @@ requires-dist = [
     { name = "omegaconf", specifier = ">=2.3" },
     { name = "onnx", marker = "extra == 'onnx'", specifier = ">=1.22.0" },
     { name = "onnxconverter-common", marker = "extra == 'onnx'", specifier = ">=1.16.0" },
-    { name = "onnxruntime", marker = "extra == 'onnx'", specifier = ">=1.27.0" },
+    { name = "onnxruntime-gpu", marker = "extra == 'onnx'", specifier = ">=1.27.0" },
     { name = "pytorch-triton-rocm", marker = "sys_platform == 'linux' and extra == 'rocm'", index = "https://download.pytorch.org/whl/rocm7.2", conflict = { package = "chatterbox", extra = "rocm" } },
     { name = "safetensors", specifier = ">=0.8" },
     { name = "tensorrt", marker = "extra == 'tensorrt'", specifier = ">=11.1.0.106" },
@@ -1145,7 +1145,7 @@ wheels = [
 ]
 
 [[package]]
-name = "onnxruntime"
+name = "onnxruntime-gpu"
 version = "1.27.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
@@ -1155,11 +1155,8 @@ dependencies = [
     { name = "protobuf" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d4/e4/5353d7e09ced4a8f473f843223fc75d726b2b5519dcefc12f22a6c92852d/onnxruntime-1.27.0-cp311-cp311-macosx_14_0_arm64.whl", hash = "sha256:8ba14a38c570087f3cdb8cfba33f7a38a1e826c1e5b29e17c28ceda0cc910016", size = 18416484, upload-time = "2026-06-15T22:43:43.894Z" },
-    { url = "https://files.pythonhosted.org/packages/ed/1f/a2117aa3f144fce88774efa37440d0ca72d0c9144854dfc0961f2b04c6fc/onnxruntime-1.27.0-cp311-cp311-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:2eb083321af8a236a84c7c140a7f4cecbfa2a987a18c07c78db471c20cd390ef", size = 16419330, upload-time = "2026-06-15T22:42:37.58Z" },
-    { url = "https://files.pythonhosted.org/packages/e0/cd/74bb804170ceb622fda9111df31a07b3024f7491472256d3a90b5391a4d2/onnxruntime-1.27.0-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:e4f7b0e90d2d212e2c2deaa6c8291616183ab815d3ec558ea12d3ac8b26d36f4", size = 18636930, upload-time = "2026-06-15T22:43:01.584Z" },
-    { url = "https://files.pythonhosted.org/packages/fe/8f/5b8e2b85e81735696887175dbaf6409f215683f5ca9d4928fbb038211d32/onnxruntime-1.27.0-cp311-cp311-win_amd64.whl", hash = "sha256:ff050e4f6bf7f12918fa14dcb047c0b02e295f35e86d42532552be4b3d54e977", size = 13356110, upload-time = "2026-06-15T22:43:32.172Z" },
-    { url = "https://files.pythonhosted.org/packages/b0/3a/4f568de678126b6a371a93862f015a82138359decd97fcac61fc84b5b774/onnxruntime-1.27.0-cp311-cp311-win_arm64.whl", hash = "sha256:75fbc1e1fb43a39a856c8209c544cca7817b5de7ac16b15b1bdf55d1cc67b9df", size = 13098635, upload-time = "2026-06-15T22:43:19.607Z" },
+    { url = "https://files.pythonhosted.org/packages/89/d5/372193dd3fddfd1fbeb0bf39aa41a27d1b12e4877570cb746635047d68a9/onnxruntime_gpu-1.27.0-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:404fb845dc06a04a28df5a2c6d5967bcf3f534e7df0b98507ff81686a1b49594", size = 220287841, upload-time = "2026-06-18T18:27:13.823Z" },
+    { url = "https://files.pythonhosted.org/packages/e6/fd/f754a292136deebe4fba28443374f6c5f6dcb6a125270755dd54473dce06/onnxruntime_gpu-1.27.0-cp311-cp311-win_amd64.whl", hash = "sha256:c68799b35fc4818e6c1d50f5270681bf5ab8a652ac118e11a987b23f488e18dd", size = 213618726, upload-time = "2026-06-15T22:42:50.855Z" },
 ]
 
 [[package]]
