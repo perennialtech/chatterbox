@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from ...audio import DEC_COND_LEN, S3GEN_SR
+from ...audio import DEC_COND_LEN, S3_SR, S3GEN_SR, resample_audio
 from ...onnx_export.constants import (GRAPH_FLOW_DECODER_MEANFLOW2,
                                       GRAPH_REFERENCE_MEL_24K,
                                       GRAPH_S3_TOKENIZER_QUANTIZER,
@@ -16,16 +16,10 @@ from ...tensorrt.engine import TrtEngineRunner
 from ...tensorrt.manifest import load_trt_manifest
 from ..conditioning import VoiceConditionTensors
 from ..errors import BackendUnavailableError, VoiceConditioningError
+from ..postprocess import apply_initial_trim_fade
 from ..preprocess import (compute_fbank, compute_s3_log_mel, load_wav_16k,
                           load_wav_24k)
 from ..types import VCResult
-
-
-def _trim_fade(length: int, dtype) -> np.ndarray:
-    half = length // 2
-    fade = np.zeros(length, dtype=dtype)
-    fade[half:] = (np.cos(np.linspace(np.pi, 0, length - half)) + 1) / 2
-    return fade
 
 
 class TensorRTVCBackend:
@@ -87,7 +81,7 @@ class TensorRTVCBackend:
     ) -> VCResult:
         if target_voice_path:
             ref_wav_24k = load_wav_24k(target_voice_path, "cpu", max_len=DEC_COND_LEN)
-            ref_wav_16k = load_wav_16k(target_voice_path, "cpu")
+            ref_wav_16k = resample_audio(ref_wav_24k, S3GEN_SR, S3_SR, "cpu")
             self.set_target_voice_from_tensors(
                 self._extract_target_voice_tensors(
                     ref_wav_24k.numpy(), ref_wav_16k.numpy()
@@ -102,7 +96,7 @@ class TensorRTVCBackend:
     def _tokenize_audio(self, audio_16k: torch.Tensor) -> tuple[np.ndarray, np.ndarray]:
         log_mel, mel_lengths = compute_s3_log_mel(audio_16k)
         out = self._runner(GRAPH_S3_TOKENIZER_QUANTIZER).run(
-            {"log_mel": log_mel, "mel_lengths": mel_lengths}
+            {"log_mel": log_mel, "mel_lengths": mel_lengths.astype(np.int32)}
         )
         return out["speech_tokens"].astype(np.int64), out[
             "speech_token_lengths"
@@ -182,10 +176,10 @@ class TensorRTVCBackend:
     ):
         token_out = self._runner(GRAPH_TOKEN_TO_MU).run(
             {
-                "prompt_token": target_voice.prompt_token,
-                "prompt_token_len": target_voice.prompt_token_len,
-                "speech_token": speech_tokens.astype(np.int64),
-                "speech_token_len": speech_token_lens.astype(np.int64),
+                "prompt_token": target_voice.prompt_token.astype(np.int32),
+                "prompt_token_len": target_voice.prompt_token_len.astype(np.int32),
+                "speech_token": speech_tokens.astype(np.int32),
+                "speech_token_len": speech_token_lens.astype(np.int32),
                 "embedding": target_voice.embedding.astype(np.float32),
             }
         )
@@ -229,5 +223,5 @@ class TensorRTVCBackend:
         )
         wav = vocoder_out["wav"].astype(np.float32)
         source = vocoder_out["source"].astype(np.float32)
-        wav[:, : self.trim_fade_len] *= _trim_fade(self.trim_fade_len, wav.dtype)
+        apply_initial_trim_fade(wav, self.trim_fade_len)
         return wav, source

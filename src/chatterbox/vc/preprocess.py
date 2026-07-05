@@ -34,7 +34,7 @@ def compute_s3_log_mel(audio_16k: torch.Tensor) -> tuple[np.ndarray, np.ndarray]
     )
     return (
         np.ascontiguousarray(log_mel.cpu().numpy().astype(np.float32)),
-        np.ascontiguousarray(mel_lengths.cpu().numpy().astype(np.int64)),
+        np.ascontiguousarray(mel_lengths.cpu().numpy().astype(np.int32)),
     )
 
 

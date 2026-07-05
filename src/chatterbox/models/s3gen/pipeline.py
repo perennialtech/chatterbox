@@ -426,7 +426,8 @@ class S3Token2Wav(S3Token2Mel):
         )
 
         if not self.training:
-            output_wavs[:, : len(self.trim_fade)] *= self.trim_fade
+            fade_len = min(output_wavs.size(1), self.trim_fade.numel())
+            output_wavs[:, :fade_len] *= self.trim_fade[:fade_len]
 
         return output_wavs, output_sources
 
@@ -524,5 +525,6 @@ class S3Token2Wav(S3Token2Mel):
         )
         output_mels = output_mels.to(dtype=self.dtype)
         output_wavs, output_sources = self.hift_inference(output_mels, None)
-        output_wavs[:, : len(self.trim_fade)] *= self.trim_fade
+        fade_len = min(output_wavs.size(1), self.trim_fade.numel())
+        output_wavs[:, :fade_len] *= self.trim_fade[:fade_len]
         return output_wavs, output_sources

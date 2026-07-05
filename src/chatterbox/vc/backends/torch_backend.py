@@ -223,7 +223,8 @@ class TorchVCBackend:
 
             output_mels = output_mels.to(dtype=self.s3gen.dtype)
             output_wavs, _ = self.s3gen.hift_inference(output_mels, None)
-            output_wavs[:, : len(self.s3gen.trim_fade)] *= self.s3gen.trim_fade
+            fade_len = min(output_wavs.size(1), self.s3gen.trim_fade.numel())
+            output_wavs[:, :fade_len] *= self.s3gen.trim_fade[:fade_len]
 
             if upscale:
                 output_wavs = self.flowhigh.enhance(output_wavs, sample_rate=active_sr)
