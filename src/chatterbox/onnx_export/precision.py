@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+import warnings
 from pathlib import Path
 from typing import Any
 
@@ -198,7 +199,9 @@ def _convert_float_to_float16(float16, model):
     if "disable_shape_infer" in parameters:
         kwargs["disable_shape_infer"] = False
 
-    return float16.convert_float_to_float16(model, **kwargs)
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", message=".*truncated.*")
+        return float16.convert_float_to_float16(model, **kwargs)
 
 
 def _infer_shapes_if_possible(onnx, model):
