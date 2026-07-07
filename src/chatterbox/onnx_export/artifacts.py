@@ -8,7 +8,7 @@ from typing import Any
 
 from ..audio import (DEC_COND_LEN, ENC_COND_LEN, MEL_HOP_24K, S3_HOP, S3_SR,
                      S3_TOKEN_HOP, S3_TOKEN_RATE, S3GEN_SR, SPEECH_VOCAB_SIZE)
-from .config import ExportConfig, SinglePrecision
+from .config import ExportConfig
 from .constants import MEANFLOW_T_SPAN
 from .graph_spec import GraphSpec
 
@@ -16,7 +16,6 @@ from .graph_spec import GraphSpec
 @dataclass
 class ArtifactRecord:
     graph_name: str
-    precision: SinglePrecision
     path: str
     inputs: list[str]
     outputs: list[str]
@@ -71,23 +70,17 @@ def write_manifest(
 ) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    artifact_map: dict[str, dict[str, ArtifactRecord]] = {}
-    for artifact in artifacts:
-        artifact_map.setdefault(artifact.graph_name, {})[artifact.precision] = artifact
+    artifact_map = {artifact.graph_name: artifact for artifact in artifacts}
 
     graphs: dict[str, Any] = {}
     for spec in graph_specs:
-        precision_files = {}
-        for precision in config.precisions:
-            artifact = artifact_map.get(spec.name, {}).get(precision)
-            if artifact is not None:
-                precision_files[precision] = str(
-                    Path(artifact.path).relative_to(output_dir)
-                )
+        artifact = artifact_map.get(spec.name)
+        if artifact is None:
+            raise RuntimeError(f"Missing ONNX artifact for graph {spec.name}")
 
         graphs[spec.name] = {
             "filename": spec.filename,
-            "files": precision_files,
+            "path": str(Path(artifact.path).relative_to(output_dir)),
             "inputs": spec.input_names,
             "outputs": spec.output_names,
             "dynamic_shapes": _serialize_dynamic_shapes(spec.dynamic_shapes),
@@ -96,7 +89,6 @@ def write_manifest(
             "required_for_runtime": spec.required_for_runtime,
         }
 
-    # make sure artifact dynamic shapes are also clean
     serializable_artifacts = []
     for artifact in artifacts:
         art_dict = asdict(artifact)
@@ -106,7 +98,7 @@ def write_manifest(
         serializable_artifacts.append(art_dict)
 
     manifest = {
-        "schema_version": 2,
+        "schema_version": 3,
         "model": "chatterbox-vc",
         "checkpoint": {
             "path": str(config.checkpoint_dir),
@@ -115,7 +107,6 @@ def write_manifest(
         "onnx": {
             "opset": config.opset,
             "external_data": config.external_data,
-            "precisions": list(config.precisions),
         },
         "constants": _constants(source_hop),
         "graphs": graphs,
@@ -150,6 +141,5 @@ def _serialize_dynamic_shapes(shapes: Any) -> Any:
     elif isinstance(shapes, (list, tuple)):
         return [_serialize_dynamic_shapes(v) for v in shapes]
     elif str(type(shapes)).find("Dim") != -1 or hasattr(shapes, "__name__"):
-        # Extracts name / string representation of the Dim
         return getattr(shapes, "__name__", str(shapes))
     return shapes

@@ -2,7 +2,7 @@
 
 Chatterbox is a voice conversion pipeline. This package provides the PyTorch implementation, exports the tensor-level pipeline to ONNX, and can build TensorRT engines from those ONNX artifacts. The exported artifacts are intended for service runtimes that want to orchestrate preprocessing, reference-voice caching, flow sampling, and vocoding outside PyTorch.
 
-The stable contract for an ONNX artifact directory is `manifest.json`. Use it as the source of truth for graph files, input/output names, dtypes, dynamic axes, runtime constants, and precision availability.
+The stable contract for an ONNX artifact directory is `manifest.json`. Use it as the source of truth for graph files, input/output names, dtypes, dynamic axes, and runtime constants.
 
 See [`examples/`](examples/) for runnable integrations.
 
@@ -14,7 +14,6 @@ The package contains:
 - `ChatterboxVC` inference backends for PyTorch, ONNX, and TensorRT
 - checkpoint loading for the meanflow S3 generation model
 - ONNX export for the graph set used by the VC runtime
-- optional FP16 ONNX conversion with FP32 graph inputs and outputs
 - graph-by-graph ONNX Runtime parity validation
 - TensorRT engine building from exported ONNX graphs
 - low-level graph runners for custom orchestration
@@ -92,7 +91,6 @@ Run the exporter from the repository environment:
 uv run python -m chatterbox.onnx_export export \
   --checkpoint-dir checkpoints \
   --output-dir artifacts \
-  --precision both \
   --device cuda \
   --validate
 ```
@@ -107,7 +105,7 @@ Export writes an artifact directory with:
 
 - `manifest.json`
 - `metadata.json`
-- ONNX files grouped by precision
+- ONNX files under `onnx/`
 - validation reports when validation is enabled
 
 Do not hard-code the graph inventory or signatures in production code. Read `manifest.json`, or use `OnnxSessions.from_artifact_dir`, which validates required runtime graphs before creating sessions.
@@ -120,7 +118,6 @@ Validation compares each exported graph against the PyTorch module with determin
 uv run python -m chatterbox.onnx_export validate \
   --artifact-dir artifacts \
   --checkpoint-dir checkpoints \
-  --precision both \
   --device cuda
 ```
 
@@ -137,7 +134,6 @@ from chatterbox import ChatterboxVC
 
 vc = ChatterboxVC.from_onnx_artifacts(
     "artifacts",
-    precision="fp32",
     providers=["CUDAExecutionProvider", "CPUExecutionProvider"],
 )
 
@@ -161,7 +157,6 @@ from chatterbox.onnx_export.runtime import OnnxSessions
 
 sessions = OnnxSessions.from_artifact_dir(
     "artifacts",
-    precision="fp32",
     providers=["CPUExecutionProvider"],
 )
 
@@ -178,7 +173,6 @@ Build TensorRT engines from an exported artifact directory:
 ```bash
 uv run python -m chatterbox.tensorrt build \
   --artifact-dir artifacts \
-  --onnx-precision fp32 \
   --engine-precision fp16 \
   --workspace-gb 4
 ```
@@ -256,7 +250,6 @@ from chatterbox.onnx_export.config import ExportConfig
 config = ExportConfig(
     checkpoint_dir=Path("checkpoints"),
     output_dir=Path("artifacts"),
-    precision="both",
     device="cuda",
     validate=True,
 )
@@ -275,7 +268,6 @@ from chatterbox.tensorrt import TrtBuildConfig, build_engines
 
 config = TrtBuildConfig(
     artifact_dir=Path("artifacts"),
-    onnx_precision="fp32",
     engine_precision="fp16",
     workspace_bytes=4 * 1024**3,
 )
@@ -307,10 +299,10 @@ The flow decoder starts from noise, and the vocoder source path uses phase/noise
 
 The [`examples/`](examples/) directory contains:
 
-- `export_artifacts.py` — programmatic export and optional validation
-- `ort_voice_conversion.py` — high-level ONNX Runtime VC integration
-- `tensorrt_voice_conversion.py` — high-level TensorRT VC integration
-- `build_tensorrt_engines.py` — programmatic TensorRT engine build
-- `manual_onnx_pipeline.py` — low-level ONNX graph orchestration with explicit deterministic tensors
+- `export_artifacts.py` - programmatic export and optional validation
+- `ort_voice_conversion.py` - high-level ONNX Runtime VC integration
+- `tensorrt_voice_conversion.py` - high-level TensorRT VC integration
+- `build_tensorrt_engines.py` - programmatic TensorRT engine build
+- `manual_onnx_pipeline.py` - low-level ONNX graph orchestration with explicit deterministic tensors
 
 Each example has `--help` output and is intended to be copied into downstream projects as a starting point.

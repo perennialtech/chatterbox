@@ -6,7 +6,6 @@ from typing import Any
 import torch
 
 from .artifacts import ArtifactRecord
-from .config import SinglePrecision
 from .errors import OnnxExportError
 
 
@@ -18,7 +17,6 @@ class ExportSession:
     def export(
         self,
         graph_name: str,
-        precision: SinglePrecision,
         module: torch.nn.Module,
         path: Path,
         inputs: tuple[torch.Tensor, ...],
@@ -44,14 +42,10 @@ class ExportSession:
             }
 
             if dynamic_shapes is not None:
-                # FIXME: Review this fix:
-                # Dynamo is overly strict. If dynamic_shapes is a dict, we
-                # must strip out extra keys that don't belong to this specific graph's inputs.
                 if isinstance(dynamic_shapes, dict):
-                    filtered_shapes = {
+                    export_kwargs["dynamic_shapes"] = {
                         k: v for k, v in dynamic_shapes.items() if k in input_names
                     }
-                    export_kwargs["dynamic_shapes"] = filtered_shapes
                 else:
                     export_kwargs["dynamic_shapes"] = dynamic_shapes
 
@@ -60,7 +54,6 @@ class ExportSession:
         self.check(path)
         return ArtifactRecord(
             graph_name=graph_name,
-            precision=precision,
             path=str(path),
             inputs=input_names,
             outputs=output_names,

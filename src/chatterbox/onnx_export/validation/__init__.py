@@ -1,5 +1,5 @@
 from .metrics import compare_cosine, compare_exact, compare_tensors
-from .runner import run_validation, run_validation_for_precisions
+from .runner import run_validation
 from .tolerances import CosineTolerance, Tolerance
 
 __all__ = [
@@ -9,5 +9,4 @@ __all__ = [
     "compare_exact",
     "compare_tensors",
     "run_validation",
-    "run_validation_for_precisions",
 ]
