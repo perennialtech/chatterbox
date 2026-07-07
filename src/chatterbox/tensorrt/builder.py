@@ -41,6 +41,21 @@ def _configure_precision(trt, builder_config, config: TrtBuildConfig) -> None:
             builder_config.set_flag(trt.BuilderFlag.FP16)
 
 
+def _force_linear_io_formats(trt, network) -> None:
+    tensor_format = getattr(trt, "TensorFormat", None)
+    linear_format = getattr(tensor_format, "LINEAR", None) if tensor_format else None
+    if linear_format is None:
+        raise TensorRTBuildError("TensorRT LINEAR tensor format is not available")
+
+    linear_mask = 1 << int(linear_format)
+
+    for i in range(network.num_inputs):
+        network.get_input(i).allowed_formats = linear_mask
+
+    for i in range(network.num_outputs):
+        network.get_output(i).allowed_formats = linear_mask
+
+
 def _effective_workspace_bytes(requested_bytes: int) -> int:
     try:
         free_bytes, _ = cuda_memory_info()
@@ -126,7 +141,8 @@ def build_engines(config: TrtBuildConfig) -> list[EngineRecord]:
     artifact_dir = Path(config.artifact_dir)
     manifest_path = artifact_dir / "manifest.json"
     manifest = load_manifest(artifact_dir)
-    shape_plan = load_shape_plan(config.shape_plan)
+    source_hop = int(manifest.get("constants", {}).get("source_hop", 480))
+    shape_plan = load_shape_plan(config.shape_plan, source_hop=source_hop)
     output_dir = config.resolved_output_dir
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -158,6 +174,8 @@ def build_engines(config: TrtBuildConfig) -> list[EngineRecord]:
             raise TensorRTBuildError(
                 f"Failed to parse {source_onnx}:\n{_parser_errors(parser)}"
             )
+
+        _force_linear_io_formats(trt, network)
 
         builder_config = builder.create_builder_config()
         builder_config.set_memory_pool_limit(

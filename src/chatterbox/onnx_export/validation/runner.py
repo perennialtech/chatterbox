@@ -15,12 +15,22 @@ from .metrics import compare_cosine, compare_exact, compare_tensors
 from .tolerances import DEFAULT_TOLERANCES, CosineTolerance, Tolerance
 
 
+def _ort_providers(ort, device: str) -> list[str]:
+    available = set(ort.get_available_providers())
+    if str(device).startswith("cuda") and "CUDAExecutionProvider" in available:
+        return ["CUDAExecutionProvider", "CPUExecutionProvider"]
+    return ["CPUExecutionProvider"]
+
+
 def _run_ort(
-    path: Path, input_names: list[str], inputs: tuple[torch.Tensor, ...]
+    path: Path,
+    input_names: list[str],
+    inputs: tuple[torch.Tensor, ...],
+    device: str = "cpu",
 ) -> list[np.ndarray]:
     import onnxruntime as ort
 
-    session = ort.InferenceSession(str(path), providers=["CPUExecutionProvider"])
+    session = ort.InferenceSession(str(path), providers=_ort_providers(ort, device))
     actual_input_names = {inp.name for inp in session.get_inputs()}
 
     feed = {
@@ -74,7 +84,7 @@ def run_validation(
         if not isinstance(torch_outputs, (tuple, list)):
             torch_outputs = (torch_outputs,)
 
-        ort_outputs = _run_ort(onnx_path, spec.input_names, inputs)
+        ort_outputs = _run_ort(onnx_path, spec.input_names, inputs, device=device)
         graph_report = {}
 
         for output_name, expected, actual in zip(

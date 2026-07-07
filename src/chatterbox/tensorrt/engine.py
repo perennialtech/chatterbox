@@ -76,6 +76,7 @@ class TrtEngineRunner:
         self._output_names: list[str] = []
         for i in range(self.engine.num_io_tensors):
             name = self.engine.get_tensor_name(i)
+            self._validate_linear_io_tensor(name)
             mode = self.engine.get_tensor_mode(name)
             if mode == trt.TensorIOMode.INPUT:
                 self._input_names.append(name)
@@ -84,6 +85,31 @@ class TrtEngineRunner:
             else:
                 raise TensorRTRuntimeError(
                     f"{self.engine_path.name}: unsupported TensorRT tensor mode for {name}: {mode}"
+                )
+
+    def _validate_linear_io_tensor(self, name: str) -> None:
+        get_format = getattr(self.engine, "get_tensor_format", None)
+        tensor_format = getattr(self.trt, "TensorFormat", None)
+        linear_format = (
+            getattr(tensor_format, "LINEAR", None) if tensor_format else None
+        )
+
+        if get_format is not None and linear_format is not None:
+            actual_format = get_format(name)
+            if actual_format != linear_format:
+                actual_name = getattr(actual_format, "name", str(actual_format))
+                raise TensorRTRuntimeError(
+                    f"{self.engine_path.name}:{name} uses TensorRT I/O format "
+                    f"{actual_name}; rebuild the engine with linear I/O formats"
+                )
+
+        get_vectorized_dim = getattr(self.engine, "get_tensor_vectorized_dim", None)
+        if get_vectorized_dim is not None:
+            vectorized_dim = int(get_vectorized_dim(name))
+            if vectorized_dim != -1:
+                raise TensorRTRuntimeError(
+                    f"{self.engine_path.name}:{name} uses vectorized TensorRT I/O "
+                    f"dimension {vectorized_dim}; rebuild the engine with linear I/O formats"
                 )
 
     @staticmethod

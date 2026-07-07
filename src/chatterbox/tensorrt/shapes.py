@@ -17,58 +17,69 @@ MAX_PROMPT_TOKENS = 250
 MAX_SPEECH_TOKENS = MAX_TOTAL_TOKENS - MAX_PROMPT_TOKENS
 MAX_MEL_FRAMES = 2 * MAX_TOTAL_TOKENS
 MAX_REF_24K_SAMPLES = 240000
-# MAX_SOURCE_LOGMEL_FRAMES = 8192
 MAX_SOURCE_LOGMEL_FRAMES = 2048
 MAX_FBANK_FRAMES = 2000
-SOURCE_HOP = 480
+DEFAULT_SOURCE_HOP = 480
 
 
-DEFAULT_SHAPE_RANGES: dict[str, dict[str, ShapeRange]] = {
-    GRAPH_S3_TOKENIZER_QUANTIZER: {
-        "log_mel": ShapeRange(
-            (1, 128, 4), (1, 128, 1024), (1, 128, MAX_SOURCE_LOGMEL_FRAMES)
-        ),
-        "mel_lengths": ShapeRange((1,), (1,), (1,)),
-    },
-    GRAPH_SPEAKER_ENCODER: {
-        "fbank": ShapeRange((1, 16, 80), (1, 400, 80), (1, MAX_FBANK_FRAMES, 80)),
-    },
-    GRAPH_REFERENCE_MEL_24K: {
-        "wav_24k": ShapeRange((1, 2400), (1, 144000), (1, MAX_REF_24K_SAMPLES)),
-    },
-    GRAPH_TOKEN_TO_MU: {
-        "prompt_token": ShapeRange((1, 1), (1, 150), (1, MAX_PROMPT_TOKENS)),
-        "prompt_token_len": ShapeRange((1,), (1,), (1,)),
-        "speech_token": ShapeRange((1, 1), (1, 384), (1, MAX_SPEECH_TOKENS)),
-        "speech_token_len": ShapeRange((1,), (1,), (1,)),
-        "embedding": ShapeRange((1, 192), (1, 192), (1, 192)),
-    },
-    GRAPH_CONDITIONAL_DECODER_STEP: {
-        "x": ShapeRange((1, 80, 2), (1, 80, 768), (1, 80, MAX_MEL_FRAMES)),
-        "mask": ShapeRange((1, 1, 2), (1, 1, 768), (1, 1, MAX_MEL_FRAMES)),
-        "mu": ShapeRange((1, 80, 2), (1, 80, 768), (1, 80, MAX_MEL_FRAMES)),
-        "spks": ShapeRange((1, 80), (1, 80), (1, 80)),
-        "cond": ShapeRange((1, 80, 2), (1, 80, 768), (1, 80, MAX_MEL_FRAMES)),
-        "t": ShapeRange((1,), (1,), (1,)),
-        "r": ShapeRange((1,), (1,), (1,)),
-    },
-    GRAPH_FLOW_DECODER_MEANFLOW2: {
-        "noise": ShapeRange((1, 80, 2), (1, 80, 768), (1, 80, MAX_MEL_FRAMES)),
-        "mask": ShapeRange((1, 1, 2), (1, 1, 768), (1, 1, MAX_MEL_FRAMES)),
-        "mu": ShapeRange((1, 80, 2), (1, 80, 768), (1, 80, MAX_MEL_FRAMES)),
-        "spks": ShapeRange((1, 80), (1, 80), (1, 80)),
-        "cond": ShapeRange((1, 80, 2), (1, 80, 768), (1, 80, MAX_MEL_FRAMES)),
-    },
-    GRAPH_VOCODER_HIFT: {
-        "speech_feat": ShapeRange((1, 80, 2), (1, 80, 768), (1, 80, MAX_MEL_FRAMES)),
-        "source_phase": ShapeRange((1, 9, 1), (1, 9, 1), (1, 9, 1)),
-        "source_noise": ShapeRange(
-            (1, 9, 2 * SOURCE_HOP),
-            (1, 9, 768 * SOURCE_HOP),
-            (1, 9, MAX_MEL_FRAMES * SOURCE_HOP),
-        ),
-    },
-}
+def default_shape_ranges(
+    source_hop: int = DEFAULT_SOURCE_HOP,
+) -> dict[str, dict[str, ShapeRange]]:
+    source_hop = int(source_hop)
+    if source_hop <= 0:
+        raise TensorRTShapeError(f"source_hop must be positive; got {source_hop}")
+
+    return {
+        GRAPH_S3_TOKENIZER_QUANTIZER: {
+            "log_mel": ShapeRange(
+                (1, 128, 4), (1, 128, 1024), (1, 128, MAX_SOURCE_LOGMEL_FRAMES)
+            ),
+            "mel_lengths": ShapeRange((1,), (1,), (1,)),
+        },
+        GRAPH_SPEAKER_ENCODER: {
+            "fbank": ShapeRange((1, 16, 80), (1, 400, 80), (1, MAX_FBANK_FRAMES, 80)),
+        },
+        GRAPH_REFERENCE_MEL_24K: {
+            "wav_24k": ShapeRange((1, 2400), (1, 144000), (1, MAX_REF_24K_SAMPLES)),
+        },
+        GRAPH_TOKEN_TO_MU: {
+            "prompt_token": ShapeRange((1, 1), (1, 150), (1, MAX_PROMPT_TOKENS)),
+            "prompt_token_len": ShapeRange((1,), (1,), (1,)),
+            "speech_token": ShapeRange((1, 1), (1, 384), (1, MAX_SPEECH_TOKENS)),
+            "speech_token_len": ShapeRange((1,), (1,), (1,)),
+            "embedding": ShapeRange((1, 192), (1, 192), (1, 192)),
+        },
+        GRAPH_CONDITIONAL_DECODER_STEP: {
+            "x": ShapeRange((1, 80, 2), (1, 80, 768), (1, 80, MAX_MEL_FRAMES)),
+            "mask": ShapeRange((1, 1, 2), (1, 1, 768), (1, 1, MAX_MEL_FRAMES)),
+            "mu": ShapeRange((1, 80, 2), (1, 80, 768), (1, 80, MAX_MEL_FRAMES)),
+            "spks": ShapeRange((1, 80), (1, 80), (1, 80)),
+            "cond": ShapeRange((1, 80, 2), (1, 80, 768), (1, 80, MAX_MEL_FRAMES)),
+            "t": ShapeRange((1,), (1,), (1,)),
+            "r": ShapeRange((1,), (1,), (1,)),
+        },
+        GRAPH_FLOW_DECODER_MEANFLOW2: {
+            "noise": ShapeRange((1, 80, 2), (1, 80, 768), (1, 80, MAX_MEL_FRAMES)),
+            "mask": ShapeRange((1, 1, 2), (1, 1, 768), (1, 1, MAX_MEL_FRAMES)),
+            "mu": ShapeRange((1, 80, 2), (1, 80, 768), (1, 80, MAX_MEL_FRAMES)),
+            "spks": ShapeRange((1, 80), (1, 80), (1, 80)),
+            "cond": ShapeRange((1, 80, 2), (1, 80, 768), (1, 80, MAX_MEL_FRAMES)),
+        },
+        GRAPH_VOCODER_HIFT: {
+            "speech_feat": ShapeRange(
+                (1, 80, 2), (1, 80, 768), (1, 80, MAX_MEL_FRAMES)
+            ),
+            "source_phase": ShapeRange((1, 9, 1), (1, 9, 1), (1, 9, 1)),
+            "source_noise": ShapeRange(
+                (1, 9, 2 * source_hop),
+                (1, 9, 768 * source_hop),
+                (1, 9, MAX_MEL_FRAMES * source_hop),
+            ),
+        },
+    }
+
+
+DEFAULT_SHAPE_RANGES = default_shape_ranges()
 
 
 def _shape_range_from_dict(data: dict) -> ShapeRange:
@@ -99,8 +110,14 @@ def _validate_token_budget(plan: dict[str, dict[str, ShapeRange]]) -> None:
         )
 
 
-def load_shape_plan(path: Path | None = None) -> dict[str, dict[str, ShapeRange]]:
-    plan = {graph: dict(inputs) for graph, inputs in DEFAULT_SHAPE_RANGES.items()}
+def load_shape_plan(
+    path: Path | None = None,
+    source_hop: int = DEFAULT_SOURCE_HOP,
+) -> dict[str, dict[str, ShapeRange]]:
+    plan = {
+        graph: dict(inputs)
+        for graph, inputs in default_shape_ranges(source_hop).items()
+    }
     if path is not None:
         raw = json.loads(Path(path).read_text())
         for graph, inputs in raw.get("graphs", {}).items():

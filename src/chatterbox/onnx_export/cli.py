@@ -49,7 +49,7 @@ def export(config: ExportConfig) -> None:
 
         if "fp16" in config.precisions:
             fp16_path = config.onnx_precision_dir("fp16") / spec.filename
-            convert_fp16(fp32_path, fp16_path)
+            convert_fp16(fp32_path, fp16_path, external_data=config.external_data)
             artifacts.append(
                 ArtifactRecord(
                     graph_name=spec.name,

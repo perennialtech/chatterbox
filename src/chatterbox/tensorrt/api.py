@@ -24,8 +24,15 @@ def require_tensorrt_10(
 
 def network_creation_flags(trt_module, *, strongly_typed: bool) -> int:
     flags = 0
-    if strongly_typed and hasattr(
-        trt_module.NetworkDefinitionCreationFlag, "STRONGLY_TYPED"
-    ):
-        flags |= 1 << int(trt_module.NetworkDefinitionCreationFlag.STRONGLY_TYPED)
+    if strongly_typed:
+        strongly_typed_flag = getattr(
+            trt_module.NetworkDefinitionCreationFlag,
+            "STRONGLY_TYPED",
+            None,
+        )
+        if strongly_typed_flag is None:
+            raise TensorRTError(
+                "TensorRT strongly typed network creation is not available"
+            )
+        flags |= 1 << int(strongly_typed_flag)
     return flags
