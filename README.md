@@ -178,6 +178,8 @@ Build TensorRT engines from an exported artifact directory:
 ```bash
 uv run python -m chatterbox.tensorrt build \
   --artifact-dir artifacts \
+  --onnx-precision fp32 \
+  --engine-precision fp16 \
   --workspace-gb 4
 ```
 
@@ -222,7 +224,7 @@ High-level voice conversion using the TensorRT backend:
 ```python
 from chatterbox import ChatterboxVC
 
-vc = ChatterboxVC.from_tensorrt_engines("artifacts/tensorrt")
+vc = ChatterboxVC.from_tensorrt_engines("artifacts/tensorrt/fp16")
 wav, sample_rate, timings = vc.generate(
     "source.wav",
     target_voice_path="target.wav",
@@ -238,7 +240,7 @@ The repository includes a browser UI in [`app.py`](app.py). Install the `ui` ext
 ```bash
 uv run python app.py --backend pytorch --device cuda
 uv run python app.py --backend onnx --onnx-artifact-dir artifacts --onnx-providers CUDAExecutionProvider,CPUExecutionProvider
-uv run python app.py --backend tensorrt --tensorrt-engine-dir artifacts/tensorrt
+uv run python app.py --backend tensorrt --tensorrt-engine-dir artifacts/tensorrt/fp16
 ```
 
 The app accepts source speech and target-voice reference audio, and returns playable/downloadable converted audio plus timing details. Use `--server-name 0.0.0.0` when serving from a container or remote host, and `uv run python app.py --help` for the full launch options.
@@ -273,6 +275,8 @@ from chatterbox.tensorrt import TrtBuildConfig, build_engines
 
 config = TrtBuildConfig(
     artifact_dir=Path("artifacts"),
+    onnx_precision="fp32",
+    engine_precision="fp16",
     workspace_bytes=4 * 1024**3,
 )
 
