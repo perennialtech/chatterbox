@@ -16,27 +16,21 @@ def _parser_errors(parser) -> str:
     return "\n".join(str(parser.get_error(i)) for i in range(parser.num_errors))
 
 
-def _validate_precision_config(config: TrtBuildConfig) -> None:
+def _validate_config(config: TrtBuildConfig) -> None:
     if config.workspace_bytes <= 0:
         raise TensorRTBuildError("TensorRT workspace size must be positive")
 
-    if config.onnx_precision == "fp16" and config.engine_precision == "fp32":
-        raise TensorRTBuildError("fp32 TensorRT builds require fp32 ONNX artifacts")
 
-    if config.strongly_typed and config.onnx_precision != config.engine_precision:
-        raise TensorRTBuildError(
-            "Strongly typed TensorRT builds require matching ONNX and engine precision"
-        )
-
-
-def _configure_precision(trt, builder_config, config: TrtBuildConfig) -> None:
+def _configure_precision(
+    trt, builder_config, config: TrtBuildConfig, precision: str
+) -> None:
     if hasattr(trt.BuilderFlag, "TF32"):
         builder_config.clear_flag(trt.BuilderFlag.TF32)
 
     if config.strongly_typed:
         return
 
-    if config.engine_precision == "fp16":
+    if precision == "fp16":
         if hasattr(trt.BuilderFlag, "FP16"):
             builder_config.set_flag(trt.BuilderFlag.FP16)
 
@@ -136,11 +130,12 @@ def build_engines(config: TrtBuildConfig) -> list[EngineRecord]:
     import tensorrt as trt
 
     require_tensorrt_10(trt, TensorRTBuildError)
-    _validate_precision_config(config)
+    _validate_config(config)
 
     artifact_dir = Path(config.artifact_dir)
     manifest_path = artifact_dir / "manifest.json"
     manifest = load_manifest(artifact_dir)
+    precision = manifest.get("precision", "fp32")
     source_hop = int(manifest.get("constants", {}).get("source_hop", 480))
     shape_plan = load_shape_plan(config.shape_plan, source_hop=source_hop)
     output_dir = config.resolved_output_dir
@@ -150,10 +145,10 @@ def build_engines(config: TrtBuildConfig) -> list[EngineRecord]:
     records: list[EngineRecord] = []
 
     for graph_name, graph in manifest["graphs"].items():
-        source_rel = graph["files"].get(config.onnx_precision)
+        source_rel = graph["files"].get(precision)
         if not source_rel:
             raise TensorRTBuildError(
-                f"Graph {graph_name} has no {config.onnx_precision} ONNX artifact"
+                f"Graph {graph_name} has no {precision} ONNX artifact"
             )
 
         source_rel_path = Path(source_rel)
@@ -182,7 +177,7 @@ def build_engines(config: TrtBuildConfig) -> list[EngineRecord]:
             trt.MemoryPoolType.WORKSPACE,
             int(_effective_workspace_bytes(config.workspace_bytes)),
         )
-        _configure_precision(trt, builder_config, config)
+        _configure_precision(trt, builder_config, config, precision)
 
         graph_shapes = shape_plan.get(graph_name, {})
         _add_optimization_profile(
@@ -217,7 +212,7 @@ def build_engines(config: TrtBuildConfig) -> list[EngineRecord]:
     write_trt_manifest(
         output_dir,
         source_manifest=manifest_path,
-        precision=config.engine_precision,
+        precision=precision,
         records=records,
         constants=manifest["constants"],
     )
