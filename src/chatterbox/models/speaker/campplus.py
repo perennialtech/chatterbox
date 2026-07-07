@@ -9,7 +9,6 @@ from collections import OrderedDict
 
 import torch
 import torch.nn.functional as F
-import torch.utils.checkpoint as cp
 
 
 class BasicResBlock(torch.nn.Module):
@@ -105,7 +104,7 @@ def get_nonlinear(config_str, channels):
     return nonlinear
 
 
-def statistics_pooling(x, dim=-1, keepdim=False, unbiased=True, eps=1e-2):
+def statistics_pooling(x, dim=-1, keepdim=False, unbiased=True):
     mean = x.mean(dim=dim)
     std = x.std(dim=dim, unbiased=unbiased)
     stats = torch.cat([mean, std], dim=-1)
@@ -221,14 +220,12 @@ class CAMDenseTDNNLayer(torch.nn.Module):
         dilation=1,
         bias=False,
         config_str="batchnorm-relu",
-        memory_efficient=False,
     ):
         super(CAMDenseTDNNLayer, self).__init__()
         assert kernel_size % 2 == 1, (
             "Expect equal paddings, but got even kernel size ({})".format(kernel_size)
         )
         padding = (kernel_size - 1) // 2 * dilation
-        self.memory_efficient = memory_efficient
         self.nonlinear1 = get_nonlinear(config_str, in_channels)
         self.linear1 = torch.nn.Conv1d(in_channels, bn_channels, 1, bias=False)
         self.nonlinear2 = get_nonlinear(config_str, bn_channels)
@@ -242,14 +239,8 @@ class CAMDenseTDNNLayer(torch.nn.Module):
             bias=bias,
         )
 
-    def bn_function(self, x):
-        return self.linear1(self.nonlinear1(x))
-
     def forward(self, x):
-        if self.training and self.memory_efficient:
-            x = cp.checkpoint(self.bn_function, x)
-        else:
-            x = self.bn_function(x)
+        x = self.linear1(self.nonlinear1(x))
         x = self.cam_layer(self.nonlinear2(x))
         return x
 
@@ -266,7 +257,6 @@ class CAMDenseTDNNBlock(torch.nn.ModuleList):
         dilation=1,
         bias=False,
         config_str="batchnorm-relu",
-        memory_efficient=False,
     ):
         super(CAMDenseTDNNBlock, self).__init__()
         for i in range(num_layers):
@@ -279,7 +269,6 @@ class CAMDenseTDNNBlock(torch.nn.ModuleList):
                 dilation=dilation,
                 bias=bias,
                 config_str=config_str,
-                memory_efficient=memory_efficient,
             )
             self.add_module("tdnnd%d" % (i + 1), layer)
 
@@ -329,15 +318,12 @@ class CAMPPlus(torch.nn.Module):
         bn_size=4,
         init_channels=128,
         config_str="batchnorm-relu",
-        memory_efficient=True,
-        output_level="segment",
         **kwargs,
     ):
         super().__init__()
 
         self.head = FCM(feat_dim=feat_dim)
         channels = self.head.out_channels
-        self.output_level = output_level
 
         self.xvector = torch.nn.Sequential(
             OrderedDict(
@@ -369,7 +355,6 @@ class CAMPPlus(torch.nn.Module):
                 kernel_size=kernel_size,
                 dilation=dilation,
                 config_str=config_str,
-                memory_efficient=memory_efficient,
             )
             self.xvector.add_module("block%d" % (i + 1), block)
             channels = channels + num_layers * growth_rate
@@ -383,16 +368,11 @@ class CAMPPlus(torch.nn.Module):
 
         self.xvector.add_module("out_nonlinear", get_nonlinear(config_str, channels))
 
-        if self.output_level == "segment":
-            self.xvector.add_module("stats", StatsPool())
-            self.xvector.add_module(
-                "dense",
-                DenseLayer(channels * 2, embedding_size, config_str="batchnorm_"),
-            )
-        else:
-            assert self.output_level == "frame", (
-                "`output_level` should be set to 'segment' or 'frame'. "
-            )
+        self.xvector.add_module("stats", StatsPool())
+        self.xvector.add_module(
+            "dense",
+            DenseLayer(channels * 2, embedding_size, config_str="batchnorm_"),
+        )
 
         for m in self.modules():
             if isinstance(m, (torch.nn.Conv1d, torch.nn.Linear)):
@@ -404,6 +384,4 @@ class CAMPPlus(torch.nn.Module):
         x = x.permute(0, 2, 1)  # (B,T,F) => (B,F,T)
         x = self.head(x)
         x = self.xvector(x)
-        if self.output_level == "frame":
-            x = x.transpose(1, 2)
         return x

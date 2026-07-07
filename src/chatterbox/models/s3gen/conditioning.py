@@ -86,21 +86,3 @@ class S3ReferenceCondition:
             "prompt_feat_len": self.prompt_feat_len,
             "embedding": self.embedding,
         }
-
-
-def build_decoder_condition(
-    prompt_feat: torch.Tensor,
-    total_mel_len: int,
-    feat_dim: int = 80,
-) -> torch.Tensor:
-    batch = prompt_feat.size(0)
-    cond = torch.zeros(
-        batch,
-        total_mel_len,
-        feat_dim,
-        device=prompt_feat.device,
-        dtype=prompt_feat.dtype,
-    )
-    prompt_len = min(prompt_feat.size(1), total_mel_len)
-    cond[:, :prompt_len] = prompt_feat[:, :prompt_len]
-    return cond.transpose(1, 2).contiguous()

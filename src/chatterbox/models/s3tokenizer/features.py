@@ -1,6 +1,5 @@
 import librosa
 import torch
-import torch.nn.functional as F
 
 from ...audio.constants import S3_HOP, S3_SR
 
@@ -14,12 +13,10 @@ class S3TokenizerLogMel(torch.nn.Module):
         self.register_buffer("_mel_filters", torch.FloatTensor(mel_filters))
         self.register_buffer("window", torch.hann_window(n_fft))
 
-    def forward(self, audio: torch.Tensor, padding: int = 0) -> torch.Tensor:
+    def forward(self, audio: torch.Tensor) -> torch.Tensor:
         if audio.ndim == 1:
             audio = audio.unsqueeze(0)
         audio = audio.to(dtype=self._mel_filters.dtype, device=self._mel_filters.device)
-        if padding > 0:
-            audio = F.pad(audio, (0, padding))
         stft = torch.stft(
             audio,
             self.n_fft,

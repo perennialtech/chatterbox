@@ -131,10 +131,3 @@ def load_shape_plan(
             _validate_range(graph, name, value)
     _validate_token_budget(plan)
     return plan
-
-
-def shape_plan_to_jsonable(plan: dict[str, dict[str, ShapeRange]]) -> dict:
-    return {
-        graph: {name: shape.as_dict() for name, shape in inputs.items()}
-        for graph, inputs in plan.items()
-    }

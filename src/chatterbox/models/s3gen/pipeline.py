@@ -14,8 +14,7 @@ from .configs import CFM_PARAMS
 from .const import S3GEN_SIL
 from .decoder import ConditionalDecoder
 from .f0_predictor import ConvRNNF0Predictor
-from .flow_matching import CausalConditionalCFM
-from .token_encoder import S3TokenEncoder
+from .flow_matching import ConditionalCFM
 from .transformer.upsample_encoder import UpsampleConformerEncoder
 from .utils.mask import make_pad_mask
 from .vocoder import HiFTGenerator
@@ -40,7 +39,6 @@ class CausalMaskedDiffWithXvec(torch.nn.Module):
         output_type: str = "mel",
         vocab_size: int = 6561,
         input_frame_rate: int = 25,
-        only_mask_loss: bool = True,
         token_mel_ratio: int = 2,
         pre_lookahead_len: int = 3,
         encoder: torch.nn.Module = None,
@@ -57,7 +55,6 @@ class CausalMaskedDiffWithXvec(torch.nn.Module):
         self.encoder = encoder
         self.encoder_proj = torch.nn.Linear(self.encoder.output_size(), output_size)
         self.decoder = decoder
-        self.only_mask_loss = only_mask_loss
         self.token_mel_ratio = token_mel_ratio
         self.pre_lookahead_len = pre_lookahead_len
 
@@ -152,7 +149,7 @@ class S3Token2Mel(torch.nn.Module):
         super().__init__()
         self.tokenizer = S3Tokenizer("speech_tokenizer_v2_25hz")
         self.mel_extractor = mel_spectrogram
-        self.speaker_encoder = CAMPPlus(memory_efficient=False)
+        self.speaker_encoder = CAMPPlus()
         self.meanflow = meanflow
 
         encoder = UpsampleConformerEncoder(
@@ -164,18 +161,12 @@ class S3Token2Mel(torch.nn.Module):
             positional_dropout_rate=0.1,
             attention_dropout_rate=0.1,
             normalize_before=True,
-            input_layer="linear",
-            pos_enc_layer_type="rel_pos_espnet",
-            selfattention_layer_type="rel_selfattn",
             input_size=512,
-            use_cnn_module=False,
-            macaron_style=False,
         )
 
         estimator = ConditionalDecoder(
             in_channels=320,
             out_channels=80,
-            causal=True,
             channels=[256],
             dropout=0.0,
             attention_head_dim=64,
@@ -185,19 +176,13 @@ class S3Token2Mel(torch.nn.Module):
             act_fn="gelu",
             meanflow=self.meanflow,
         )
-        decoder = CausalConditionalCFM(
-            spk_emb_dim=80,
+        decoder = ConditionalCFM(
+            in_channels=80,
             cfm_params=CFM_PARAMS,
             estimator=estimator,
         )
 
         self.flow = CausalMaskedDiffWithXvec(encoder=encoder, decoder=decoder)
-        self.token_encoder = S3TokenEncoder(
-            input_embedding=self.flow.input_embedding,
-            encoder=self.flow.encoder,
-            encoder_proj=self.flow.encoder_proj,
-            vocab_size=self.flow.vocab_size,
-        )
 
     @property
     def device(self):
@@ -330,8 +315,6 @@ class S3Token2Mel(torch.nn.Module):
 
 
 class S3Token2Wav(S3Token2Mel):
-    ignore_state_dict_missing = ("tokenizer._mel_filters", "tokenizer.window")
-
     def __init__(self, meanflow: bool = False):
         super().__init__(meanflow)
 
@@ -351,7 +334,6 @@ class S3Token2Wav(S3Token2Mel):
         end_fade = (torch.cos(torch.linspace(0, torch.pi, 2 * n_trim)) + 1) / 2
         self.register_buffer("trim_fade", trim_fade, persistent=False)
         self.register_buffer("end_fade", end_fade, persistent=False)
-        self.estimator_dtype = "fp32"
 
     def compile_for_inference(self) -> "S3Token2Wav":
         import torch._dynamo

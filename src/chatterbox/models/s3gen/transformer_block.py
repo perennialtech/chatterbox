@@ -87,31 +87,11 @@ class BasicTransformerBlock(nn.Module):
         num_attention_heads: int,
         attention_head_dim: int,
         dropout: float = 0.0,
-        cross_attention_dim: Optional[int] = None,
         activation_fn: str = "gelu",
-        num_embeds_ada_norm: Optional[int] = None,
         attention_bias: bool = False,
-        only_cross_attention: bool = False,
-        double_self_attention: bool = False,
-        upcast_attention: bool = False,
         norm_elementwise_affine: bool = True,
-        norm_type: str = "layer_norm",
-        final_dropout: bool = False,
     ):
         super().__init__()
-        if (
-            cross_attention_dim is not None
-            or only_cross_attention
-            or double_self_attention
-        ):
-            raise ValueError(
-                "Local BasicTransformerBlock supports self-attention only."
-            )
-        if num_embeds_ada_norm is not None or norm_type != "layer_norm":
-            raise ValueError(
-                "Local BasicTransformerBlock supports plain LayerNorm only."
-            )
-
         self.norm1 = nn.LayerNorm(dim, elementwise_affine=norm_elementwise_affine)
         self.attn1 = SelfAttention(
             dim=dim,
@@ -126,41 +106,17 @@ class BasicTransformerBlock(nn.Module):
             dropout=dropout,
             activation_fn=activation_fn,
         )
-        self._chunk_size = None
-        self._chunk_dim = 0
-
-    def set_chunk_feed_forward(self, chunk_size: Optional[int], dim: int):
-        self._chunk_size = chunk_size
-        self._chunk_dim = dim
 
     def forward(
         self,
         hidden_states: torch.Tensor,
         attention_mask: Optional[torch.Tensor] = None,
-        encoder_hidden_states: Optional[torch.Tensor] = None,
-        encoder_attention_mask: Optional[torch.Tensor] = None,
-        timestep: Optional[torch.Tensor] = None,
-        cross_attention_kwargs: dict | None = None,
-        class_labels: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         hidden_states = hidden_states + self.attn1(
             self.norm1(hidden_states), attention_mask
         )
 
         norm_hidden_states = self.norm3(hidden_states)
-        if self._chunk_size is not None:
-            if norm_hidden_states.shape[self._chunk_dim] % self._chunk_size != 0:
-                raise ValueError(
-                    "Chunked feed-forward dimension must be divisible by chunk size."
-                )
-            chunks = norm_hidden_states.chunk(
-                norm_hidden_states.shape[self._chunk_dim] // self._chunk_size,
-                dim=self._chunk_dim,
-            )
-            ff_output = torch.cat(
-                [self.ff(chunk) for chunk in chunks], dim=self._chunk_dim
-            )
-        else:
-            ff_output = self.ff(norm_hidden_states)
+        ff_output = self.ff(norm_hidden_states)
 
         return hidden_states + ff_output
