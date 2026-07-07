@@ -180,6 +180,45 @@ class HiFTGenerator(nn.Module):
                 tuple(d) for d in source_resblock_dilation_sizes
             )
 
+        if len(upsample_rates) != len(upsample_kernel_sizes):
+            raise ValueError(
+                "upsample_rates and upsample_kernel_sizes must have the same length: "
+                f"{len(upsample_rates)} != {len(upsample_kernel_sizes)}"
+            )
+
+        if len(resblock_kernel_sizes) != len(resblock_dilation_sizes):
+            raise ValueError(
+                "resblock_kernel_sizes and resblock_dilation_sizes must have the "
+                "same length: "
+                f"{len(resblock_kernel_sizes)} != {len(resblock_dilation_sizes)}"
+            )
+
+        if len(source_resblock_kernel_sizes) != len(upsample_rates):
+            raise ValueError(
+                "source_resblock_kernel_sizes length must match upsample_rates "
+                "length: "
+                f"{len(source_resblock_kernel_sizes)} != {len(upsample_rates)}"
+            )
+
+        if len(source_resblock_dilation_sizes) != len(upsample_rates):
+            raise ValueError(
+                "source_resblock_dilation_sizes length must match upsample_rates "
+                "length: "
+                f"{len(source_resblock_dilation_sizes)} != {len(upsample_rates)}"
+            )
+
+        for i, (u, k) in enumerate(zip(upsample_rates, upsample_kernel_sizes)):
+            if k < u:
+                raise ValueError(
+                    f"upsample_kernel_sizes[{i}] must be >= upsample_rates[{i}]: "
+                    f"{k} < {u}"
+                )
+            if (k - u) % 2 != 0:
+                raise ValueError(
+                    f"upsample_kernel_sizes[{i}] - upsample_rates[{i}] must be even: "
+                    f"{k} - {u}"
+                )
+
         self.out_channels = 1
         self.nb_harmonics = nb_harmonics
         self.sampling_rate = sampling_rate
@@ -285,6 +324,20 @@ class HiFTGenerator(nn.Module):
         self.remove_weight_norm()
         return self
 
+    def compile_for_inference(self) -> "HiFTGenerator":
+        self.optimize_for_inference()
+        if getattr(self, "_compiled_for_inference", False):
+            return self
+
+        self.inference = torch.compile(
+            self.inference,
+            mode="default",
+            backend="inductor",
+            dynamic=True,
+        )
+        self._compiled_for_inference = True
+        return self
+
     def _stft(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         if x.dtype not in (torch.float32, torch.float64):
             x = x.float()
@@ -327,6 +380,11 @@ class HiFTGenerator(nn.Module):
     ) -> torch.Tensor:
         si = self.source_downs[i](s_stft)
         si = self.source_resblocks[i](si)
+        if si.size(-1) != x.size(-1):
+            raise ValueError(
+                "source fusion length mismatch at upsample stage "
+                f"{i}: x length {x.size(-1)}, source length {si.size(-1)}"
+            )
         return x + si
 
     def _resblock_stage(self, x: torch.Tensor, i: int) -> torch.Tensor:
@@ -359,6 +417,7 @@ class HiFTGenerator(nn.Module):
         self, speech_feat: torch.Tensor, source: torch.Tensor
     ) -> torch.Tensor:
         s_stft = self._source_stft(source)
+        s_stft = s_stft.to(device=speech_feat.device, dtype=speech_feat.dtype)
         magnitude, phase = self._forward_features(speech_feat.contiguous(), s_stft)
         x = self._istft(magnitude, phase)
         x.clamp_(-self.audio_limit, self.audio_limit)
@@ -409,7 +468,18 @@ class HiFTGenerator(nn.Module):
         )
 
         if cache_source is not None and cache_source.numel() != 0:
-            s[:, :, : cache_source.shape[2]].copy_(cache_source)
+            if cache_source.ndim != 3:
+                raise ValueError(
+                    f"cache_source must have shape [B, C, T], got {cache_source.shape}"
+                )
+            if cache_source.size(0) != s.size(0) or cache_source.size(1) != s.size(1):
+                raise ValueError(
+                    "cache_source shape mismatch: expected batch/channel "
+                    f"({s.size(0)}, {s.size(1)}), got "
+                    f"({cache_source.size(0)}, {cache_source.size(1)})"
+                )
+            n = min(s.size(2), cache_source.size(2))
+            s[:, :, :n].copy_(cache_source[:, :, :n].to(device=s.device, dtype=s.dtype))
 
         generated_speech = self.decode_from_source(speech_feat, s)
         return generated_speech, s

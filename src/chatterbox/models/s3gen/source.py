@@ -72,6 +72,9 @@ class DeterministicSourceModuleHnNSF(nn.Module):
         noise: torch.Tensor,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         sine_wavs, uv = self.l_sin_gen(f0, phase, noise)
+        sine_wavs = sine_wavs.to(
+            device=self.l_linear.weight.device, dtype=self.l_linear.weight.dtype
+        )
         source = self.l_linear(sine_wavs.transpose(1, 2))
         source = self.l_tanh(source).transpose(1, 2)
         return source, uv

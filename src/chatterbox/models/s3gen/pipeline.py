@@ -131,8 +131,8 @@ logger = logging.getLogger(__name__)
 _TOKEN_LENGTH_BUCKETS = (32, 64, 128, 192, 256, 384, 512, 768, 1024, 1536, 2048, 3072)
 
 
-def drop_invalid_tokens(x):
-    if not (len(x.shape) <= 2 and x.shape[0] == 1):
+def _drop_invalid_tokens(x):
+    if not (x.ndim <= 2 and (x.ndim == 1 or x.shape[0] == 1)):
         raise ValueError("only batch size of one is supported")
     return x[x < SPEECH_VOCAB_SIZE]
 
@@ -248,10 +248,24 @@ class S3Token2Mel(torch.nn.Module):
             logger.warning(
                 "Reference mel length differs from 2x token length; trimming."
             )
-            ref_speech_tokens = ref_speech_tokens[:, : ref_mels_24.shape[1] // 2]
+            aligned_token_len = min(ref_speech_tokens.size(1), ref_mels_24.size(1) // 2)
+            if aligned_token_len <= 0:
+                raise ValueError(
+                    "reference audio is too short for aligned conditioning"
+                )
+
+            aligned_mel_len = aligned_token_len * 2
+            ref_speech_tokens = ref_speech_tokens[:, :aligned_token_len].contiguous()
+            ref_mels_24 = ref_mels_24[:, :aligned_mel_len].contiguous()
             ref_speech_token_lens = torch.full(
                 (ref_speech_tokens.size(0),),
                 ref_speech_tokens.size(1),
+                dtype=torch.long,
+                device=device,
+            )
+            ref_mels_24_len = torch.full(
+                (ref_mels_24.size(0),),
+                ref_mels_24.size(1),
                 dtype=torch.long,
                 device=device,
             )
@@ -336,8 +350,6 @@ class S3Token2Wav(S3Token2Mel):
         self.register_buffer("end_fade", end_fade, persistent=False)
 
     def compile_for_inference(self) -> "S3Token2Wav":
-        import torch._dynamo
-
         backend = "inductor"
         self.flow.encoder = torch.compile(
             self.flow.encoder,
@@ -435,6 +447,9 @@ class S3Token2Wav(S3Token2Mel):
             int(speech_token_lens.max().detach().cpu()) * self._token_mel_ratio
         )
 
+        if ref_dict is not None:
+            ref_dict = self.prepare_ref_dict(ref_dict)
+
         prompt_len = 0
         if ref_dict is not None and "prompt_token" in ref_dict:
             prompt_len = ref_dict["prompt_token"].size(1)
@@ -529,7 +544,13 @@ class S3Token2Wav(S3Token2Mel):
         if skip_vocoder:
             return output_mels
 
-        hift_cache_source = torch.zeros(1, 1, 0, device=self.device, dtype=self.dtype)
+        hift_cache_source = torch.zeros(
+            output_mels.size(0),
+            1,
+            0,
+            device=output_mels.device,
+            dtype=output_mels.dtype,
+        )
         output_wavs, output_sources = self.mel2wav.inference(
             speech_feat=output_mels,
             cache_source=hift_cache_source,
@@ -579,8 +600,8 @@ class S3Token2Wav(S3Token2Mel):
                 speech_feat.size(0),
                 1,
                 0,
-                device=self.device,
-                dtype=self.dtype,
+                device=speech_feat.device,
+                dtype=speech_feat.dtype,
             )
         return self.mel2wav.inference(
             speech_feat=speech_feat, cache_source=cache_source
@@ -597,6 +618,10 @@ class S3Token2Wav(S3Token2Mel):
         n_cfm_timesteps: Optional[int] = None,
         speech_token_lens: Optional[torch.Tensor] = None,
     ):
+        if drop_invalid_tokens:
+            speech_tokens = _drop_invalid_tokens(torch.as_tensor(speech_tokens))
+            speech_token_lens = None
+
         output_mels, original_mel_len = self._flow_inference_impl(
             speech_tokens,
             speech_token_lens=speech_token_lens,
