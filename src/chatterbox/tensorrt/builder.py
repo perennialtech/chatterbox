@@ -20,14 +20,6 @@ def _validate_precision_config(config: TrtBuildConfig) -> None:
     if config.workspace_bytes <= 0:
         raise TensorRTBuildError("TensorRT workspace size must be positive")
 
-    if config.onnx_precision == "fp16" and config.engine_precision == "fp32":
-        raise TensorRTBuildError("fp32 TensorRT builds require fp32 ONNX artifacts")
-
-    if config.strongly_typed and config.onnx_precision != config.engine_precision:
-        raise TensorRTBuildError(
-            "Strongly typed TensorRT builds require matching ONNX and engine precision"
-        )
-
 
 def _configure_precision(trt, builder_config, config: TrtBuildConfig) -> None:
     if hasattr(trt.BuilderFlag, "TF32"):
@@ -150,10 +142,10 @@ def build_engines(config: TrtBuildConfig) -> list[EngineRecord]:
     records: list[EngineRecord] = []
 
     for graph_name, graph in manifest["graphs"].items():
-        source_rel = graph["files"].get(config.onnx_precision)
+        source_rel = graph["files"].get(config.engine_precision)
         if not source_rel:
             raise TensorRTBuildError(
-                f"Graph {graph_name} has no {config.onnx_precision} ONNX artifact"
+                f"Graph {graph_name} has no {config.engine_precision} ONNX artifact"
             )
 
         source_rel_path = Path(source_rel)
