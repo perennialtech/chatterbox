@@ -345,6 +345,12 @@ class AudioEncoderV2(nn.Module):
 
         x = x.permute(0, 2, 1)
 
+        if x.shape[1] > self.freqs_cos.size(0):
+            raise ValueError(
+                "audio token sequence length exceeds available rotary positions: "
+                f"{x.shape[1]} > {self.freqs_cos.size(0)}"
+            )
+
         freqs_cos = self.freqs_cos[: x.shape[1]]
         freqs_sin = self.freqs_sin[: x.shape[1]]
         mask_pad = mask.transpose(1, 2)

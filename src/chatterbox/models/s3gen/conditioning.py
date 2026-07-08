@@ -87,7 +87,11 @@ class S3ReferenceCondition:
                 "prompt_feat width must be exactly 2x prompt_token width"
             )
 
-    def trim_to_lengths(self) -> "S3ReferenceCondition":
+    def trim_to_lengths(
+        self,
+        *,
+        max_prompt_tokens: int | None = None,
+    ) -> "S3ReferenceCondition":
         self.validate()
 
         if not torch.all(self.prompt_token_len == self.prompt_token_len[0]):
@@ -96,11 +100,20 @@ class S3ReferenceCondition:
             )
 
         prompt_token_len = int(self.prompt_token_len[0].detach().cpu())
+        if max_prompt_tokens is not None:
+            if max_prompt_tokens <= 0:
+                raise ConditioningError("max_prompt_tokens must be positive")
+            prompt_token_len = min(prompt_token_len, int(max_prompt_tokens))
+
         prompt_feat_len = prompt_token_len * 2
+        prompt_token_len_tensor = torch.full_like(
+            self.prompt_token_len,
+            prompt_token_len,
+        )
 
         trimmed = S3ReferenceCondition(
             prompt_token=self.prompt_token[:, :prompt_token_len].contiguous(),
-            prompt_token_len=self.prompt_token_len.clone(),
+            prompt_token_len=prompt_token_len_tensor,
             prompt_feat=self.prompt_feat[:, :prompt_feat_len].contiguous(),
             embedding=self.embedding,
         )

@@ -161,7 +161,7 @@ class TorchVCBackend:
             )
             np_condition = {
                 k: (v.detach().cpu().numpy() if torch.is_tensor(v) else v)
-                for k, v in self.ref_dict.items()
+                for k, v in self.ref_dict.as_dict().items()
                 if v is not None
             }
             self._target_voice_cache = VoiceConditionTensors.from_mapping(np_condition)
@@ -200,7 +200,6 @@ class TorchVCBackend:
             output_mels = self.s3gen.flow_inference(
                 speech_tokens=s3_tokens,
                 ref_dict=ref_dict,
-                finalize=True,
             )
 
             output_mels = output_mels.to(dtype=self.s3gen.dtype)

@@ -1,8 +1,8 @@
-import math
 from typing import Optional
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 
 class FeedForward(nn.Module):
@@ -64,14 +64,19 @@ class SelfAttention(nn.Module):
         k = self._heads(self.to_k(hidden_states))
         v = self._heads(self.to_v(hidden_states))
 
-        scores = torch.matmul(q, k.transpose(-2, -1)) / math.sqrt(self.head_dim)
         if attention_mask is not None:
             if attention_mask.ndim == 3:
                 attention_mask = attention_mask.unsqueeze(1)
-            scores = scores + attention_mask.to(dtype=scores.dtype)
+            attention_mask = attention_mask.to(dtype=q.dtype, device=q.device)
 
-        attn = torch.softmax(scores, dim=-1)
-        out = torch.matmul(attn, v)
+        out = F.scaled_dot_product_attention(
+            q,
+            k,
+            v,
+            attn_mask=attention_mask,
+            dropout_p=0.0,
+            is_causal=False,
+        )
         out = (
             out.transpose(1, 2)
             .contiguous()

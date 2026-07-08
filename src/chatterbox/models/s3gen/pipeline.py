@@ -5,7 +5,8 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
-from ...audio import S3_SR, S3GEN_SR, mel_spectrogram, resample_audio
+from ...audio import (S3_SR, S3_TOKEN_RATE, S3GEN_SR, mel_spectrogram,
+                      resample_audio)
 from ..s3tokenizer import S3Tokenizer
 from ..speaker.campplus import CAMPPlus
 from ..speaker.features import extract_fbank_features
@@ -20,6 +21,18 @@ from .transformer.upsample_encoder import UpsampleConformerEncoder
 from .utils.mask import make_pad_mask
 from .vocoder import HiFTGenerator
 
+logger = logging.getLogger(__name__)
+
+REF_MAX_SECONDS = 10.0
+REF_MIN_SECONDS = 1.0
+REF_MAX_PROMPT_TOKENS = max(1, int(round(REF_MAX_SECONDS * S3_TOKEN_RATE)))
+REF_MIN_PROMPT_TOKENS = max(1, int(round(REF_MIN_SECONDS * S3_TOKEN_RATE)))
+
+FLOW_CHUNK_TOKENS = 250
+FLOW_CONTEXT_TOKENS = 25
+
+_TOKEN_LENGTH_BUCKETS = (32, 64, 128, 192, 256, 384, 512, 768, 1024, 1536, 2048, 3072)
+
 
 def _repeat_batch_dim(tnsr, B, ndim):
     if tnsr is not None:
@@ -29,6 +42,13 @@ def _repeat_batch_dim(tnsr, B, ndim):
             tnsr = tnsr.repeat(B, *([1] * (ndim - 1)))
         assert tnsr.ndim == ndim, f"Expected {ndim=}, got {tnsr.ndim=}"
     return tnsr
+
+
+def _bucket_token_length(length: int) -> int:
+    for bucket in _TOKEN_LENGTH_BUCKETS:
+        if length <= bucket:
+            return bucket
+    return ((length + 511) // 512) * 512
 
 
 def _prepare_speech_tokens(
@@ -122,7 +142,6 @@ class OfflineTokenToMelFlow(torch.nn.Module):
         prompt_token_len,
         prompt_feat,
         embedding,
-        finalize,
         n_timesteps=10,
         noised_mels=None,
         meanflow=False,
@@ -150,9 +169,6 @@ class OfflineTokenToMelFlow(torch.nn.Module):
         token = self.input_embedding(token.long()) * mask
 
         h, h_masks = self.encoder(token, token_len)
-        if finalize is False:
-            h = h[:, : -self.pre_lookahead_len * self.token_mel_ratio]
-
         h_lengths = h_masks.sum(dim=-1).squeeze(dim=-1)
         mel_len1, mel_len2 = prompt_feat.shape[1], h.shape[1] - prompt_feat.shape[1]
         h = self.encoder_proj(h)
@@ -177,18 +193,6 @@ class OfflineTokenToMelFlow(torch.nn.Module):
         )
         feat = feat[:, :, mel_len1:]
         return feat, None
-
-
-logger = logging.getLogger(__name__)
-
-_TOKEN_LENGTH_BUCKETS = (32, 64, 128, 192, 256, 384, 512, 768, 1024, 1536, 2048, 3072)
-
-
-def _bucket_token_length(length: int) -> int:
-    for bucket in _TOKEN_LENGTH_BUCKETS:
-        if length <= bucket:
-            return bucket
-    return ((length + 511) // 512) * 512
 
 
 class S3Token2Mel(torch.nn.Module):
@@ -239,18 +243,117 @@ class S3Token2Mel(torch.nn.Module):
     def dtype(self):
         return next(self.flow.parameters()).dtype
 
+    @property
+    def _token_mel_ratio(self) -> int:
+        return int(getattr(self.flow, "token_mel_ratio", 2))
+
+    @property
+    def _final_context_token_count(self) -> int:
+        return max(0, int(getattr(self.flow, "pre_lookahead_len", 0)))
+
+    def _prepare_target_tokens(
+        self,
+        speech_tokens: torch.Tensor,
+        speech_token_lens: Optional[torch.Tensor],
+    ) -> tuple[torch.Tensor, torch.Tensor, int]:
+        speech_tokens, speech_token_lens, original_token_len = _prepare_speech_tokens(
+            speech_tokens=speech_tokens,
+            speech_token_lens=speech_token_lens,
+            device=self.device,
+        )
+        original_mel_len = original_token_len * self._token_mel_ratio
+        return speech_tokens, speech_token_lens, original_mel_len
+
+    def _append_silence_context(
+        self,
+        speech_tokens: torch.Tensor,
+        speech_token_lens: torch.Tensor,
+        context_tokens: int,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        if context_tokens <= 0:
+            return speech_tokens, speech_token_lens
+
+        tail = torch.full(
+            (speech_tokens.size(0), context_tokens),
+            S3GEN_SIL,
+            dtype=torch.long,
+            device=speech_tokens.device,
+        )
+        return (
+            torch.cat([speech_tokens, tail], dim=1),
+            speech_token_lens + context_tokens,
+        )
+
     def prepare_ref_condition(
         self, ref_dict: dict | S3ReferenceCondition
     ) -> S3ReferenceCondition:
-        if isinstance(ref_dict, S3ReferenceCondition):
-            ref_dict.validate()
-            return ref_dict.trim_to_lengths()
+        data = (
+            ref_dict.as_dict()
+            if isinstance(ref_dict, S3ReferenceCondition)
+            else ref_dict
+        )
         return S3ReferenceCondition.from_mapping(
-            ref_dict, device=self.device, dtype=self.dtype
-        ).trim_to_lengths()
+            data, device=self.device, dtype=self.dtype
+        ).trim_to_lengths(max_prompt_tokens=REF_MAX_PROMPT_TOKENS)
 
-    def prepare_ref_dict(self, ref_dict: dict) -> dict:
+    def prepare_ref_dict(self, ref_dict: dict | S3ReferenceCondition) -> dict:
         return self.prepare_ref_condition(ref_dict).as_dict()
+
+    def _prepare_reference_condition(
+        self,
+        ref_wav: Optional[torch.Tensor],
+        ref_sr: Optional[int],
+        ref_dict: Optional[dict | S3ReferenceCondition],
+    ) -> S3ReferenceCondition:
+        if (ref_wav is None) == (ref_dict is None):
+            raise ValueError("Provide exactly one of ref_wav or ref_dict")
+        if ref_dict is not None:
+            return self.prepare_ref_condition(ref_dict)
+        return self.embed_ref(ref_wav, ref_sr)
+
+    def _prepare_reference_waveform(
+        self,
+        ref_wav: torch.Tensor | np.ndarray,
+        ref_sr: int,
+        device,
+    ) -> torch.Tensor:
+        if not isinstance(ref_sr, int) or isinstance(ref_sr, bool) or ref_sr <= 0:
+            raise ValueError("ref_sr must be a positive integer sample rate")
+
+        if isinstance(ref_wav, np.ndarray):
+            ref_wav = torch.from_numpy(ref_wav)
+        if not torch.is_tensor(ref_wav):
+            raise TypeError(f"ref_wav must be a tensor, got {type(ref_wav).__name__}")
+
+        ref_wav = ref_wav.to(device=device, dtype=torch.float32)
+        if ref_wav.ndim == 1:
+            ref_wav = ref_wav.unsqueeze(0)
+        if ref_wav.ndim != 2:
+            raise ValueError(
+                f"ref_wav must have shape [T] or [B, T], got {tuple(ref_wav.shape)}"
+            )
+        if ref_wav.size(1) <= 0:
+            raise ValueError("reference audio must not be empty")
+
+        min_samples = int(round(REF_MIN_SECONDS * ref_sr))
+        if ref_wav.size(1) < min_samples:
+            logger.warning(
+                "s3gen received reference shorter than %.2f seconds",
+                REF_MIN_SECONDS,
+            )
+
+        max_samples = int(round(REF_MAX_SECONDS * ref_sr))
+        if ref_wav.size(1) > max_samples:
+            original_seconds = ref_wav.size(1) / ref_sr
+            start = (ref_wav.size(1) - max_samples) // 2
+            ref_wav = ref_wav[:, start : start + max_samples].contiguous()
+            logger.info(
+                "s3gen cropped reference from %.2f seconds to %.2f seconds",
+                original_seconds,
+                ref_wav.size(1) / ref_sr,
+            )
+
+        return ref_wav
 
     @torch.inference_mode()
     def embed_ref(
@@ -258,18 +361,10 @@ class S3Token2Mel(torch.nn.Module):
         ref_wav: torch.Tensor,
         ref_sr: int,
         device="auto",
-    ) -> dict:
+    ) -> S3ReferenceCondition:
         self.eval()
         device = self.device if device == "auto" else device
-        if isinstance(ref_wav, np.ndarray):
-            ref_wav = torch.from_numpy(ref_wav).float()
-
-        ref_wav = ref_wav.to(device)
-        if ref_wav.ndim == 1:
-            ref_wav = ref_wav.unsqueeze(0)
-
-        if ref_wav.size(1) > 10 * ref_sr:
-            logger.warning("s3gen received reference longer than 10 seconds")
+        ref_wav = self._prepare_reference_waveform(ref_wav, ref_sr, device)
 
         ref_wav_24 = resample_audio(ref_wav, ref_sr, S3GEN_SR, device)
         ref_wav_24 = ref_wav_24.to(device=device, dtype=self.dtype)
@@ -305,7 +400,7 @@ class S3Token2Mel(torch.nn.Module):
                 device=device,
             )
 
-        return self.prepare_ref_dict(
+        return self.prepare_ref_condition(
             {
                 "prompt_token": ref_speech_tokens.long().to(device),
                 "prompt_token_len": ref_speech_token_lens.long().to(device),
@@ -318,55 +413,61 @@ class S3Token2Mel(torch.nn.Module):
         self,
         speech_tokens: torch.Tensor,
         speech_token_lens: torch.Tensor,
-        ref_wav: Optional[torch.Tensor],
-        ref_sr: Optional[int],
-        ref_dict: Optional[dict],
+        ref_condition: S3ReferenceCondition,
         n_cfm_timesteps: Optional[int],
-        finalize: bool,
     ) -> torch.Tensor:
-        if (ref_wav is None) == (ref_dict is None):
-            raise ValueError("Provide exactly one of ref_wav or ref_dict")
-
-        if ref_dict is None:
-            ref_dict = self.embed_ref(ref_wav, ref_sr)
-        else:
-            ref_dict = self.prepare_ref_dict(ref_dict)
-
         n_cfm_timesteps = n_cfm_timesteps or (2 if self.meanflow else 10)
 
         output_mels, _ = self.flow.inference(
             token=speech_tokens,
             token_len=speech_token_lens,
-            finalize=finalize,
             n_timesteps=n_cfm_timesteps,
             meanflow=self.meanflow,
-            **ref_dict,
+            **ref_condition.as_dict(),
         )
         return output_mels
 
-    def forward(
+    @torch.inference_mode()
+    def inference(
         self,
-        speech_tokens: torch.LongTensor,
-        ref_wav: Optional[torch.Tensor],
-        ref_sr: Optional[int],
-        ref_dict: Optional[dict] = None,
+        speech_tokens,
+        ref_wav: Optional[torch.Tensor] = None,
+        ref_sr: Optional[int] = None,
+        ref_dict: Optional[dict | S3ReferenceCondition] = None,
+        drop_invalid_tokens: bool = True,
         n_cfm_timesteps: Optional[int] = None,
-        finalize: bool = False,
         speech_token_lens: Optional[torch.Tensor] = None,
     ):
-        speech_tokens, speech_token_lens, _ = _prepare_speech_tokens(
-            speech_tokens=speech_tokens,
-            speech_token_lens=speech_token_lens,
-            device=self.device,
+        self.eval()
+        if drop_invalid_tokens:
+            speech_tokens = drop_invalid_tokens_fn(speech_tokens)
+            if torch.as_tensor(speech_tokens).numel() == 0:
+                raise ValueError("At least one valid speech token is required")
+            speech_token_lens = None
+
+        speech_tokens, speech_token_lens, original_mel_len = (
+            self._prepare_target_tokens(
+                speech_tokens=speech_tokens,
+                speech_token_lens=speech_token_lens,
+            )
         )
-        return self._generate_mel(
+        ref_condition = self._prepare_reference_condition(ref_wav, ref_sr, ref_dict)
+        speech_tokens, speech_token_lens = self._append_silence_context(
+            speech_tokens,
+            speech_token_lens,
+            self._final_context_token_count,
+        )
+        output_mels = self._generate_mel(
             speech_tokens=speech_tokens,
             speech_token_lens=speech_token_lens,
-            ref_wav=ref_wav,
-            ref_sr=ref_sr,
-            ref_dict=ref_dict,
+            ref_condition=ref_condition,
             n_cfm_timesteps=n_cfm_timesteps,
-            finalize=finalize,
+        )
+        return output_mels[:, :, :original_mel_len].contiguous()
+
+    def forward(self, *args, **kwargs):
+        raise RuntimeError(
+            "Use inference() for full-utterance S3 token-to-mel generation"
         )
 
 
@@ -409,184 +510,6 @@ class S3Token2Wav(S3Token2Mel):
         self.mel2wav.compile_for_inference()
         return self
 
-    @property
-    def _token_mel_ratio(self) -> int:
-        return int(getattr(self.flow, "token_mel_ratio", 2))
-
-    @property
-    def _final_context_token_count(self) -> int:
-        return max(0, int(getattr(self.flow, "pre_lookahead_len", 0)))
-
-    def _prepare_flow_inputs(
-        self,
-        speech_tokens: torch.Tensor,
-        speech_token_lens: Optional[torch.Tensor],
-        finalize: bool,
-    ) -> tuple[torch.Tensor, torch.Tensor, int]:
-        speech_tokens, speech_token_lens, original_token_len = _prepare_speech_tokens(
-            speech_tokens=speech_tokens,
-            speech_token_lens=speech_token_lens,
-            device=self.device,
-        )
-        original_mel_len = original_token_len * self._token_mel_ratio
-
-        context_tokens = self._final_context_token_count if finalize else 0
-        if context_tokens > 0:
-            tail = torch.full(
-                (speech_tokens.size(0), context_tokens),
-                S3GEN_SIL,
-                dtype=torch.long,
-                device=self.device,
-            )
-            speech_tokens = torch.cat([speech_tokens, tail], dim=1)
-            speech_token_lens = speech_token_lens + context_tokens
-
-        return speech_tokens, speech_token_lens, original_mel_len
-
-    @torch.inference_mode()
-    def _flow_inference_impl(
-        self,
-        speech_tokens,
-        ref_wav: Optional[torch.Tensor] = None,
-        ref_sr: Optional[int] = None,
-        ref_dict: Optional[dict] = None,
-        n_cfm_timesteps: Optional[int] = None,
-        finalize: bool = False,
-        speech_token_lens: Optional[torch.Tensor] = None,
-        keep_final_context: bool = False,
-    ) -> tuple[torch.Tensor, int]:
-        speech_tokens, speech_token_lens, original_mel_len = self._prepare_flow_inputs(
-            speech_tokens=speech_tokens,
-            speech_token_lens=speech_token_lens,
-            finalize=finalize,
-        )
-        model_mel_len = (
-            int(speech_token_lens.max().detach().cpu()) * self._token_mel_ratio
-        )
-
-        if ref_dict is not None:
-            ref_dict = self.prepare_ref_dict(ref_dict)
-
-        prompt_len = 0
-        if ref_dict is not None and "prompt_token" in ref_dict:
-            prompt_len = ref_dict["prompt_token"].size(1)
-
-        speech_tokens = self._pad_tokens_to_bucket(speech_tokens, prompt_len)
-
-        output_mels = self._generate_mel(
-            speech_tokens=speech_tokens,
-            speech_token_lens=speech_token_lens,
-            ref_wav=ref_wav,
-            ref_sr=ref_sr,
-            ref_dict=ref_dict,
-            n_cfm_timesteps=n_cfm_timesteps,
-            finalize=finalize,
-        )
-        trim_len = model_mel_len if keep_final_context else original_mel_len
-        return output_mels[:, :, :trim_len].contiguous(), original_mel_len
-
-    def _apply_output_fades(self, output_wavs: torch.Tensor) -> torch.Tensor:
-        if output_wavs.size(1) == 0:
-            return output_wavs
-
-        start_len = min(output_wavs.size(1), self.trim_fade.numel())
-        if start_len > 0:
-            output_wavs[:, :start_len] *= self.trim_fade[:start_len].to(
-                device=output_wavs.device,
-                dtype=output_wavs.dtype,
-            )
-
-        end_len = min(output_wavs.size(1), self.end_fade.numel())
-        if end_len > 0:
-            output_wavs[:, -end_len:] *= self.end_fade[-end_len:].to(
-                device=output_wavs.device,
-                dtype=output_wavs.dtype,
-            )
-
-        return output_wavs
-
-    @torch.inference_mode()
-    def warmup(
-        self,
-        ref_dict: Optional[dict] = None,
-        total_token_buckets=(384, 512, 768, 1024),
-    ) -> None:
-        self.eval()
-        if ref_dict is None:
-            return
-
-        ref_dict = self.prepare_ref_dict(ref_dict)
-        prompt_len = (
-            ref_dict["prompt_token"].size(1) if "prompt_token" in ref_dict else 0
-        )
-
-        for total_bucket in total_token_buckets:
-            speech_len = max(1, total_bucket - prompt_len)
-            speech_tokens = torch.zeros(
-                1, speech_len, dtype=torch.long, device=self.device
-            )
-            output_mels, _ = self._flow_inference_impl(
-                speech_tokens=speech_tokens,
-                ref_dict=ref_dict,
-                n_cfm_timesteps=2 if self.meanflow else 10,
-                finalize=True,
-                keep_final_context=True,
-            )
-            self.hift_inference(output_mels.to(dtype=self.dtype), None)
-
-        if torch.device(self.device).type == "cuda":
-            torch.cuda.synchronize(torch.device(self.device))
-
-    def forward(
-        self,
-        speech_tokens,
-        ref_wav: Optional[torch.Tensor],
-        ref_sr: Optional[int],
-        ref_dict: Optional[dict] = None,
-        finalize: bool = False,
-        speech_token_lens: Optional[torch.Tensor] = None,
-        skip_vocoder: bool = False,
-        n_cfm_timesteps: Optional[int] = None,
-    ):
-        output_mels, original_mel_len = self._flow_inference_impl(
-            speech_tokens=speech_tokens,
-            speech_token_lens=speech_token_lens,
-            ref_wav=ref_wav,
-            ref_sr=ref_sr,
-            ref_dict=ref_dict,
-            n_cfm_timesteps=n_cfm_timesteps,
-            finalize=finalize,
-            keep_final_context=finalize,
-        )
-
-        if skip_vocoder:
-            return output_mels[:, :, :original_mel_len].contiguous()
-
-        hift_cache_source = torch.zeros(
-            output_mels.size(0),
-            1,
-            0,
-            device=output_mels.device,
-            dtype=output_mels.dtype,
-        )
-        output_wavs, output_sources = self.mel2wav.inference(
-            speech_feat=output_mels,
-            cache_source=hift_cache_source,
-        )
-
-        if finalize:
-            original_samples = min(
-                output_wavs.size(1),
-                original_mel_len * self.mel2wav.source_hop,
-            )
-            output_wavs = output_wavs[:, :original_samples].contiguous()
-            output_sources = output_sources[:, :, :original_samples].contiguous()
-
-        if not self.training:
-            self._apply_output_fades(output_wavs)
-
-        return output_wavs, output_sources
-
     def _pad_tokens_to_bucket(
         self, speech_tokens: torch.Tensor, prompt_len: int = 0
     ) -> torch.Tensor:
@@ -596,27 +519,222 @@ class S3Token2Wav(S3Token2Mel):
             return F.pad(speech_tokens, (0, pad_len), value=0)
         return speech_tokens
 
+    def _generate_window_mels(
+        self,
+        speech_tokens: torch.Tensor,
+        speech_token_lens: torch.Tensor,
+        ref_condition: S3ReferenceCondition,
+        n_cfm_timesteps: Optional[int],
+    ) -> torch.Tensor:
+        prompt_len = ref_condition.prompt_token.size(1)
+        speech_tokens = self._pad_tokens_to_bucket(speech_tokens, prompt_len)
+        return self._generate_mel(
+            speech_tokens=speech_tokens,
+            speech_token_lens=speech_token_lens,
+            ref_condition=ref_condition,
+            n_cfm_timesteps=n_cfm_timesteps,
+        )
+
+    @torch.inference_mode()
+    def _unchunked_flow_inference_impl(
+        self,
+        speech_tokens,
+        ref_wav: Optional[torch.Tensor] = None,
+        ref_sr: Optional[int] = None,
+        ref_dict: Optional[dict | S3ReferenceCondition] = None,
+        n_cfm_timesteps: Optional[int] = None,
+        speech_token_lens: Optional[torch.Tensor] = None,
+    ) -> tuple[torch.Tensor, int]:
+        speech_tokens, speech_token_lens, original_mel_len = (
+            self._prepare_target_tokens(
+                speech_tokens=speech_tokens,
+                speech_token_lens=speech_token_lens,
+            )
+        )
+        ref_condition = self._prepare_reference_condition(ref_wav, ref_sr, ref_dict)
+        speech_tokens, speech_token_lens = self._append_silence_context(
+            speech_tokens,
+            speech_token_lens,
+            self._final_context_token_count,
+        )
+        output_mels = self._generate_window_mels(
+            speech_tokens=speech_tokens,
+            speech_token_lens=speech_token_lens,
+            ref_condition=ref_condition,
+            n_cfm_timesteps=n_cfm_timesteps,
+        )
+        return output_mels[:, :, :original_mel_len].contiguous(), original_mel_len
+
+    @torch.inference_mode()
+    def _chunked_flow_inference_impl(
+        self,
+        speech_tokens,
+        ref_wav: Optional[torch.Tensor] = None,
+        ref_sr: Optional[int] = None,
+        ref_dict: Optional[dict | S3ReferenceCondition] = None,
+        n_cfm_timesteps: Optional[int] = None,
+        speech_token_lens: Optional[torch.Tensor] = None,
+    ) -> tuple[torch.Tensor, int]:
+        speech_tokens, speech_token_lens, original_mel_len = (
+            self._prepare_target_tokens(
+                speech_tokens=speech_tokens,
+                speech_token_lens=speech_token_lens,
+            )
+        )
+        ref_condition = self._prepare_reference_condition(ref_wav, ref_sr, ref_dict)
+
+        target_token_len = int(speech_token_lens.max().detach().cpu())
+        chunk_tokens = max(1, FLOW_CHUNK_TOKENS)
+        context_tokens = max(FLOW_CONTEXT_TOKENS, self._final_context_token_count)
+        token_mel_ratio = self._token_mel_ratio
+
+        chunks = []
+        for center_start in range(0, target_token_len, chunk_tokens):
+            center_end = min(center_start + chunk_tokens, target_token_len)
+            left_start = max(0, center_start - context_tokens)
+            right_end = min(target_token_len, center_end + context_tokens)
+
+            window = speech_tokens[:, left_start:right_end].contiguous()
+            window_len = right_end - left_start
+
+            if center_end == target_token_len:
+                window, window_len_tensor = self._append_silence_context(
+                    window,
+                    torch.tensor([window_len], dtype=torch.long, device=self.device),
+                    self._final_context_token_count,
+                )
+            else:
+                window_len_tensor = torch.tensor(
+                    [window_len],
+                    dtype=torch.long,
+                    device=self.device,
+                )
+
+            window_mels = self._generate_window_mels(
+                speech_tokens=window,
+                speech_token_lens=window_len_tensor,
+                ref_condition=ref_condition,
+                n_cfm_timesteps=n_cfm_timesteps,
+            )
+
+            mel_start = (center_start - left_start) * token_mel_ratio
+            mel_end = mel_start + (center_end - center_start) * token_mel_ratio
+            chunks.append(window_mels[:, :, mel_start:mel_end].contiguous())
+
+        output_mels = torch.cat(chunks, dim=-1)
+        return output_mels[:, :, :original_mel_len].contiguous(), original_mel_len
+
+    @torch.inference_mode()
+    def _flow_inference_impl(
+        self,
+        *args,
+        **kwargs,
+    ) -> tuple[torch.Tensor, int]:
+        return self._chunked_flow_inference_impl(*args, **kwargs)
+
+    def _apply_output_fades(self, output_wavs: torch.Tensor) -> torch.Tensor:
+        if output_wavs.size(1) == 0:
+            return output_wavs
+
+        fade_len = min(
+            self.trim_fade.numel(),
+            self.end_fade.numel(),
+            output_wavs.size(1) // 4,
+        )
+        if fade_len <= 0:
+            return output_wavs
+
+        fade_in = self.trim_fade[-fade_len:].to(
+            device=output_wavs.device,
+            dtype=output_wavs.dtype,
+        )
+        fade_out = self.end_fade[:fade_len].to(
+            device=output_wavs.device,
+            dtype=output_wavs.dtype,
+        )
+
+        output_wavs[:, :fade_len] *= fade_in
+        output_wavs[:, -fade_len:] *= fade_out
+        return output_wavs
+
+    @torch.inference_mode()
+    def warmup(
+        self,
+        ref_dict: Optional[dict | S3ReferenceCondition] = None,
+        total_token_buckets=(384, 512, 768, 1024),
+    ) -> None:
+        self.eval()
+        if ref_dict is None:
+            return
+
+        ref_condition = self.prepare_ref_condition(ref_dict)
+        prompt_len = ref_condition.prompt_token.size(1)
+
+        for total_bucket in total_token_buckets:
+            speech_len = max(1, total_bucket - prompt_len)
+            speech_tokens = torch.zeros(
+                1, speech_len, dtype=torch.long, device=self.device
+            )
+            output_mels = self.flow_inference(
+                speech_tokens=speech_tokens,
+                ref_dict=ref_condition,
+                n_cfm_timesteps=2 if self.meanflow else 10,
+            )
+            self.hift_inference(output_mels.to(dtype=self.dtype), None)
+
+        if torch.device(self.device).type == "cuda":
+            torch.cuda.synchronize(torch.device(self.device))
+
+    @torch.inference_mode()
+    def forward(
+        self,
+        speech_tokens,
+        ref_wav: Optional[torch.Tensor] = None,
+        ref_sr: Optional[int] = None,
+        ref_dict: Optional[dict | S3ReferenceCondition] = None,
+        speech_token_lens: Optional[torch.Tensor] = None,
+        drop_invalid_tokens: bool = False,
+        skip_vocoder: bool = False,
+        n_cfm_timesteps: Optional[int] = None,
+    ):
+        if skip_vocoder:
+            return self.flow_inference(
+                speech_tokens=speech_tokens,
+                ref_wav=ref_wav,
+                ref_sr=ref_sr,
+                ref_dict=ref_dict,
+                n_cfm_timesteps=n_cfm_timesteps,
+                speech_token_lens=speech_token_lens,
+            )
+
+        return self.inference(
+            speech_tokens=speech_tokens,
+            ref_wav=ref_wav,
+            ref_sr=ref_sr,
+            ref_dict=ref_dict,
+            drop_invalid_tokens=drop_invalid_tokens,
+            n_cfm_timesteps=n_cfm_timesteps,
+            speech_token_lens=speech_token_lens,
+        )
+
     @torch.inference_mode()
     def flow_inference(
         self,
         speech_tokens,
         ref_wav: Optional[torch.Tensor] = None,
         ref_sr: Optional[int] = None,
-        ref_dict: Optional[dict] = None,
+        ref_dict: Optional[dict | S3ReferenceCondition] = None,
         n_cfm_timesteps: Optional[int] = None,
-        finalize: bool = False,
         speech_token_lens: Optional[torch.Tensor] = None,
     ):
         self.eval()
-        output_mels, _ = self._flow_inference_impl(
+        output_mels, _ = self._chunked_flow_inference_impl(
             speech_tokens=speech_tokens,
             speech_token_lens=speech_token_lens,
             ref_wav=ref_wav,
             ref_sr=ref_sr,
             ref_dict=ref_dict,
             n_cfm_timesteps=n_cfm_timesteps,
-            finalize=finalize,
-            keep_final_context=False,
         )
         return output_mels
 
@@ -641,7 +759,7 @@ class S3Token2Wav(S3Token2Mel):
         speech_tokens,
         ref_wav: Optional[torch.Tensor] = None,
         ref_sr: Optional[int] = None,
-        ref_dict: Optional[dict] = None,
+        ref_dict: Optional[dict | S3ReferenceCondition] = None,
         drop_invalid_tokens: bool = True,
         n_cfm_timesteps: Optional[int] = None,
         speech_token_lens: Optional[torch.Tensor] = None,
@@ -649,17 +767,17 @@ class S3Token2Wav(S3Token2Mel):
         self.eval()
         if drop_invalid_tokens:
             speech_tokens = drop_invalid_tokens_fn(speech_tokens)
+            if torch.as_tensor(speech_tokens).numel() == 0:
+                raise ValueError("At least one valid speech token is required")
             speech_token_lens = None
 
-        output_mels, original_mel_len = self._flow_inference_impl(
+        output_mels, original_mel_len = self._chunked_flow_inference_impl(
             speech_tokens,
             speech_token_lens=speech_token_lens,
             ref_wav=ref_wav,
             ref_sr=ref_sr,
             ref_dict=ref_dict,
             n_cfm_timesteps=n_cfm_timesteps,
-            finalize=True,
-            keep_final_context=True,
         )
         output_mels = output_mels.to(dtype=self.dtype)
         output_wavs, output_sources = self.hift_inference(output_mels, None)

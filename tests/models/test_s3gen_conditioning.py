@@ -49,3 +49,17 @@ def test_reference_condition_trims_to_prompt_token_length():
     assert trimmed.prompt_token.shape == (1, 3)
     assert trimmed.prompt_feat.shape == (1, 6, 80)
     assert trimmed.prompt_token_len.tolist() == [3]
+
+
+def test_reference_condition_caps_prompt_token_length():
+    condition = _valid_condition(
+        prompt_token=torch.zeros(1, 8, dtype=torch.long),
+        prompt_token_len=torch.tensor([8], dtype=torch.long),
+        prompt_feat=torch.zeros(1, 16, 80),
+    )
+
+    trimmed = condition.trim_to_lengths(max_prompt_tokens=5)
+
+    assert trimmed.prompt_token.shape == (1, 5)
+    assert trimmed.prompt_feat.shape == (1, 10, 80)
+    assert trimmed.prompt_token_len.tolist() == [5]
