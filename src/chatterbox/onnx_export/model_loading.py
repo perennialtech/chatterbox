@@ -56,7 +56,7 @@ def load_torch_model(
     checkpoint_dir: Path, device: str = "cpu", max_positions: int = 6144
 ) -> S3Gen:
     checkpoint_dir = Path(checkpoint_dir)
-    model = S3Gen(meanflow=True)
+    model = S3Gen()
     state = load_file(checkpoint_dir / "s3gen_meanflow.safetensors")
     state = convert_diffusers_transformer_keys(state)
     incompatible = model.load_state_dict(state, strict=False)
