@@ -305,11 +305,6 @@ class HiFTGenerator(nn.Module):
 
         self.reflection_pad = nn.ReflectionPad1d((1, 0))
 
-        self.register_buffer(
-            "stft_window",
-            torch.hann_window(self.n_fft, periodic=True, dtype=torch.float32),
-            persistent=False,
-        )
         self.real_stft = RealSTFT(self.n_fft, self.hop_len, center=True)
         self.real_istft = RealISTFT(self.n_fft, self.hop_len, center=True)
 

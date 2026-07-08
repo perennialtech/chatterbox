@@ -91,6 +91,8 @@ class ConditionalCFM(torch.nn.Module):
 
             x_in[:batch] = x_in[batch:] = x
             mask_in[:batch] = mask_in[batch:] = mask
+            # The second half is the unconditional CFG branch: mu, speaker,
+            # and acoustic conditioning are intentionally left zeroed.
             mu_in[:batch] = mu
             t_in[:batch] = t_in[batch:] = t
             spks_in[:batch] = spks

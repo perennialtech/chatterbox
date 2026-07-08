@@ -20,7 +20,7 @@ from .resnet import (Downsample1D, MaskedGroupNorm1D, ResnetBlock1D,
                      _validate_mask_1d)
 from .transformer_block import BasicTransformerBlock
 from .utils.intmeanflow import get_intmeanflow_time_mixer
-from .utils.mask import add_optional_chunk_mask
+from .utils.mask import build_attention_mask
 
 
 def mask_to_bias(mask: torch.Tensor, dtype: torch.dtype) -> torch.Tensor:
@@ -300,7 +300,7 @@ class ConditionalDecoder(nn.Module):
         x = torch.cat([x, spks, cond], dim=1)
 
         def make_attn_bias(current_mask: torch.Tensor) -> torch.Tensor:
-            attn_mask = add_optional_chunk_mask(current_mask.bool())
+            attn_mask = build_attention_mask(current_mask.bool(), mode="full")
             return mask_to_bias(attn_mask, x.dtype)
 
         hiddens = []
@@ -315,6 +315,7 @@ class ConditionalDecoder(nn.Module):
                     hidden_states=x,
                     attention_mask=attn_bias,
                 )
+            x = x * mask_down.transpose(1, 2).to(dtype=x.dtype)
             x = x.transpose(1, 2).contiguous()
             hiddens.append(x)
             x = downsample(x * mask_down)
@@ -331,6 +332,7 @@ class ConditionalDecoder(nn.Module):
                     hidden_states=x,
                     attention_mask=mid_attn_bias,
                 )
+            x = x * mask_mid.transpose(1, 2).to(dtype=x.dtype)
             x = x.transpose(1, 2).contiguous()
 
         mask_up = masks[-1]
@@ -346,6 +348,7 @@ class ConditionalDecoder(nn.Module):
                     hidden_states=x,
                     attention_mask=attn_bias,
                 )
+            x = x * mask_up.transpose(1, 2).to(dtype=x.dtype)
             x = x.transpose(1, 2).contiguous()
             x = upsample(x * mask_up)
         x = self.final_block(x, mask_up)

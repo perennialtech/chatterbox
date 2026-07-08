@@ -22,7 +22,7 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-from ..utils.mask import add_optional_chunk_mask, make_pad_mask
+from ..utils.mask import build_attention_mask, make_pad_mask
 from .attention import RelPositionMultiHeadedAttention
 from .embedding import EspnetRelPositionalEncoding
 from .encoder_layer import ConformerEncoderLayer
@@ -184,7 +184,7 @@ class UpsampleConformerEncoder(torch.nn.Module):
         masks = ~make_pad_mask(xs_lens, T).unsqueeze(1)  # (B, 1, T)
         xs, pos_emb, masks = self.embed(xs, masks)
         xs = xs.masked_fill(~masks.transpose(1, 2), 0.0)
-        chunk_masks = add_optional_chunk_mask(masks)
+        chunk_masks = build_attention_mask(masks, mode="full")
 
         xs = self.pre_lookahead_layer(xs)
         xs = xs.masked_fill(~masks.transpose(1, 2), 0.0)
@@ -198,7 +198,7 @@ class UpsampleConformerEncoder(torch.nn.Module):
         masks = ~make_pad_mask(xs_lens, T).unsqueeze(1)  # (B, 1, T)
         xs, pos_emb, masks = self.up_embed(xs, masks)
         xs = xs.masked_fill(~masks.transpose(1, 2), 0.0)
-        chunk_masks = add_optional_chunk_mask(masks)
+        chunk_masks = build_attention_mask(masks, mode="full")
 
         xs = self.forward_up_layers(xs, chunk_masks, pos_emb)
 

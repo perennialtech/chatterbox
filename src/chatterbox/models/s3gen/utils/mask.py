@@ -18,19 +18,57 @@
 import torch
 
 
-def add_optional_chunk_mask(masks: torch.Tensor):
-    """Apply masking filtering.
+def build_attention_mask(
+    masks: torch.Tensor,
+    mode: str = "full",
+    lookahead: int = 0,
+) -> torch.Tensor:
+    """Build a bool attention mask shaped [B, L, L].
 
     Args:
-        masks (torch.Tensor): mask for xs, (B, 1, L)
+        masks: valid-position mask shaped [B, 1, L] or [B, L].
+        mode: "full", "causal", or "limited_lookahead".
+        lookahead: future positions allowed for "limited_lookahead".
 
     Returns:
-        torch.Tensor: modified chunk mask.
+        Bool mask where True means the key position is visible to the query.
     """
-    assert masks.dtype == torch.bool
-    zero_rows_mask = (masks.sum(dim=-1) == 0).unsqueeze(-1)
-    chunk_masks = masks | zero_rows_mask
-    return chunk_masks
+    if masks.dtype != torch.bool:
+        raise TypeError("masks must be bool")
+
+    if masks.ndim == 3:
+        if masks.size(1) != 1:
+            raise ValueError(f"3D masks must have shape [B, 1, L], got {masks.shape}")
+        valid_keys = masks.squeeze(1)
+    elif masks.ndim == 2:
+        valid_keys = masks
+    else:
+        raise ValueError(
+            f"masks must have shape [B, 1, L] or [B, L], got {masks.shape}"
+        )
+
+    if mode not in {"full", "causal", "limited_lookahead"}:
+        raise ValueError(f"unsupported attention mask mode: {mode}")
+
+    if lookahead < 0:
+        raise ValueError(f"lookahead must be non-negative, got {lookahead}")
+
+    batch_size, length = valid_keys.shape
+    allowed = valid_keys[:, None, :].expand(batch_size, length, length)
+
+    if mode == "full":
+        return allowed
+
+    idx = torch.arange(length, device=valid_keys.device)
+    query_idx = idx[:, None]
+    key_idx = idx[None, :]
+
+    if mode == "causal":
+        position_allowed = key_idx <= query_idx
+    else:
+        position_allowed = key_idx <= query_idx + lookahead
+
+    return allowed & position_allowed.unsqueeze(0)
 
 
 def make_pad_mask(lengths: torch.Tensor, max_len: int = 0) -> torch.Tensor:

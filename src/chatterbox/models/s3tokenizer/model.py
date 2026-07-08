@@ -19,16 +19,37 @@ class S3Tokenizer(S3TokenizerV2):
             n_mels=self.config.n_mels,
         )
 
-    def _prepare_audio(self, wavs):
-        processed_wavs = []
-        for wav in wavs:
-            if isinstance(wav, np.ndarray):
-                wav = torch.from_numpy(wav)
-            if wav.dim() == 1:
-                wav = wav.unsqueeze(0)
+    @staticmethod
+    def _prepare_one_waveform(wav) -> torch.Tensor:
+        if isinstance(wav, np.ndarray):
+            wav = torch.from_numpy(wav)
+        if not torch.is_tensor(wav):
+            raise TypeError(f"waveform must be a tensor, got {type(wav).__name__}")
 
-            processed_wavs.append(wav)
-        return processed_wavs
+        if wav.ndim == 1:
+            return wav.unsqueeze(0)
+        if wav.ndim == 2 and wav.size(0) == 1:
+            return wav
+        raise ValueError(
+            f"each waveform must have shape [T] or [1, T], got {tuple(wav.shape)}"
+        )
+
+    def _prepare_audio(self, wavs):
+        if isinstance(wavs, np.ndarray):
+            wavs = torch.from_numpy(wavs)
+
+        if torch.is_tensor(wavs):
+            if wavs.ndim == 0:
+                raise ValueError("audio tensor must have shape [T] or [B, T]")
+            if wavs.ndim == 1:
+                return [wavs.unsqueeze(0)]
+            if wavs.ndim == 2:
+                return [wav.unsqueeze(0) for wav in wavs]
+            raise ValueError(
+                f"audio tensor must have shape [T] or [B, T], got {tuple(wavs.shape)}"
+            )
+
+        return [self._prepare_one_waveform(wav) for wav in wavs]
 
     @torch.inference_mode()
     def forward(
@@ -37,7 +58,7 @@ class S3Tokenizer(S3TokenizerV2):
         max_len: int = None,
     ) -> Tuple[torch.Tensor, torch.LongTensor]:
         processed_wavs = self._prepare_audio(wavs)
-        mels, mel_lens = [], []
+        mels = []
         for wav in processed_wavs:
             wav = wav.to(self.device)
             mel = self.log_mel_spectrogram(wav)

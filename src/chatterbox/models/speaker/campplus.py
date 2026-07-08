@@ -104,7 +104,7 @@ def get_nonlinear(config_str, channels):
     return nonlinear
 
 
-def statistics_pooling(x, dim=-1, keepdim=False, unbiased=True):
+def statistics_pooling(x, dim=-1, keepdim=False, unbiased=False):
     mean = x.mean(dim=dim)
     std = x.std(dim=dim, unbiased=unbiased)
     stats = torch.cat([mean, std], dim=-1)

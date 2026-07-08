@@ -14,7 +14,6 @@ class S3ReferenceCondition:
     prompt_token: torch.Tensor
     prompt_token_len: torch.Tensor
     prompt_feat: torch.Tensor
-    prompt_feat_len: torch.Tensor | None
     embedding: torch.Tensor
 
     @classmethod
@@ -45,21 +44,11 @@ class S3ReferenceCondition:
                 else value.to(device=device)
             )
 
-        prompt_token = tensor("prompt_token", torch.long)
-        prompt_token_len = tensor("prompt_token_len", torch.long)
-        prompt_feat = tensor("prompt_feat", dtype)
-        embedding = tensor("embedding", dtype)
-
-        prompt_feat_len = None
-        if data.get("prompt_feat_len") is not None:
-            prompt_feat_len = tensor("prompt_feat_len", torch.long)
-
         condition = cls(
-            prompt_token=prompt_token,
-            prompt_token_len=prompt_token_len,
-            prompt_feat=prompt_feat,
-            prompt_feat_len=prompt_feat_len,
-            embedding=embedding,
+            prompt_token=tensor("prompt_token", torch.long),
+            prompt_token_len=tensor("prompt_token_len", torch.long),
+            prompt_feat=tensor("prompt_feat", dtype),
+            embedding=tensor("embedding", dtype),
         )
         condition.validate()
         return condition
@@ -70,19 +59,58 @@ class S3ReferenceCondition:
         if self.prompt_token_len.ndim != 1:
             raise ConditioningError("prompt_token_len must have shape [B]")
         if self.prompt_feat.ndim != 3:
-            raise ConditioningError("prompt_feat must have shape [B, T, 80]")
+            raise ConditioningError("prompt_feat must have shape [B, 2P, 80]")
         if self.embedding.ndim != 2:
             raise ConditioningError("embedding must have shape [B, 192]")
-        if self.prompt_token.size(0) != self.prompt_feat.size(0):
+
+        batch_size = self.prompt_token.size(0)
+        if self.prompt_token_len.size(0) != batch_size:
+            raise ConditioningError("prompt_token_len batch size differs")
+        if self.prompt_feat.size(0) != batch_size:
             raise ConditioningError("prompt_token and prompt_feat batch sizes differ")
-        if self.prompt_token.size(0) != self.embedding.size(0):
+        if self.embedding.size(0) != batch_size:
             raise ConditioningError("prompt_token and embedding batch sizes differ")
 
-    def as_dict(self) -> dict[str, torch.Tensor | None]:
+        if self.prompt_feat.size(-1) != 80:
+            raise ConditioningError("prompt_feat must have 80 mel bins")
+        if self.embedding.size(-1) != 192:
+            raise ConditioningError("embedding must have 192 channels")
+
+        if torch.any(self.prompt_token_len <= 0):
+            raise ConditioningError("prompt_token_len values must be positive")
+        if torch.any(self.prompt_token_len > self.prompt_token.size(1)):
+            raise ConditioningError("prompt_token_len exceeds prompt_token width")
+
+        expected_feat_width = self.prompt_token.size(1) * 2
+        if self.prompt_feat.size(1) != expected_feat_width:
+            raise ConditioningError(
+                "prompt_feat width must be exactly 2x prompt_token width"
+            )
+
+    def trim_to_lengths(self) -> "S3ReferenceCondition":
+        self.validate()
+
+        if not torch.all(self.prompt_token_len == self.prompt_token_len[0]):
+            raise ConditioningError(
+                "batched references must use one shared prompt length"
+            )
+
+        prompt_token_len = int(self.prompt_token_len[0].detach().cpu())
+        prompt_feat_len = prompt_token_len * 2
+
+        trimmed = S3ReferenceCondition(
+            prompt_token=self.prompt_token[:, :prompt_token_len].contiguous(),
+            prompt_token_len=self.prompt_token_len.clone(),
+            prompt_feat=self.prompt_feat[:, :prompt_feat_len].contiguous(),
+            embedding=self.embedding,
+        )
+        trimmed.validate()
+        return trimmed
+
+    def as_dict(self) -> dict[str, torch.Tensor]:
         return {
             "prompt_token": self.prompt_token,
             "prompt_token_len": self.prompt_token_len,
             "prompt_feat": self.prompt_feat,
-            "prompt_feat_len": self.prompt_feat_len,
             "embedding": self.embedding,
         }

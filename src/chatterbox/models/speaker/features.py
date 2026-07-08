@@ -3,6 +3,8 @@ from collections.abc import Iterable
 import torch
 import torchaudio.compliance.kaldi as Kaldi
 
+from ...audio.constants import S3_SR
+
 
 def pad_list(xs: list[torch.Tensor], pad_value: float) -> torch.Tensor:
     n_batch = len(xs)
@@ -15,20 +17,22 @@ def pad_list(xs: list[torch.Tensor], pad_value: float) -> torch.Tensor:
     return pad
 
 
-def extract_fbank_features(audio: torch.Tensor | Iterable[torch.Tensor]):
+def extract_fbank_features(
+    audio: torch.Tensor | Iterable[torch.Tensor],
+) -> torch.Tensor:
     if torch.is_tensor(audio):
         audio_iter = audio if audio.ndim == 2 else audio.unsqueeze(0)
     else:
         audio_iter = audio
 
     features = []
-    feature_times = []
-    feature_lengths = []
     for au in audio_iter:
-        feature = Kaldi.fbank(au.unsqueeze(0), num_mel_bins=80)
+        feature = Kaldi.fbank(
+            au.unsqueeze(0),
+            num_mel_bins=80,
+            sample_frequency=S3_SR,
+        )
         feature = feature - feature.mean(dim=0, keepdim=True)
         features.append(feature)
-        feature_times.append(au.shape[0])
-        feature_lengths.append(feature.shape[0])
 
-    return pad_list(features, pad_value=0), feature_lengths, feature_times
+    return pad_list(features, pad_value=0)
