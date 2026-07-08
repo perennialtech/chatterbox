@@ -126,11 +126,9 @@ class ConditionalDecoder(nn.Module):
         num_mid_blocks=12,
         num_heads=8,
         act_fn="gelu",
-        meanflow=False,
     ):
         super().__init__()
         channels = tuple(channels)
-        self.meanflow = meanflow
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.time_embeddings = SinusoidalPosEmb(in_channels)
@@ -232,9 +230,7 @@ class ConditionalDecoder(nn.Module):
         self.final_block = CausalBlock1D(channels[-1], channels[-1])
         self.final_proj = nn.Conv1d(channels[-1], self.out_channels, 1)
         self.initialize_weights()
-        self.time_embed_mixer = None
-        if self.meanflow:
-            self.time_embed_mixer = get_intmeanflow_time_mixer(time_embed_dim)
+        self.time_embed_mixer = get_intmeanflow_time_mixer(time_embed_dim)
 
     @property
     def dtype(self):
@@ -288,11 +284,10 @@ class ConditionalDecoder(nn.Module):
         t = self.time_embeddings(t).to(dtype=x.dtype)
         t = self.time_mlp(t)
 
-        if self.meanflow:
-            r = self._normalize_time_condition(r, batch_size, "r").to(device=x.device)
-            r = self.time_embeddings(r).to(dtype=x.dtype)
-            r = self.time_mlp(r)
-            t = self.time_embed_mixer(torch.cat([t, r], dim=1))
+        r = self._normalize_time_condition(r, batch_size, "r").to(device=x.device)
+        r = self.time_embeddings(r).to(dtype=x.dtype)
+        r = self.time_mlp(r)
+        t = self.time_embed_mixer(torch.cat([t, r], dim=1))
 
         x = torch.cat([x, mu], dim=1)
 

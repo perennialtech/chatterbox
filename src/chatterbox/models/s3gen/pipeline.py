@@ -12,7 +12,6 @@ from ..speaker.campplus import CAMPPlus
 from ..speaker.features import extract_fbank_features
 from ..token_utils import drop_invalid_tokens
 from .conditioning import S3ReferenceCondition
-from .configs import CFM_PARAMS
 from .const import S3GEN_SIL
 from .decoder import ConditionalDecoder
 from .f0_predictor import ConvRNNF0Predictor
@@ -142,9 +141,8 @@ class OfflineTokenToMelFlow(torch.nn.Module):
         prompt_token_len,
         prompt_feat,
         embedding,
-        n_timesteps=10,
+        n_timesteps=2,
         noised_mels=None,
-        meanflow=False,
     ):
         B = token.size(0)
         embedding = torch.atleast_2d(embedding)
@@ -189,19 +187,17 @@ class OfflineTokenToMelFlow(torch.nn.Module):
             spks=embedding,
             cond=conds,
             n_timesteps=n_timesteps,
-            meanflow=meanflow,
         )
         feat = feat[:, :, mel_len1:]
         return feat, None
 
 
 class S3Token2Mel(torch.nn.Module):
-    def __init__(self, meanflow: bool = False):
+    def __init__(self):
         super().__init__()
         self.tokenizer = S3Tokenizer("speech_tokenizer_v2_25hz")
         self.mel_extractor = mel_spectrogram
         self.speaker_encoder = CAMPPlus()
-        self.meanflow = meanflow
 
         encoder = UpsampleConformerEncoder(
             output_size=512,
@@ -225,11 +221,9 @@ class S3Token2Mel(torch.nn.Module):
             num_mid_blocks=12,
             num_heads=8,
             act_fn="gelu",
-            meanflow=self.meanflow,
         )
         decoder = ConditionalCFM(
             in_channels=80,
-            cfm_params=CFM_PARAMS,
             estimator=estimator,
         )
 
@@ -416,13 +410,12 @@ class S3Token2Mel(torch.nn.Module):
         ref_condition: S3ReferenceCondition,
         n_cfm_timesteps: Optional[int],
     ) -> torch.Tensor:
-        n_cfm_timesteps = n_cfm_timesteps or (2 if self.meanflow else 10)
+        n_cfm_timesteps = n_cfm_timesteps or 2
 
         output_mels, _ = self.flow.inference(
             token=speech_tokens,
             token_len=speech_token_lens,
             n_timesteps=n_cfm_timesteps,
-            meanflow=self.meanflow,
             **ref_condition.as_dict(),
         )
         return output_mels
@@ -472,8 +465,8 @@ class S3Token2Mel(torch.nn.Module):
 
 
 class S3Token2Wav(S3Token2Mel):
-    def __init__(self, meanflow: bool = False):
-        super().__init__(meanflow)
+    def __init__(self):
+        super().__init__()
 
         f0_predictor = ConvRNNF0Predictor()
         self.mel2wav = HiFTGenerator(
@@ -678,7 +671,7 @@ class S3Token2Wav(S3Token2Mel):
             output_mels = self.flow_inference(
                 speech_tokens=speech_tokens,
                 ref_dict=ref_condition,
-                n_cfm_timesteps=2 if self.meanflow else 10,
+                n_cfm_timesteps=2,
             )
             self.hift_inference(output_mels.to(dtype=self.dtype), None)
 
