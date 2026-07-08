@@ -23,7 +23,7 @@ class RealSTFT(nn.Module):
         real = torch.cos(angles) * window
         imag = -torch.sin(angles) * window
         basis = torch.cat([real, imag], dim=0).unsqueeze(1)
-        self.register_buffer("basis", basis)
+        self.register_buffer("basis", basis, persistent=False)
         self.freq_bins = n_fft // 2 + 1
 
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
@@ -57,9 +57,11 @@ class RealISTFT(nn.Module):
 
         real_basis = torch.cos(angles) * factors * window
         imag_basis = -torch.sin(angles) * factors * window
-        self.register_buffer("real_basis", real_basis.unsqueeze(1))
-        self.register_buffer("imag_basis", imag_basis.unsqueeze(1))
-        self.register_buffer("window_sq", window.square().view(1, 1, -1))
+        self.register_buffer("real_basis", real_basis.unsqueeze(1), persistent=False)
+        self.register_buffer("imag_basis", imag_basis.unsqueeze(1), persistent=False)
+        self.register_buffer(
+            "window_sq", window.square().view(1, 1, -1), persistent=False
+        )
         self.freq_bins = freq_bins
 
     def forward(self, magnitude: torch.Tensor, phase: torch.Tensor) -> torch.Tensor:

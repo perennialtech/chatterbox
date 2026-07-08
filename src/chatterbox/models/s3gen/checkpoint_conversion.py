@@ -56,6 +56,9 @@ def convert_diffusers_transformer_keys(
         converted[new_key] = value
         source_for_key[new_key] = key
 
+    converted.pop("tokenizer._mel_filters", None)
+    converted.pop("tokenizer.window", None)
+
     return converted
 
 

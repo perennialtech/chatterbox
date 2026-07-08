@@ -94,7 +94,7 @@ class TorchVCBackend:
         s3gen = S3Gen()
         state = load_file(ckpt_dir / "s3gen_meanflow.safetensors")
         state = convert_diffusers_transformer_keys(state)
-        s3gen.load_state_dict(state, strict=False)
+        s3gen.load_state_dict(state, strict=True)
         s3gen.to(device).eval()
 
         s3gen.mel2wav.optimize_for_inference()

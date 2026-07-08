@@ -10,8 +10,10 @@ class S3TokenizerLogMel(torch.nn.Module):
         self.n_fft = n_fft
         self.n_mels = n_mels
         mel_filters = librosa.filters.mel(sr=S3_SR, n_fft=n_fft, n_mels=n_mels)
-        self.register_buffer("_mel_filters", torch.FloatTensor(mel_filters))
-        self.register_buffer("window", torch.hann_window(n_fft))
+        self.register_buffer(
+            "_mel_filters", torch.FloatTensor(mel_filters), persistent=False
+        )
+        self.register_buffer("window", torch.hann_window(n_fft), persistent=False)
 
     def forward(self, audio: torch.Tensor) -> torch.Tensor:
         if audio.ndim == 1:
