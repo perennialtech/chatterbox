@@ -13,6 +13,7 @@
 # limitations under the License.
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.nn.utils.parametrizations import weight_norm
 
 
@@ -51,5 +52,10 @@ class ConvRNNF0Predictor(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.condnet(x)
+        x = F.conv1d(
+            x,
+            self.classifier.weight.unsqueeze(-1),
+            self.classifier.bias,
+        )
         x = x.transpose(1, 2)
-        return torch.abs(self.classifier(x).squeeze(-1))
+        return torch.abs(x.squeeze(-1))

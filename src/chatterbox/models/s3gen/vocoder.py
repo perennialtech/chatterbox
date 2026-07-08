@@ -309,6 +309,7 @@ class HiFTGenerator(nn.Module):
         self.real_istft = RealISTFT(self.n_fft, self.hop_len, center=True)
 
         self.f0_predictor = f0_predictor
+        self._compiled_decode_from_source = None
 
     def remove_weight_norm(self) -> None:
         for module in list(self.modules()):
@@ -324,8 +325,8 @@ class HiFTGenerator(nn.Module):
         if getattr(self, "_compiled_for_inference", False):
             return self
 
-        self.inference = torch.compile(
-            self.inference,
+        self._compiled_decode_from_source = torch.compile(
+            self._decode_from_source_impl,
             mode="default",
             backend="inductor",
             dynamic=True,
@@ -408,7 +409,7 @@ class HiFTGenerator(nn.Module):
         magnitude, phase = self._projection(x)
         return magnitude, phase
 
-    def decode_from_source(
+    def _decode_from_source_impl(
         self, speech_feat: torch.Tensor, source: torch.Tensor
     ) -> torch.Tensor:
         s_stft = self._source_stft(source)
@@ -417,6 +418,14 @@ class HiFTGenerator(nn.Module):
         x = self._istft(magnitude, phase)
         x.clamp_(-self.audio_limit, self.audio_limit)
         return x
+
+    def decode_from_source(
+        self, speech_feat: torch.Tensor, source: torch.Tensor
+    ) -> torch.Tensor:
+        compiled_decode = self._compiled_decode_from_source
+        if compiled_decode is not None:
+            return compiled_decode(speech_feat, source)
+        return self._decode_from_source_impl(speech_feat, source)
 
     def forward(
         self,
