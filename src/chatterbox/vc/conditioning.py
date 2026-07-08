@@ -25,7 +25,6 @@ class VoiceConditionTensors:
     prompt_token: np.ndarray
     prompt_token_len: np.ndarray
     prompt_feat: np.ndarray
-    prompt_feat_len: np.ndarray | None
     embedding: np.ndarray
 
     @classmethod
@@ -47,19 +46,12 @@ class VoiceConditionTensors:
                 f"Missing voice conditioning tensors: {sorted(missing)}"
             )
 
-        prompt_feat_len = None
-        if data.get("prompt_feat_len") is not None:
-            prompt_feat_len = _as_numpy(
-                data["prompt_feat_len"], "prompt_feat_len", np.int64
-            )
-
         condition = cls(
             prompt_token=_as_numpy(data["prompt_token"], "prompt_token", np.int64),
             prompt_token_len=_as_numpy(
                 data["prompt_token_len"], "prompt_token_len", np.int64
             ),
             prompt_feat=_as_numpy(data["prompt_feat"], "prompt_feat", np.float32),
-            prompt_feat_len=prompt_feat_len,
             embedding=_as_numpy(data["embedding"], "embedding", np.float32),
         )
         condition.validate()
@@ -74,8 +66,6 @@ class VoiceConditionTensors:
             raise VoiceConditioningError("prompt_feat must be float32")
         if self.embedding.dtype != np.float32:
             raise VoiceConditioningError("embedding must be float32")
-        if self.prompt_feat_len is not None and self.prompt_feat_len.dtype != np.int64:
-            raise VoiceConditioningError("prompt_feat_len must be int64")
 
         if self.prompt_token.ndim != 2 or self.prompt_token.shape[0] != 1:
             raise VoiceConditioningError("prompt_token must have shape [1, P]")
@@ -87,13 +77,11 @@ class VoiceConditionTensors:
             or self.prompt_feat.shape[2] != 80
         ):
             raise VoiceConditioningError("prompt_feat must have shape [1, M, 80]")
-        if self.prompt_feat_len is not None and self.prompt_feat_len.shape != (1,):
-            raise VoiceConditioningError("prompt_feat_len must have shape [1]")
         if self.embedding.shape != (1, 192):
             raise VoiceConditioningError("embedding must have shape [1, 192]")
 
         prompt_tokens = int(self.prompt_token_len[0])
-        if prompt_tokens < 0 or prompt_tokens > self.prompt_token.shape[1]:
+        if prompt_tokens <= 0 or prompt_tokens > self.prompt_token.shape[1]:
             raise VoiceConditioningError(
                 "prompt_token_len is outside prompt_token bounds"
             )
@@ -104,27 +92,15 @@ class VoiceConditionTensors:
                 f"prompt_feat has {self.prompt_feat.shape[1]} frames but {required_prompt_mels} are required"
             )
 
-    @property
-    def prompt_mel_len(self) -> int:
-        return 2 * int(self.prompt_token_len[0])
-
-    def as_dict(self) -> dict[str, np.ndarray | None]:
+    def as_dict(self) -> dict[str, np.ndarray]:
         return {
             "prompt_token": self.prompt_token,
             "prompt_token_len": self.prompt_token_len,
             "prompt_feat": self.prompt_feat,
-            "prompt_feat_len": self.prompt_feat_len,
             "embedding": self.embedding,
         }
 
-    def as_ort_inputs(self) -> dict[str, np.ndarray]:
-        return {
-            "prompt_token": self.prompt_token,
-            "prompt_token_len": self.prompt_token_len,
-            "embedding": self.embedding,
-        }
-
-    def to_torch(self, device, dtype: torch.dtype) -> dict[str, torch.Tensor | None]:
+    def to_torch(self, device, dtype: torch.dtype) -> dict[str, torch.Tensor]:
         return {
             "prompt_token": torch.from_numpy(self.prompt_token).to(
                 device=device, dtype=torch.long
@@ -134,13 +110,6 @@ class VoiceConditionTensors:
             ),
             "prompt_feat": torch.from_numpy(self.prompt_feat).to(
                 device=device, dtype=dtype
-            ),
-            "prompt_feat_len": (
-                None
-                if self.prompt_feat_len is None
-                else torch.from_numpy(self.prompt_feat_len).to(
-                    device=device, dtype=torch.long
-                )
             ),
             "embedding": torch.from_numpy(self.embedding).to(
                 device=device, dtype=dtype

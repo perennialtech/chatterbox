@@ -142,11 +142,9 @@ def build_engines(config: TrtBuildConfig) -> list[EngineRecord]:
     records: list[EngineRecord] = []
 
     for graph_name, graph in manifest["graphs"].items():
-        source_rel = graph["files"].get(config.engine_precision)
+        source_rel = graph.get("path")
         if not source_rel:
-            raise TensorRTBuildError(
-                f"Graph {graph_name} has no {config.engine_precision} ONNX artifact"
-            )
+            raise TensorRTBuildError(f"Graph {graph_name} has no ONNX artifact path")
 
         source_rel_path = Path(source_rel)
         source_onnx = artifact_dir / source_rel_path

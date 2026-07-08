@@ -1,5 +1,4 @@
 from collections.abc import Mapping
-from dataclasses import dataclass
 
 import torch
 
@@ -21,17 +20,6 @@ _DIFFUSERS_TO_LOCAL_SUFFIXES = {
     "ff.net.2.weight": "ff.net.3.weight",
     "ff.net.2.bias": "ff.net.3.bias",
 }
-
-
-class CheckpointLoadError(RuntimeError):
-    pass
-
-
-@dataclass(frozen=True)
-class CheckpointValidationReport:
-    missing_keys: tuple[str, ...]
-    unexpected_keys: tuple[str, ...]
-    shape_mismatches: tuple[str, ...]
 
 
 def convert_diffusers_transformer_keys(
@@ -60,60 +48,3 @@ def convert_diffusers_transformer_keys(
     converted.pop("tokenizer.window", None)
 
     return converted
-
-
-def validate_checkpoint_state_dict(
-    model: torch.nn.Module,
-    state_dict: Mapping[str, torch.Tensor],
-    *,
-    strict: bool = True,
-) -> tuple[dict[str, torch.Tensor], CheckpointValidationReport]:
-    converted = convert_diffusers_transformer_keys(state_dict)
-    model_state = model.state_dict()
-
-    missing_keys = tuple(key for key in model_state if key not in converted)
-    unexpected_keys = tuple(key for key in converted if key not in model_state)
-
-    shape_mismatches = []
-    for key, value in converted.items():
-        if key not in model_state:
-            continue
-        expected_shape = tuple(model_state[key].shape)
-        actual_shape = tuple(value.shape)
-        if expected_shape != actual_shape:
-            shape_mismatches.append(
-                f"{key}: expected {expected_shape}, got {actual_shape}"
-            )
-
-    report = CheckpointValidationReport(
-        missing_keys=missing_keys,
-        unexpected_keys=unexpected_keys,
-        shape_mismatches=tuple(shape_mismatches),
-    )
-
-    if shape_mismatches or (strict and (missing_keys or unexpected_keys)):
-        sections = []
-        if missing_keys:
-            sections.append("missing keys:\n  " + "\n  ".join(missing_keys))
-        if unexpected_keys:
-            sections.append("unexpected keys:\n  " + "\n  ".join(unexpected_keys))
-        if shape_mismatches:
-            sections.append("shape mismatches:\n  " + "\n  ".join(shape_mismatches))
-        raise CheckpointLoadError("\n".join(sections))
-
-    return converted, report
-
-
-def load_converted_state_dict(
-    model: torch.nn.Module,
-    state_dict: Mapping[str, torch.Tensor],
-    *,
-    strict: bool = True,
-):
-    converted, report = validate_checkpoint_state_dict(
-        model,
-        state_dict,
-        strict=strict,
-    )
-    load_result = model.load_state_dict(converted, strict=strict)
-    return load_result, report

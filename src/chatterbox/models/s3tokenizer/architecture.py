@@ -1,10 +1,9 @@
 from dataclasses import dataclass
-from typing import List, Optional, Tuple
+from typing import Optional, Tuple
 
 import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
-from torch.nn.utils.rnn import pad_sequence
 
 
 @dataclass
@@ -51,12 +50,6 @@ class Conv1d(nn.Conv1d):
             weight.to(dtype=x.dtype),
             None if bias is None else bias.to(dtype=x.dtype),
         )
-
-
-def pad_mel_batch(data: List[Tensor]) -> Tuple[Tensor, Tensor]:
-    lengths = torch.tensor([x.size(1) for x in data], dtype=torch.int64)
-    padded = pad_sequence([x.t() for x in data], batch_first=True, padding_value=0)
-    return padded.transpose(1, 2), lengths
 
 
 def make_non_pad_mask(lengths: Tensor, max_len: Optional[int] = None) -> Tensor:

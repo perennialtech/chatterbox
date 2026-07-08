@@ -13,7 +13,7 @@ from ..graph_spec import GraphSpec
 from ..names import REFERENCE_MEL_24K
 
 input_names = ["wav_24k"]
-output_names = ["prompt_feat", "prompt_feat_len"]
+output_names = ["prompt_feat"]
 dynamic_shapes = REFERENCE_MEL_DYNAMIC_SHAPES
 
 
@@ -86,14 +86,7 @@ class ReferenceMel24kExport(torch.nn.Module):
         self.mel = ExportableMelSpectrogram(sampling_rate=S3GEN_SR)
 
     def forward(self, wav_24k):
-        prompt_feat = self.mel(wav_24k).transpose(1, 2).contiguous()
-        prompt_feat_len = torch.full(
-            (prompt_feat.size(0),),
-            prompt_feat.size(1),
-            dtype=torch.int32,
-            device=prompt_feat.device,
-        )
-        return prompt_feat, prompt_feat_len
+        return self.mel(wav_24k).transpose(1, 2).contiguous()
 
 
 def make_module(model):
@@ -113,5 +106,5 @@ REFERENCE_MEL_24K_SPEC = GraphSpec(
     make_module=make_module,
     make_dummy_inputs=make_dummy_inputs,
     input_dtypes={"wav_24k": "float32"},
-    output_dtypes={"prompt_feat": "float32", "prompt_feat_len": "int32"},
+    output_dtypes={"prompt_feat": "float32"},
 )

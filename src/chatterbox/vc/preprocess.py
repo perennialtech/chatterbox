@@ -39,11 +39,7 @@ def compute_s3_log_mel(audio_16k: torch.Tensor) -> tuple[np.ndarray, np.ndarray]
 
 
 @torch.inference_mode()
-def compute_fbank(audio_16k: torch.Tensor) -> tuple[np.ndarray, np.ndarray]:
+def compute_fbank(audio_16k: torch.Tensor) -> np.ndarray:
     audio_16k = audio_16k.detach().cpu().float()
-    fbank, feature_lengths, _ = extract_fbank_features(audio_16k)
-    lengths = np.asarray(feature_lengths, dtype=np.int64)
-    return (
-        np.ascontiguousarray(fbank.cpu().numpy().astype(np.float32)),
-        np.ascontiguousarray(lengths),
-    )
+    fbank = extract_fbank_features(audio_16k)
+    return np.ascontiguousarray(fbank.cpu().numpy().astype(np.float32))

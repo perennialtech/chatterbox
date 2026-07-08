@@ -1,12 +1,5 @@
 import torch
 
-# Setting min=1 avoids edge cases during dynamo compilation where 0-length
-# dimensions can crash the tensor tracer. Dimensions are intentionally scoped to
-# a specific graph input/output instead of reusing one global Dim object. The
-# exported ONNX graphs and TensorRT profiles validate compatible runtime shapes,
-# while unique names keep the PyTorch ONNX exporter from emitting duplicate
-# symbolic-axis warnings for every tensor that shares a logical batch/time axis.
-
 
 def _dim(name: str):
     return torch.export.Dim(name, min=1)
@@ -33,7 +26,6 @@ REFERENCE_MEL_DYNAMIC_SHAPES = {
         0: _dim("refmel_prompt_feat_batch"),
         1: _dim("refmel_prompt_feat_frames"),
     },
-    "prompt_feat_len": {0: _dim("refmel_prompt_feat_len_batch")},
 }
 
 TOKEN_TO_MU_DYNAMIC_SHAPES = {
@@ -53,17 +45,6 @@ TOKEN_TO_MU_DYNAMIC_SHAPES = {
     "spks": {0: _dim("tok2mu_spks_batch")},
     "prompt_mel_len": {0: _dim("tok2mu_prompt_mel_len_batch")},
     "output_mel_len": {0: _dim("tok2mu_output_mel_len_batch")},
-}
-
-CONDITIONAL_DECODER_DYNAMIC_SHAPES = {
-    "x": {0: _dim("dec_x_batch"), 2: _dim("dec_x_mel_frames")},
-    "mask": {0: _dim("dec_mask_batch"), 2: _dim("dec_mask_mel_frames")},
-    "mu": {0: _dim("dec_mu_batch"), 2: _dim("dec_mu_mel_frames")},
-    "spks": {0: _dim("dec_spks_batch")},
-    "cond": {0: _dim("dec_cond_batch"), 2: _dim("dec_cond_mel_frames")},
-    "t": {0: _dim("dec_t_batch")},
-    "r": {0: _dim("dec_r_batch")},
-    "dxdt": {0: _dim("dec_dxdt_batch"), 2: _dim("dec_dxdt_mel_frames")},
 }
 
 FLOW_DECODER_DYNAMIC_SHAPES = {

@@ -161,28 +161,29 @@ class TensorRTVCBackend:
             {"wav_24k": np.ascontiguousarray(ref_wav_24k.astype(np.float32))}
         )
         prompt_feat = mel_out["prompt_feat"].astype(np.float32)
-        prompt_feat_len = mel_out["prompt_feat_len"].astype(np.int64)
 
-        fbank, fbank_lengths = compute_fbank(torch.from_numpy(ref_wav_16k))
-        speaker_out = self._runner(GRAPH_SPEAKER_ENCODER).run(
-            {"fbank": fbank, "fbank_lengths": fbank_lengths}
-        )
+        fbank = compute_fbank(torch.from_numpy(ref_wav_16k))
+        speaker_out = self._runner(GRAPH_SPEAKER_ENCODER).run({"fbank": fbank})
         embedding = speaker_out["embedding"].astype(np.float32)
 
         prompt_token, prompt_token_len = self._tokenize_audio(
             torch.from_numpy(ref_wav_16k)
         )
         if prompt_feat.shape[1] != 2 * prompt_token.shape[1]:
-            target_len = prompt_feat.shape[1] // 2
+            target_len = min(prompt_token.shape[1], prompt_feat.shape[1] // 2)
+            if target_len <= 0:
+                raise VoiceConditioningError(
+                    "reference audio is too short for aligned conditioning"
+                )
             prompt_token = prompt_token[:, :target_len]
             prompt_token_len = np.array([target_len], dtype=np.int64)
+            prompt_feat = prompt_feat[:, : 2 * target_len, :]
 
         return VoiceConditionTensors.from_mapping(
             {
                 "prompt_token": prompt_token,
                 "prompt_token_len": prompt_token_len,
                 "prompt_feat": prompt_feat,
-                "prompt_feat_len": prompt_feat_len,
                 "embedding": embedding,
             }
         )

@@ -529,36 +529,6 @@ class S3Token2Wav(S3Token2Mel):
         )
 
     @torch.inference_mode()
-    def _unchunked_flow_inference_impl(
-        self,
-        speech_tokens,
-        ref_wav: Optional[torch.Tensor] = None,
-        ref_sr: Optional[int] = None,
-        ref_dict: Optional[dict | S3ReferenceCondition] = None,
-        n_cfm_timesteps: Optional[int] = None,
-        speech_token_lens: Optional[torch.Tensor] = None,
-    ) -> tuple[torch.Tensor, int]:
-        speech_tokens, speech_token_lens, original_mel_len = (
-            self._prepare_target_tokens(
-                speech_tokens=speech_tokens,
-                speech_token_lens=speech_token_lens,
-            )
-        )
-        ref_condition = self._prepare_reference_condition(ref_wav, ref_sr, ref_dict)
-        speech_tokens, speech_token_lens = self._append_silence_context(
-            speech_tokens,
-            speech_token_lens,
-            self._final_context_token_count,
-        )
-        output_mels = self._generate_window_mels(
-            speech_tokens=speech_tokens,
-            speech_token_lens=speech_token_lens,
-            ref_condition=ref_condition,
-            n_cfm_timesteps=n_cfm_timesteps,
-        )
-        return output_mels[:, :, :original_mel_len].contiguous(), original_mel_len
-
-    @torch.inference_mode()
     def _chunked_flow_inference_impl(
         self,
         speech_tokens,
@@ -616,14 +586,6 @@ class S3Token2Wav(S3Token2Mel):
 
         output_mels = torch.cat(chunks, dim=-1)
         return output_mels[:, :, :original_mel_len].contiguous(), original_mel_len
-
-    @torch.inference_mode()
-    def _flow_inference_impl(
-        self,
-        *args,
-        **kwargs,
-    ) -> tuple[torch.Tensor, int]:
-        return self._chunked_flow_inference_impl(*args, **kwargs)
 
     def _apply_output_fades(self, output_wavs: torch.Tensor) -> torch.Tensor:
         if output_wavs.size(1) == 0:

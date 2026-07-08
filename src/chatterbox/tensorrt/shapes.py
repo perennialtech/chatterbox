@@ -3,8 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from ..onnx_export.constants import (GRAPH_CONDITIONAL_DECODER_STEP,
-                                     GRAPH_FLOW_DECODER_MEANFLOW2,
+from ..onnx_export.constants import (GRAPH_FLOW_DECODER_MEANFLOW2,
                                      GRAPH_REFERENCE_MEL_24K,
                                      GRAPH_S3_TOKENIZER_QUANTIZER,
                                      GRAPH_SPEAKER_ENCODER, GRAPH_TOKEN_TO_MU,
@@ -48,15 +47,6 @@ def default_shape_ranges(
             "speech_token": ShapeRange((1, 1), (1, 384), (1, MAX_SPEECH_TOKENS)),
             "speech_token_len": ShapeRange((1,), (1,), (1,)),
             "embedding": ShapeRange((1, 192), (1, 192), (1, 192)),
-        },
-        GRAPH_CONDITIONAL_DECODER_STEP: {
-            "x": ShapeRange((1, 80, 2), (1, 80, 768), (1, 80, MAX_MEL_FRAMES)),
-            "mask": ShapeRange((1, 1, 2), (1, 1, 768), (1, 1, MAX_MEL_FRAMES)),
-            "mu": ShapeRange((1, 80, 2), (1, 80, 768), (1, 80, MAX_MEL_FRAMES)),
-            "spks": ShapeRange((1, 80), (1, 80), (1, 80)),
-            "cond": ShapeRange((1, 80, 2), (1, 80, 768), (1, 80, MAX_MEL_FRAMES)),
-            "t": ShapeRange((1,), (1,), (1,)),
-            "r": ShapeRange((1,), (1,), (1,)),
         },
         GRAPH_FLOW_DECODER_MEANFLOW2: {
             "noise": ShapeRange((1, 80, 2), (1, 80, 768), (1, 80, MAX_MEL_FRAMES)),

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Literal
 
 from .backends.onnx_backend import OnnxVCBackend
 from .backends.tensorrt_backend import TensorRTVCBackend
@@ -46,13 +45,11 @@ class ChatterboxVC:
     def from_onnx_artifacts(
         cls,
         artifact_dir: str | Path,
-        precision: Literal["fp32", "fp16"] = "fp32",
         providers: list[str] | None = None,
     ) -> "ChatterboxVC":
         return cls(
             OnnxVCBackend.from_artifact_dir(
                 artifact_dir=artifact_dir,
-                precision=precision,
                 providers=providers,
             )
         )

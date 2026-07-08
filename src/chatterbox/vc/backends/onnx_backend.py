@@ -3,7 +3,6 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
 
 import numpy as np
 import torch
@@ -49,11 +48,10 @@ class OnnxVCBackend:
     def from_artifact_dir(
         cls,
         artifact_dir: str | Path,
-        precision: Literal["fp32", "fp16"] = "fp32",
         providers: list[str] | None = None,
     ) -> "OnnxVCBackend":
         sessions = OnnxSessions.from_artifact_dir(
-            Path(artifact_dir), precision=precision, providers=providers
+            Path(artifact_dir), providers=providers
         )
         return cls(sessions=sessions)
 
@@ -101,12 +99,9 @@ class OnnxVCBackend:
             {"wav_24k": np.ascontiguousarray(ref_wav_24k.astype(np.float32))}
         )
         prompt_feat = mel_out["prompt_feat"].astype(np.float32)
-        prompt_feat_len = mel_out["prompt_feat_len"].astype(np.int64)
 
-        fbank, fbank_lengths = compute_fbank(torch.from_numpy(ref_wav_16k))
-        speaker_out = self._require_runner(GRAPH_SPEAKER_ENCODER).run(
-            {"fbank": fbank, "fbank_lengths": fbank_lengths}
-        )
+        fbank = compute_fbank(torch.from_numpy(ref_wav_16k))
+        speaker_out = self._require_runner(GRAPH_SPEAKER_ENCODER).run({"fbank": fbank})
         embedding = speaker_out["embedding"].astype(np.float32)
 
         prompt_token, prompt_token_len = self._tokenize_audio(
@@ -114,16 +109,20 @@ class OnnxVCBackend:
         )
 
         if prompt_feat.shape[1] != 2 * prompt_token.shape[1]:
-            target_len = prompt_feat.shape[1] // 2
+            target_len = min(prompt_token.shape[1], prompt_feat.shape[1] // 2)
+            if target_len <= 0:
+                raise VoiceConditioningError(
+                    "reference audio is too short for aligned conditioning"
+                )
             prompt_token = prompt_token[:, :target_len]
             prompt_token_len = np.array([target_len], dtype=np.int64)
+            prompt_feat = prompt_feat[:, : 2 * target_len, :]
 
         return VoiceConditionTensors.from_mapping(
             {
                 "prompt_token": prompt_token,
                 "prompt_token_len": prompt_token_len,
                 "prompt_feat": prompt_feat,
-                "prompt_feat_len": prompt_feat_len,
                 "embedding": embedding,
             }
         )
