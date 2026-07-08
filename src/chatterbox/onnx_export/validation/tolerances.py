@@ -19,5 +19,5 @@ DEFAULT_TOLERANCES = {
     "speaker_encoder": CosineTolerance(0.999),
     "token_to_mu": Tolerance(1e-3, 2e-4),
     "flow_decoder_meanflow2": Tolerance(4e-2, 4e-3),
-    "vocoder_hift": Tolerance(2e-2, 5e-3),
+    "vocoder_hift": Tolerance(3e-2, 2e-3),
 }
