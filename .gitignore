@@ -47,3 +47,5 @@ artifacts/
 
 # Ignore generated sample .wav files
 **/*.wav
+
+*.mp3
