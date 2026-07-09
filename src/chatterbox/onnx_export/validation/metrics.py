@@ -16,11 +16,22 @@ def to_numpy(value) -> np.ndarray:
 def compare_exact(name: str, expected, actual) -> dict:
     expected_np = to_numpy(expected)
     actual_np = np.asarray(actual)
-    if expected_np.shape != actual_np.shape or not np.array_equal(
-        expected_np, actual_np
-    ):
+    if expected_np.shape != actual_np.shape:
         raise OnnxValidationError(
             f"{name} exact parity failed: expected {expected_np.shape}, actual {actual_np.shape}"
+        )
+    if not np.array_equal(expected_np, actual_np):
+        mismatch = np.argwhere(expected_np != actual_np)
+        first_index = tuple(int(x) for x in mismatch[0])
+        expected_value = expected_np[first_index]
+        actual_value = actual_np[first_index]
+        if hasattr(expected_value, "item"):
+            expected_value = expected_value.item()
+        if hasattr(actual_value, "item"):
+            actual_value = actual_value.item()
+        raise OnnxValidationError(
+            f"{name} exact parity failed: {int(mismatch.shape[0])} mismatched values; "
+            f"first mismatch at {first_index}: expected {expected_value}, actual {actual_value}"
         )
     return {"exact": True}
 

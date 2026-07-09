@@ -15,11 +15,12 @@ from ..artifacts import load_manifest
 from ..constants import (GRAPH_REFERENCE_MEL_24K, GRAPH_S3_TOKENIZER_LOG_MEL,
                          GRAPH_S3_TOKENIZER_QUANTIZER, GRAPH_SPEAKER_ENCODER,
                          GRAPH_TOKEN_TO_MU, GRAPH_VOCODER_HIFT)
+from ..errors import OnnxValidationError
 from ..graph_spec import GraphSpec
 from ..graphs import ALL_GRAPHS
 from ..model_loading import load_torch_model
 from ..runtime import OnnxS3Gen
-from .metrics import compare_cosine, compare_exact, compare_tensors
+from .metrics import compare_cosine, compare_exact, compare_tensors, to_numpy
 from .tolerances import CosineTolerance, Tolerance, tolerance_for_graph
 
 
@@ -114,10 +115,98 @@ def _validation_cases_for_spec(
     return [spec.make_dummy_inputs()]
 
 
+def _compare_padded_token_ids(
+    name: str,
+    expected_tokens,
+    actual_tokens,
+    expected_lengths,
+) -> dict:
+    expected_np = to_numpy(expected_tokens)
+    actual_np = np.asarray(actual_tokens)
+    lengths_np = to_numpy(expected_lengths).astype(np.int64).reshape(-1)
+
+    if expected_np.ndim != 2 or actual_np.ndim != 2:
+        raise OnnxValidationError(
+            f"{name} must compare rank-2 token tensors, got {expected_np.shape} and {actual_np.shape}"
+        )
+    if expected_np.shape[0] != actual_np.shape[0]:
+        raise OnnxValidationError(
+            f"{name} batch mismatch: expected {expected_np.shape[0]}, actual {actual_np.shape[0]}"
+        )
+    if lengths_np.shape != (expected_np.shape[0],):
+        raise OnnxValidationError(
+            f"{name} length tensor shape mismatch: expected {(expected_np.shape[0],)}, actual {lengths_np.shape}"
+        )
+    if np.any(lengths_np < 0):
+        raise OnnxValidationError(f"{name} contains negative sequence lengths")
+
+    max_len = int(lengths_np.max()) if lengths_np.size else 0
+    if max_len > expected_np.shape[1] or max_len > actual_np.shape[1]:
+        raise OnnxValidationError(
+            f"{name} length {max_len} exceeds token widths: expected {expected_np.shape[1]}, actual {actual_np.shape[1]}"
+        )
+
+    valid_tokens = 0
+    for batch_index, length in enumerate(lengths_np):
+        length = int(length)
+        valid_tokens += length
+        expected_prefix = expected_np[batch_index, :length]
+        actual_prefix = actual_np[batch_index, :length]
+        if not np.array_equal(expected_prefix, actual_prefix):
+            mismatch = np.flatnonzero(expected_prefix != actual_prefix)
+            token_index = int(mismatch[0])
+            expected_value = expected_prefix[token_index]
+            actual_value = actual_prefix[token_index]
+            if hasattr(expected_value, "item"):
+                expected_value = expected_value.item()
+            if hasattr(actual_value, "item"):
+                actual_value = actual_value.item()
+            raise OnnxValidationError(
+                f"{name} valid-token parity failed: {int(mismatch.size)} mismatched values "
+                f"in batch {batch_index}; first mismatch at token {token_index}: "
+                f"expected {expected_value}, actual {actual_value}"
+            )
+
+    return {
+        "exact_valid_prefix": True,
+        "valid_tokens": int(valid_tokens),
+        "expected_padding_tokens": int(expected_np.size - valid_tokens),
+        "actual_padding_tokens": int(actual_np.size - valid_tokens),
+    }
+
+
+def _compare_quantizer_outputs(
+    spec_name: str,
+    output_names: list[str],
+    torch_outputs: tuple,
+    ort_outputs: list[np.ndarray],
+) -> dict:
+    expected = dict(zip(output_names, torch_outputs))
+    actual = dict(zip(output_names, ort_outputs))
+
+    if "speech_tokens" not in expected or "speech_token_lengths" not in expected:
+        raise OnnxValidationError(
+            f"{spec_name} validation requires speech_tokens and speech_token_lengths outputs"
+        )
+
+    report = {
+        "speech_token_lengths": compare_exact(
+            f"{spec_name}.speech_token_lengths",
+            expected["speech_token_lengths"],
+            actual["speech_token_lengths"],
+        )
+    }
+    report["speech_tokens"] = _compare_padded_token_ids(
+        f"{spec_name}.speech_tokens",
+        expected["speech_tokens"],
+        actual["speech_tokens"],
+        expected["speech_token_lengths"],
+    )
+    return report
+
+
 def _compare_output(spec_name: str, output_name: str, expected, actual) -> dict:
     if not torch.is_floating_point(expected):
-        return compare_exact(f"{spec_name}.{output_name}", expected, actual)
-    if spec_name == GRAPH_S3_TOKENIZER_QUANTIZER:
         return compare_exact(f"{spec_name}.{output_name}", expected, actual)
     tolerance = tolerance_for_graph(spec_name)
     if isinstance(tolerance, CosineTolerance):
@@ -148,13 +237,21 @@ def _run_graph_validation(
                 torch_outputs = (torch_outputs,)
 
             ort_outputs = _run_ort(onnx_path, spec.input_names, inputs, device=device)
-            case_report = {}
-            for output_name, expected, actual in zip(
-                spec.output_names, torch_outputs, ort_outputs
-            ):
-                case_report[output_name] = _compare_output(
-                    spec.name, output_name, expected, actual
+            if spec.name == GRAPH_S3_TOKENIZER_QUANTIZER:
+                case_report = _compare_quantizer_outputs(
+                    spec.name,
+                    spec.output_names,
+                    torch_outputs,
+                    ort_outputs,
                 )
+            else:
+                case_report = {}
+                for output_name, expected, actual in zip(
+                    spec.output_names, torch_outputs, ort_outputs
+                ):
+                    case_report[output_name] = _compare_output(
+                        spec.name, output_name, expected, actual
+                    )
             graph_cases.append({"case_index": case_index, "outputs": case_report})
 
         report[spec.name] = {"cases": graph_cases}
