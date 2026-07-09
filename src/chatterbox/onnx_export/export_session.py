@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from pathlib import Path
 from typing import Any
 
@@ -39,6 +40,7 @@ class ExportSession:
                 "do_constant_folding": True,
                 "external_data": self.external_data,
                 "dynamo": True,
+                "optimize": True,
             }
 
             if dynamic_shapes:
@@ -51,9 +53,20 @@ class ExportSession:
                 else:
                     export_kwargs["dynamic_shapes"] = dynamic_shapes
 
+            export_start = time.perf_counter()
             torch.onnx.export(module, inputs, str(path), **export_kwargs)
+            export_seconds = time.perf_counter() - export_start
 
+        check_start = time.perf_counter()
         self.check(path)
+        check_seconds = time.perf_counter() - check_start
+
+        size_mib = _artifact_size_bytes(path) / (1024 * 1024)
+        print(
+            f"Exported {graph_name}: export={export_seconds:.2f}s "
+            f"check={check_seconds:.2f}s size={size_mib:.2f} MiB"
+        )
+
         return ArtifactRecord(
             graph_name=graph_name,
             path=str(path),
@@ -70,3 +83,14 @@ class ExportSession:
             raise OnnxExportError("onnx is required to check exported graphs") from exc
 
         onnx.checker.check_model(str(path))
+
+
+def _artifact_size_bytes(path: Path) -> int:
+    if not path.exists():
+        return 0
+
+    total = 0
+    for candidate in path.parent.glob(f"{path.name}*"):
+        if candidate.is_file():
+            total += candidate.stat().st_size
+    return total

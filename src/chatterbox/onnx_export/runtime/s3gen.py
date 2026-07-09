@@ -230,6 +230,28 @@ class OnnxS3Gen:
         prompt_mel_len = int(np.asarray(mu_outputs["prompt_mel_len"])[0])
         output_mel_len = int(np.asarray(mu_outputs["output_mel_len"])[0])
 
+        if mu.ndim != 3 or mu.shape[0] != 1 or mu.shape[1] != 80:
+            raise OnnxRuntimeError(f"token_to_mu returned invalid mu shape {mu.shape}")
+        if mask.shape != (1, 1, mu.shape[2]):
+            raise OnnxRuntimeError(
+                f"token_to_mu returned invalid mask shape {mask.shape}, expected {(1, 1, mu.shape[2])}"
+            )
+        if spks.shape != (1, 80):
+            raise OnnxRuntimeError(
+                f"token_to_mu returned invalid spks shape {spks.shape}, expected {(1, 80)}"
+            )
+        if prompt_mel_len != ref.prompt_feat.shape[1]:
+            raise OnnxRuntimeError(
+                f"prompt_mel_len {prompt_mel_len} != prompt_feat frames {ref.prompt_feat.shape[1]}"
+            )
+        if output_mel_len <= 0:
+            raise OnnxRuntimeError(f"Invalid output_mel_len {output_mel_len}")
+        if prompt_mel_len + output_mel_len > mu.shape[2]:
+            raise OnnxRuntimeError(
+                f"prompt_mel_len + output_mel_len exceeds mu width: "
+                f"{prompt_mel_len} + {output_mel_len} > {mu.shape[2]}"
+            )
+
         cond = np.zeros_like(mu, dtype=np.float32)
         cond[:, :, :prompt_mel_len] = ref.prompt_feat.transpose(0, 2, 1)
 
@@ -297,6 +319,8 @@ class OnnxS3Gen:
             self._validate_tokens("speech_tokens", speech_tokens)
 
         target_token_len = int(speech_tokens.shape[1])
+        if target_token_len <= 0:
+            raise ValueError("At least one speech token is required")
         original_mel_len = target_token_len * self.token_mel_ratio
         chunk_tokens = max(1, self.flow_chunk_tokens)
         context_tokens = max(self.flow_context_tokens, self.final_context_token_count)

@@ -8,6 +8,7 @@ from safetensors.torch import load_file
 from ..models.s3gen import S3Gen
 from ..models.s3gen.checkpoint_conversion import \
     convert_diffusers_transformer_keys
+from .buckets import FLOW_MEL_BUCKETS, TOKEN_TO_MU_TOKEN_BUCKETS
 
 _ALLOWED_MISSING_SUBSTRINGS = (
     "_mel_filters",
@@ -34,9 +35,20 @@ def _check_missing_keys(missing: list[str]) -> None:
         )
 
 
+def required_export_positional_frames() -> int:
+    return max(
+        max(int(x) for x in TOKEN_TO_MU_TOKEN_BUCKETS),
+        max(int(x) for x in FLOW_MEL_BUCKETS),
+    )
+
+
 def prepare_export_safe_positional_encoding(
-    model: torch.nn.Module, max_positions: int = 6144
-) -> None:
+    model: torch.nn.Module,
+    max_positions: int | None = None,
+) -> int:
+    if max_positions is None:
+        max_positions = required_export_positional_frames()
+
     device = next(model.parameters()).device
     dtype = next(model.parameters()).dtype
     probe = torch.zeros(1, max_positions, 512, device=device, dtype=dtype)
@@ -47,14 +59,11 @@ def prepare_export_safe_positional_encoding(
             if getattr(module, "max_len", 0) < max_positions and torch.is_tensor(
                 getattr(module, "pe", None)
             ):
-                # Absolute encoders in this model are not used for the VC token path,
-                # but keep them on the target device when present.
                 module.pe = module.pe.to(device=device)
+    return max_positions
 
 
-def load_torch_model(
-    checkpoint_dir: Path, device: str = "cpu", max_positions: int = 6144
-) -> S3Gen:
+def load_torch_model(checkpoint_dir: Path, device: str = "cpu") -> S3Gen:
     checkpoint_dir = Path(checkpoint_dir)
     model = S3Gen()
     state = load_file(checkpoint_dir / "s3gen_meanflow.safetensors")
@@ -71,5 +80,5 @@ def load_torch_model(
         raise RuntimeError(f"Checkpoint contains unexpected keys: {unexpected[:32]}")
     model.to(device).eval()
     model.mel2wav.optimize_for_inference()
-    prepare_export_safe_positional_encoding(model, max_positions=max_positions)
+    prepare_export_safe_positional_encoding(model)
     return model

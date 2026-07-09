@@ -5,7 +5,7 @@ import torch
 from ...models.speaker.exportable import SpeakerEncoderExport
 from ..constants import GRAPH_SPEAKER_ENCODER
 from ..dynamic_shapes import SPEAKER_ENCODER_DYNAMIC_SHAPES
-from ..graph_spec import GraphSpec
+from ..graph_spec import ExportContext, GraphSpec
 from ..names import SPEAKER_ENCODER
 
 input_names = ["fbank"]
@@ -17,8 +17,16 @@ def make_module(model):
     return SpeakerEncoderExport(model.speaker_encoder)
 
 
-def make_dummy_inputs(batch: int = 1, frames: int = 256):
-    return (torch.randn(batch, frames, 80, dtype=torch.float32),)
+def make_dummy_inputs(context: ExportContext, batch: int = 1, frames: int = 256):
+    return (
+        torch.randn(
+            batch,
+            frames,
+            80,
+            dtype=context.dtype,
+            device=context.device,
+        ),
+    )
 
 
 SPEAKER_ENCODER_SPEC = GraphSpec(

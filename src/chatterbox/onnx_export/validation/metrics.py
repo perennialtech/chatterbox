@@ -54,8 +54,15 @@ def compare_tensors(name: str, expected, actual, tolerance: Tolerance) -> dict:
 
 
 def compare_cosine(name: str, expected, actual, tolerance: CosineTolerance) -> dict:
-    expected_np = to_numpy(expected).astype(np.float32).reshape(expected.shape[0], -1)
-    actual_np = np.asarray(actual).astype(np.float32).reshape(actual.shape[0], -1)
+    expected_raw = to_numpy(expected)
+    actual_raw = np.asarray(actual)
+    if expected_raw.shape != actual_raw.shape:
+        raise OnnxValidationError(
+            f"{name} shape mismatch: expected {expected_raw.shape}, actual {actual_raw.shape}"
+        )
+
+    expected_np = expected_raw.astype(np.float32).reshape(expected_raw.shape[0], -1)
+    actual_np = actual_raw.astype(np.float32).reshape(actual_raw.shape[0], -1)
     numerator = np.sum(expected_np * actual_np, axis=1)
     denom = np.linalg.norm(expected_np, axis=1) * np.linalg.norm(actual_np, axis=1)
     cosine = numerator / np.maximum(denom, 1e-12)

@@ -38,14 +38,10 @@ def sha256_file(path: Path) -> str:
 
 
 def checkpoint_hash(checkpoint_dir: Path) -> str:
-    checkpoint_dir = checkpoint_dir.resolve()
-    h = hashlib.sha256()
-    for path in sorted(checkpoint_dir.rglob("*")):
-        if path.is_file():
-            rel = path.relative_to(checkpoint_dir)
-            h.update(str(rel).encode())
-            h.update(sha256_file(path).encode())
-    return h.hexdigest()
+    checkpoint_path = checkpoint_dir.resolve() / "s3gen_meanflow.safetensors"
+    if not checkpoint_path.is_file():
+        raise FileNotFoundError(f"Missing checkpoint file: {checkpoint_path}")
+    return sha256_file(checkpoint_path)
 
 
 def manifest_hash(path: Path) -> str:
@@ -143,11 +139,14 @@ def write_manifest(
         "checkpoint": {
             "path": str(checkpoint_dir),
             "hash": checkpoint_hash(checkpoint_dir),
+            "hash_file": "s3gen_meanflow.safetensors",
         },
         "onnx": {
             "opset": config.opset,
             "external_data": config.external_data,
             "batch_size": 1,
+            "bucket_strategy": "static",
+            "exporter_optimization": True,
         },
         "constants": _constants(
             source_hop=source_hop,
@@ -161,16 +160,20 @@ def write_manifest(
     if ort_version is not None:
         manifest["onnxruntime_version"] = ort_version
 
-    (output_dir / "manifest.json").write_text(
-        json.dumps(manifest, indent=2, sort_keys=True)
-    )
     metadata = {
         k: manifest[k]
         for k in ("schema_version", "model", "checkpoint", "onnx", "constants")
     }
-    (output_dir / "metadata.json").write_text(
-        json.dumps(metadata, indent=2, sort_keys=True)
-    )
+
+    manifest_text = json.dumps(manifest, indent=2, sort_keys=True)
+    metadata_text = json.dumps(metadata, indent=2, sort_keys=True)
+
+    manifest_tmp = output_dir / "manifest.json.tmp"
+    metadata_tmp = output_dir / "metadata.json.tmp"
+    manifest_tmp.write_text(manifest_text)
+    metadata_tmp.write_text(metadata_text)
+    manifest_tmp.replace(output_dir / "manifest.json")
+    metadata_tmp.replace(output_dir / "metadata.json")
 
 
 def load_manifest(artifact_dir: Path) -> dict[str, Any]:

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import math
+import time
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import numpy as np
@@ -14,14 +16,58 @@ from ...models.s3gen.pipeline import FLOW_CHUNK_TOKENS, FLOW_CONTEXT_TOKENS
 from ..artifacts import load_manifest
 from ..constants import (GRAPH_REFERENCE_MEL_24K, GRAPH_S3_TOKENIZER_LOG_MEL,
                          GRAPH_S3_TOKENIZER_QUANTIZER, GRAPH_SPEAKER_ENCODER,
-                         GRAPH_TOKEN_TO_MU, GRAPH_VOCODER_HIFT)
+                         GRAPH_TOKEN_TO_MU, GRAPH_VOCODER_HIFT,
+                         flow_decoder_graph_name, token_to_mu_graph_name,
+                         vocoder_graph_name)
 from ..errors import OnnxValidationError
-from ..graph_spec import GraphSpec
+from ..graph_spec import ExportContext, GraphSpec
 from ..graphs import ALL_GRAPHS
 from ..model_loading import load_torch_model
 from ..runtime import OnnxS3Gen
 from .metrics import compare_cosine, compare_exact, compare_tensors, to_numpy
 from .tolerances import CosineTolerance, Tolerance, tolerance_for_graph
+
+
+@dataclass
+class OrtValidationRunner:
+    path: Path
+    input_names: list[str]
+    device: str = "cpu"
+    session: object = field(init=False)
+    actual_input_names: set[str] = field(init=False)
+    load_seconds: float = field(init=False)
+    run_seconds: float = 0.0
+    run_count: int = 0
+
+    def __post_init__(self) -> None:
+        import onnxruntime as ort
+
+        session_options = ort.SessionOptions()
+        session_options.graph_optimization_level = (
+            ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+        )
+
+        start = time.perf_counter()
+        self.session = ort.InferenceSession(
+            str(self.path),
+            sess_options=session_options,
+            providers=_ort_providers(ort, self.device),
+        )
+        self.load_seconds = time.perf_counter() - start
+        self.actual_input_names = {inp.name for inp in self.session.get_inputs()}
+
+    def run(self, inputs: tuple[torch.Tensor, ...]) -> list[np.ndarray]:
+        feed = {
+            name: np.ascontiguousarray(t.detach().cpu().numpy())
+            for name, t in zip(self.input_names, inputs)
+            if name in self.actual_input_names
+        }
+
+        start = time.perf_counter()
+        outputs = self.session.run(None, feed)
+        self.run_seconds += time.perf_counter() - start
+        self.run_count += 1
+        return outputs
 
 
 def _ort_providers(ort, device: str) -> list[str]:
@@ -31,88 +77,103 @@ def _ort_providers(ort, device: str) -> list[str]:
     return ["CPUExecutionProvider"]
 
 
-def _run_ort(
-    path: Path,
-    input_names: list[str],
-    inputs: tuple[torch.Tensor, ...],
-    device: str = "cpu",
-) -> list[np.ndarray]:
-    import onnxruntime as ort
-
-    session_options = ort.SessionOptions()
-    session_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
-    session = ort.InferenceSession(
-        str(path),
-        sess_options=session_options,
-        providers=_ort_providers(ort, device),
-    )
-    actual_input_names = {inp.name for inp in session.get_inputs()}
-
-    feed = {
-        name: np.ascontiguousarray(t.detach().cpu().numpy())
-        for name, t in zip(input_names, inputs)
-        if name in actual_input_names
-    }
-
-    return session.run(None, feed)
-
-
 def _bucket_token_length(length: int, buckets: tuple[int, ...]) -> int:
     for bucket in buckets:
         if length <= bucket:
             return bucket
-    raise ValueError(f"length {length} exceeds largest token bucket {buckets[-1]}")
+    raise ValueError(f"length {length} exceeds largest bucket {buckets[-1]}")
 
 
 def _validation_cases_for_spec(
-    spec: GraphSpec, manifest: dict
+    spec: GraphSpec,
+    manifest: dict,
+    context: ExportContext,
 ) -> list[tuple[torch.Tensor, ...]]:
     name = spec.name
     if name == GRAPH_S3_TOKENIZER_LOG_MEL:
-        return [spec.make_dummy_inputs(samples=samples) for samples in (16000, 32123)]
+        return [
+            spec.make_dummy_inputs(context, samples=samples)
+            for samples in (201, 16000, 32123)
+        ]
     if name == GRAPH_S3_TOKENIZER_QUANTIZER:
-        return [spec.make_dummy_inputs(mel_frames=frames) for frames in (64, 257, 3000)]
+        return [
+            spec.make_dummy_inputs(context, mel_frames=frames)
+            for frames in (1, 64, 257, 3000)
+        ]
     if name == GRAPH_SPEAKER_ENCODER:
-        return [spec.make_dummy_inputs(frames=frames) for frames in (80, 256, 501)]
+        return [
+            spec.make_dummy_inputs(context, frames=frames)
+            for frames in (1, 80, 256, 501)
+        ]
     if name == GRAPH_REFERENCE_MEL_24K:
-        return [spec.make_dummy_inputs(samples=samples) for samples in (24000, 48000)]
+        return [
+            spec.make_dummy_inputs(context, samples=samples)
+            for samples in (721, 24000, 48000)
+        ]
 
     if name.startswith(f"{GRAPH_TOKEN_TO_MU}_"):
         token_bucket = int(name.rsplit("_", 1)[1].removesuffix("tok"))
         token_buckets = tuple(
             int(x) for x in manifest["constants"]["token_to_mu_token_buckets"]
         )
+        prev_bucket = max(
+            (bucket for bucket in token_buckets if bucket < token_bucket), default=0
+        )
+        candidate_totals = {
+            max(prev_bucket + 1, 1),
+            token_bucket,
+        }
+        if token_bucket > 1:
+            candidate_totals.add(token_bucket - 1)
+
         cases = []
-        prompt_tokens = 25
-        for speech_tokens in (32, 250, 251, 384):
-            if (
-                _bucket_token_length(prompt_tokens + speech_tokens, token_buckets)
-                == token_bucket
-            ):
-                token = torch.zeros(1, token_bucket, dtype=torch.int32)
-                token[:, :prompt_tokens] = 3
-                token[:, prompt_tokens : prompt_tokens + speech_tokens] = 4
-                cases.append(
-                    (
-                        token,
-                        torch.tensor([prompt_tokens], dtype=torch.int32),
-                        torch.tensor([speech_tokens], dtype=torch.int32),
-                        torch.randn(1, 192, dtype=torch.float32),
-                    )
+        for total_tokens in sorted(candidate_totals):
+            if total_tokens <= prev_bucket or total_tokens > token_bucket:
+                continue
+            if _bucket_token_length(total_tokens, token_buckets) != token_bucket:
+                continue
+            prompt_tokens = min(25, total_tokens - 1)
+            if prompt_tokens <= 0:
+                continue
+            speech_tokens = total_tokens - prompt_tokens
+            token = torch.zeros(
+                1,
+                token_bucket,
+                dtype=torch.int32,
+                device=context.device,
+            )
+            token[:, :prompt_tokens] = 3
+            token[:, prompt_tokens : prompt_tokens + speech_tokens] = 4
+            cases.append(
+                (
+                    token,
+                    torch.tensor(
+                        [prompt_tokens],
+                        dtype=torch.int32,
+                        device=context.device,
+                    ),
+                    torch.tensor(
+                        [speech_tokens],
+                        dtype=torch.int32,
+                        device=context.device,
+                    ),
+                    torch.randn(
+                        1,
+                        192,
+                        dtype=context.dtype,
+                        device=context.device,
+                    ),
                 )
-        return cases or [spec.make_dummy_inputs()]
+            )
+        return cases or [spec.make_dummy_inputs(context)]
 
     if name.startswith("flow_decoder_meanflow2_"):
-        return [spec.make_dummy_inputs()]
+        return [spec.make_dummy_inputs(context)]
 
     if name.startswith(f"{GRAPH_VOCODER_HIFT}_"):
-        mel_bucket = int(name.rsplit("_", 1)[1].removesuffix("mel"))
-        requested = {1, 64, 251}
-        if mel_bucket in requested:
-            return [spec.make_dummy_inputs()]
-        return [spec.make_dummy_inputs()]
+        return [spec.make_dummy_inputs(context)]
 
-    return [spec.make_dummy_inputs()]
+    return [spec.make_dummy_inputs(context)]
 
 
 def _compare_padded_token_ids(
@@ -222,21 +283,37 @@ def _run_graph_validation(
     device: str,
 ) -> dict:
     report = {}
+    context = ExportContext.from_model(model, device=device)
 
     for spec in ALL_GRAPHS:
+        graph_start = time.perf_counter()
         graph_entry = manifest["graphs"][spec.name]
         onnx_path = artifact_dir / graph_entry["path"]
         module = spec.make_module(model).to(device).eval()
+        ort_runner = OrtValidationRunner(
+            path=onnx_path,
+            input_names=spec.input_names,
+            device=device,
+        )
         graph_cases = []
 
-        for case_index, inputs in enumerate(_validation_cases_for_spec(spec, manifest)):
+        for case_index, inputs in enumerate(
+            _validation_cases_for_spec(spec, manifest, context)
+        ):
             inputs = tuple(x.to(device) for x in inputs)
             with torch.inference_mode():
                 torch_outputs = module(*inputs)
             if not isinstance(torch_outputs, (tuple, list)):
                 torch_outputs = (torch_outputs,)
 
-            ort_outputs = _run_ort(onnx_path, spec.input_names, inputs, device=device)
+            ort_outputs = ort_runner.run(inputs)
+            _check_output_dtypes(
+                spec.name,
+                spec.output_dtypes,
+                spec.output_names,
+                ort_outputs,
+            )
+
             if spec.name == GRAPH_S3_TOKENIZER_QUANTIZER:
                 case_report = _compare_quantizer_outputs(
                     spec.name,
@@ -254,7 +331,24 @@ def _run_graph_validation(
                     )
             graph_cases.append({"case_index": case_index, "outputs": case_report})
 
-        report[spec.name] = {"cases": graph_cases}
+        validation_seconds = time.perf_counter() - graph_start
+        size_mib = _artifact_size_bytes(onnx_path) / (1024 * 1024)
+        print(
+            f"Validated {spec.name}: load={ort_runner.load_seconds:.2f}s "
+            f"run={ort_runner.run_seconds:.2f}s validation={validation_seconds:.2f}s "
+            f"size={size_mib:.2f} MiB"
+        )
+
+        report[spec.name] = {
+            "cases": graph_cases,
+            "timing": {
+                "ort_load_seconds": ort_runner.load_seconds,
+                "ort_run_seconds": ort_runner.run_seconds,
+                "validation_seconds": validation_seconds,
+                "run_count": ort_runner.run_count,
+                "artifact_size_bytes": _artifact_size_bytes(onnx_path),
+            },
+        }
 
     return report
 
@@ -288,8 +382,6 @@ def _torch_flow_window(
 
     token = torch.cat([ref_condition.prompt_token, padded_window], dim=1)
     token_len = ref_condition.prompt_token_len + window_len
-    token_mask = ~model.flow.encoder.__class__.__mro__[0].__module__
-    del token_mask
 
     from ...models.s3gen.utils.mask import make_pad_mask
 
@@ -517,6 +609,8 @@ def _run_full_pipeline_validation(
         actual_wav,
         tolerance_for_graph("full_pipeline_wav"),
     )
+    bucket_report = _run_bucket_boundary_validation(onnx_model, ref_dict, manifest)
+
     return {
         "mel": mel_report,
         "wav": wav_report,
@@ -527,6 +621,124 @@ def _run_full_pipeline_validation(
             "concat_mel_len": debug["concat_mel_len"],
             "original_mel_len": debug["original_mel_len"],
         },
+        "bucket_boundaries": bucket_report,
+    }
+
+
+def _run_bucket_boundary_validation(
+    onnx_model: OnnxS3Gen,
+    ref_dict: dict[str, np.ndarray],
+    manifest: dict,
+) -> dict:
+    token_buckets = tuple(
+        int(x) for x in manifest["constants"]["token_to_mu_token_buckets"]
+    )
+    flow_buckets = tuple(int(x) for x in manifest["constants"]["flow_mel_buckets"])
+    vocoder_buckets = tuple(
+        int(x) for x in manifest["constants"]["vocoder_mel_buckets"]
+    )
+    token_mel_ratio = int(manifest["constants"]["token_mel_ratio"])
+    final_context = int(manifest["constants"]["final_context_token_count"])
+    prompt_len = int(np.asarray(ref_dict["prompt_token_len"]).reshape(-1)[0])
+    vocab_size = int(manifest["constants"]["speech_vocab_size"])
+
+    target_lengths: dict[int, list[dict]] = {}
+    for bucket in token_buckets:
+        for label, delta in (("below", -1), ("at", 0), ("above", 1)):
+            total_tokens = bucket + delta
+            if total_tokens < 1 or total_tokens > token_buckets[-1]:
+                continue
+            target_len = total_tokens - prompt_len - final_context
+            if target_len <= 0:
+                continue
+            target_lengths.setdefault(target_len, []).append(
+                {
+                    "bucket": bucket,
+                    "position": label,
+                    "total_tokens_in_final_window": total_tokens,
+                }
+            )
+
+    cases = []
+    final_silence_changed_bucket = False
+    graphs = manifest["graphs"]
+
+    for case_index, target_len in enumerate(sorted(target_lengths)):
+        speech_tokens = (
+            np.arange(target_len, dtype=np.int64) % (vocab_size - 1)
+        ).astype(np.int32)
+
+        def flow_noise_callback(chunk_index: int, shape: tuple[int, ...]) -> np.ndarray:
+            rng = np.random.default_rng(3000 + case_index * 97 + chunk_index)
+            return rng.standard_normal(shape).astype(np.float32)
+
+        output_mels, debug = onnx_model.flow_inference(
+            speech_tokens,
+            ref_dict,
+            flow_noise_callback=flow_noise_callback,
+            return_debug=True,
+        )
+
+        expected_mel_len = target_len * token_mel_ratio
+        if output_mels.shape != (1, 80, expected_mel_len):
+            raise AssertionError(
+                f"bucket boundary mel shape mismatch: expected {(1, 80, expected_mel_len)}, "
+                f"actual {output_mels.shape}"
+            )
+
+        for chunk in debug["chunks"]:
+            token_graph = token_to_mu_graph_name(int(chunk["token_bucket"]))
+            flow_graph = flow_decoder_graph_name(int(chunk["flow_mel_bucket"]))
+            if token_graph not in graphs:
+                raise AssertionError(f"Missing selected token graph {token_graph}")
+            if flow_graph not in graphs:
+                raise AssertionError(f"Missing selected flow graph {flow_graph}")
+            if int(chunk["flow_mel_bucket"]) not in flow_buckets:
+                raise AssertionError(
+                    f"Selected flow bucket {chunk['flow_mel_bucket']} is not in manifest buckets"
+                )
+
+        vocoder_bucket = _bucket_token_length(expected_mel_len, vocoder_buckets)
+        vocoder_graph = vocoder_graph_name(vocoder_bucket)
+        if vocoder_graph not in graphs:
+            raise AssertionError(f"Missing selected vocoder graph {vocoder_graph}")
+
+        last_chunk = debug["chunks"][-1]
+        if int(last_chunk["appended_silence_tokens"]) != final_context:
+            raise AssertionError("Final bucket-boundary chunk did not append silence")
+
+        last_window_without_silence = int(last_chunk["right_end"]) - int(
+            last_chunk["left_start"]
+        )
+        bucket_without_silence = _bucket_token_length(
+            prompt_len + last_window_without_silence,
+            token_buckets,
+        )
+        changed = bucket_without_silence != int(last_chunk["token_bucket"])
+        final_silence_changed_bucket = final_silence_changed_bucket or changed
+
+        cases.append(
+            {
+                "case_index": case_index,
+                "target_token_len": target_len,
+                "expected_mel_len": expected_mel_len,
+                "actual_mel_len": int(output_mels.shape[2]),
+                "boundary_inputs": target_lengths[target_len],
+                "last_token_bucket": int(last_chunk["token_bucket"]),
+                "last_bucket_without_final_silence": int(bucket_without_silence),
+                "final_silence_changed_bucket": changed,
+                "vocoder_bucket": int(vocoder_bucket),
+            }
+        )
+
+    if final_context > 0 and cases and not final_silence_changed_bucket:
+        raise AssertionError(
+            "No bucket-boundary validation case changed token bucket via final silence context"
+        )
+
+    return {
+        "cases": cases,
+        "final_silence_changed_bucket": final_silence_changed_bucket,
     }
 
 
@@ -538,6 +750,7 @@ def run_validation_with_model(
     torch.manual_seed(1234)
     np.random.seed(1234)
 
+    validation_start = time.perf_counter()
     artifact_dir = Path(artifact_dir).resolve()
     manifest = load_manifest(artifact_dir)
     report: dict[str, dict] = {"graphs": {}}
@@ -554,6 +767,9 @@ def run_validation_with_model(
         model=model,
         device=device,
     )
+    report["timing"] = {
+        "validation_seconds": time.perf_counter() - validation_start,
+    }
 
     out_dir = artifact_dir / "validation"
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -577,3 +793,43 @@ def run_validation(
         model=model,
         device=device,
     )
+
+
+def _check_output_dtypes(
+    spec_name: str,
+    expected_dtypes: dict[str, str],
+    output_names: list[str],
+    outputs: list[np.ndarray],
+) -> None:
+    for output_name, output in zip(output_names, outputs):
+        expected_name = expected_dtypes.get(output_name)
+        if expected_name is None:
+            continue
+        expected_dtype = _numpy_dtype(expected_name)
+        actual_dtype = np.asarray(output).dtype
+        if actual_dtype != expected_dtype:
+            raise OnnxValidationError(
+                f"{spec_name}.{output_name} dtype mismatch: expected {expected_dtype}, actual {actual_dtype}"
+            )
+
+
+def _numpy_dtype(dtype_name: str) -> np.dtype:
+    dtypes = {
+        "float32": np.dtype(np.float32),
+        "int32": np.dtype(np.int32),
+        "int64": np.dtype(np.int64),
+    }
+    if dtype_name not in dtypes:
+        raise KeyError(f"Unsupported dtype in validation manifest: {dtype_name}")
+    return dtypes[dtype_name]
+
+
+def _artifact_size_bytes(path: Path) -> int:
+    if not path.exists():
+        return 0
+
+    total = 0
+    for candidate in path.parent.glob(f"{path.name}*"):
+        if candidate.is_file():
+            total += candidate.stat().st_size
+    return total

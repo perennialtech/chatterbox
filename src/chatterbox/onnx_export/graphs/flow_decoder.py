@@ -5,7 +5,7 @@ import torch
 from ..buckets import FLOW_MEL_BUCKETS
 from ..constants import MEANFLOW_T_SPAN, flow_decoder_graph_name
 from ..dynamic_shapes import FLOW_DECODER_DYNAMIC_SHAPES
-from ..graph_spec import GraphSpec
+from ..graph_spec import ExportContext, GraphSpec
 from ..names import flow_decoder_filename
 
 input_names = ["noise", "mask", "mu", "spks", "cond"]
@@ -43,13 +43,13 @@ def make_module(model):
     return FlowDecoderMeanflow2Export(model.flow.decoder)
 
 
-def make_dummy_inputs(mel_frames: int, dtype=torch.float32):
+def make_dummy_inputs(context: ExportContext, mel_frames: int):
     return (
-        torch.randn(1, 80, mel_frames, dtype=dtype),
-        torch.ones(1, 1, mel_frames, dtype=dtype),
-        torch.randn(1, 80, mel_frames, dtype=dtype),
-        torch.randn(1, 80, dtype=dtype),
-        torch.randn(1, 80, mel_frames, dtype=dtype),
+        torch.randn(1, 80, mel_frames, dtype=context.dtype, device=context.device),
+        torch.ones(1, 1, mel_frames, dtype=context.dtype, device=context.device),
+        torch.randn(1, 80, mel_frames, dtype=context.dtype, device=context.device),
+        torch.randn(1, 80, dtype=context.dtype, device=context.device),
+        torch.randn(1, 80, mel_frames, dtype=context.dtype, device=context.device),
     )
 
 
@@ -61,7 +61,10 @@ def make_spec(mel_bucket: int) -> GraphSpec:
         output_names=output_names,
         dynamic_shapes=dynamic_shapes,
         make_module=make_module,
-        make_dummy_inputs=lambda mel_bucket=mel_bucket: make_dummy_inputs(mel_bucket),
+        make_dummy_inputs=lambda context, mel_bucket=mel_bucket: make_dummy_inputs(
+            context,
+            mel_bucket,
+        ),
         input_dtypes={
             "noise": "float32",
             "mask": "float32",

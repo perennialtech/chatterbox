@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from ..artifacts import load_manifest
@@ -12,7 +12,9 @@ from .runner import OnnxGraphRunner
 class OnnxSessions:
     artifact_dir: Path
     manifest: dict
-    sessions: dict[str, object]
+    providers: list[str]
+    session_options: object
+    sessions: dict[str, object] = field(default_factory=dict)
 
     @classmethod
     def from_artifact_dir(
@@ -40,29 +42,11 @@ class OnnxSessions:
             ort.GraphOptimizationLevel.ORT_ENABLE_ALL
         )
 
-        sessions = {}
-        for graph_name, graph in manifest["graphs"].items():
-            if graph.get("required_for_runtime", False):
-                file_rel = graph.get("path")
-                if not file_rel:
-                    raise OnnxRuntimeError(
-                        f"Required graph {graph_name} has no ONNX artifact path"
-                    )
-                path = artifact_dir / file_rel
-                if not path.exists():
-                    raise OnnxRuntimeError(
-                        f"Missing ONNX artifact for {graph_name}: {path}"
-                    )
-                sessions[graph_name] = ort.InferenceSession(
-                    str(path),
-                    sess_options=session_options,
-                    providers=providers,
-                )
-
         return cls(
             artifact_dir=artifact_dir,
             manifest=manifest,
-            sessions=sessions,
+            providers=providers,
+            session_options=session_options,
         )
 
     @classmethod
@@ -72,9 +56,35 @@ class OnnxSessions:
         return cls.from_artifact_dir(artifact_dir, providers=providers)
 
     def require(self, graph_name: str):
-        if graph_name not in self.sessions:
-            raise OnnxRuntimeError(f"Required ONNX graph is not loaded: {graph_name}")
-        return self.sessions[graph_name]
+        if graph_name in self.sessions:
+            return self.sessions[graph_name]
+
+        import onnxruntime as ort
+
+        graph = self.manifest["graphs"].get(graph_name)
+        if graph is None:
+            raise OnnxRuntimeError(f"Unknown ONNX graph: {graph_name}")
+        if not graph.get("required_for_runtime", False):
+            raise OnnxRuntimeError(
+                f"ONNX graph is not marked for runtime: {graph_name}"
+            )
+
+        file_rel = graph.get("path")
+        if not file_rel:
+            raise OnnxRuntimeError(
+                f"Required graph {graph_name} has no ONNX artifact path"
+            )
+        path = self.artifact_dir / file_rel
+        if not path.exists():
+            raise OnnxRuntimeError(f"Missing ONNX artifact for {graph_name}: {path}")
+
+        session = ort.InferenceSession(
+            str(path),
+            sess_options=self.session_options,
+            providers=self.providers,
+        )
+        self.sessions[graph_name] = session
+        return session
 
     def runner(self, graph_name: str) -> OnnxGraphRunner:
         graph = self.manifest["graphs"][graph_name]

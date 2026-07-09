@@ -7,7 +7,7 @@ from ...models.s3gen.utils.mask import make_pad_mask
 from ..buckets import TOKEN_TO_MU_TOKEN_BUCKETS
 from ..constants import token_to_mu_graph_name
 from ..dynamic_shapes import TOKEN_TO_MU_DYNAMIC_SHAPES
-from ..graph_spec import GraphSpec
+from ..graph_spec import ExportContext, GraphSpec
 from ..names import token_to_mu_filename
 
 input_names = [
@@ -52,18 +52,18 @@ def make_module(model):
 
 
 def make_dummy_inputs(
+    context: ExportContext,
     token_bucket: int,
     prompt_tokens: int = 16,
-    dtype=torch.float32,
 ):
     speech_tokens = max(1, token_bucket - prompt_tokens)
-    token = torch.zeros(1, token_bucket, dtype=torch.int32)
+    token = torch.zeros(1, token_bucket, dtype=torch.int32, device=context.device)
     token[0, prompt_tokens : prompt_tokens + speech_tokens] = 1
     return (
         token,
-        torch.full((1,), prompt_tokens, dtype=torch.int32),
-        torch.full((1,), speech_tokens, dtype=torch.int32),
-        torch.randn(1, 192, dtype=dtype),
+        torch.full((1,), prompt_tokens, dtype=torch.int32, device=context.device),
+        torch.full((1,), speech_tokens, dtype=torch.int32, device=context.device),
+        torch.randn(1, 192, dtype=context.dtype, device=context.device),
     )
 
 
@@ -75,8 +75,9 @@ def make_spec(token_bucket: int) -> GraphSpec:
         output_names=output_names,
         dynamic_shapes=dynamic_shapes,
         make_module=make_module,
-        make_dummy_inputs=lambda token_bucket=token_bucket: make_dummy_inputs(
-            token_bucket
+        make_dummy_inputs=lambda context, token_bucket=token_bucket: make_dummy_inputs(
+            context,
+            token_bucket,
         ),
         input_dtypes={
             "token": "int32",

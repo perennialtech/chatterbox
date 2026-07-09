@@ -5,7 +5,7 @@ import torch
 from ...models.s3tokenizer.exportable import S3TokenizerQuantizerExport
 from ..constants import GRAPH_S3_TOKENIZER_QUANTIZER
 from ..dynamic_shapes import S3_TOKENIZER_DYNAMIC_SHAPES
-from ..graph_spec import GraphSpec
+from ..graph_spec import ExportContext, GraphSpec
 from ..names import S3_TOKENIZER_QUANTIZER
 
 input_names = ["log_mel", "mel_lengths"]
@@ -17,10 +17,21 @@ def make_module(model):
     return S3TokenizerQuantizerExport(model.tokenizer)
 
 
-def make_dummy_inputs(batch: int = 1, mel_frames: int = 256, n_mels: int = 128):
+def make_dummy_inputs(
+    context: ExportContext,
+    batch: int = 1,
+    mel_frames: int = 256,
+    n_mels: int = 128,
+):
     return (
-        torch.randn(batch, n_mels, mel_frames, dtype=torch.float32),
-        torch.full((batch,), mel_frames, dtype=torch.int32),
+        torch.randn(
+            batch,
+            n_mels,
+            mel_frames,
+            dtype=context.dtype,
+            device=context.device,
+        ),
+        torch.full((batch,), mel_frames, dtype=torch.int32, device=context.device),
     )
 
 

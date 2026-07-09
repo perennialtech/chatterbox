@@ -12,7 +12,6 @@ class ExportConfig:
     external_data: bool = True
     validate: bool = True
     device: str = "cpu"
-    max_positional_frames: int = 6144
 
     @property
     def onnx_dir(self) -> Path:

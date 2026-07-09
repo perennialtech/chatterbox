@@ -6,7 +6,7 @@ from ...audio import S3GEN_SR
 from ...models.s3gen.mel import S3GenMelSpectrogram
 from ..constants import GRAPH_REFERENCE_MEL_24K
 from ..dynamic_shapes import REFERENCE_MEL_DYNAMIC_SHAPES
-from ..graph_spec import GraphSpec
+from ..graph_spec import ExportContext, GraphSpec
 from ..names import REFERENCE_MEL_24K
 
 input_names = ["wav_24k"]
@@ -27,8 +27,15 @@ def make_module(model):
     return ReferenceMel24kExport()
 
 
-def make_dummy_inputs(samples: int = S3GEN_SR):
-    return (torch.randn(1, samples, dtype=torch.float32),)
+def make_dummy_inputs(context: ExportContext, samples: int = S3GEN_SR):
+    return (
+        torch.randn(
+            1,
+            samples,
+            dtype=context.dtype,
+            device=context.device,
+        ),
+    )
 
 
 REFERENCE_MEL_24K_SPEC = GraphSpec(

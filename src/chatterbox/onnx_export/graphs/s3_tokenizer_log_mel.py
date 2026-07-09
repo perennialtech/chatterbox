@@ -4,7 +4,7 @@ import torch
 
 from ..constants import GRAPH_S3_TOKENIZER_LOG_MEL
 from ..dynamic_shapes import S3_TOKENIZER_LOG_MEL_DYNAMIC_SHAPES
-from ..graph_spec import GraphSpec
+from ..graph_spec import ExportContext, GraphSpec
 from ..names import S3_TOKENIZER_LOG_MEL
 
 input_names = ["wav_16k"]
@@ -25,8 +25,15 @@ def make_module(model):
     return S3TokenizerLogMelExport(model.tokenizer.feature_extractor)
 
 
-def make_dummy_inputs(samples: int = 16000):
-    return (torch.randn(1, samples, dtype=torch.float32),)
+def make_dummy_inputs(context: ExportContext, samples: int = 16000):
+    return (
+        torch.randn(
+            1,
+            samples,
+            dtype=context.dtype,
+            device=context.device,
+        ),
+    )
 
 
 S3_TOKENIZER_LOG_MEL_SPEC = GraphSpec(
