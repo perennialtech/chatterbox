@@ -8,10 +8,20 @@ from .config import ExportConfig
 from .export_session import ExportSession
 from .graphs import ALL_GRAPHS
 from .model_loading import load_torch_model
-from .validation.runner import run_validation
+from .validation.runner import run_validation, run_validation_with_model
 
 
 def export(config: ExportConfig) -> None:
+    config = ExportConfig(
+        checkpoint_dir=config.checkpoint_dir.resolve(),
+        output_dir=config.output_dir.resolve(),
+        opset=config.opset,
+        external_data=config.external_data,
+        validate=config.validate,
+        device=config.device,
+        max_positional_frames=config.max_positional_frames,
+    )
+
     model = load_torch_model(
         config.checkpoint_dir,
         device=config.device,
@@ -22,14 +32,7 @@ def export(config: ExportConfig) -> None:
 
     for spec in ALL_GRAPHS:
         module = spec.make_module(model).to(config.device)
-        if spec.name == "vocoder_hift":
-            from .graphs.vocoder import make_model_dummy_inputs
-
-            dummy_inputs = tuple(
-                x.to(config.device) for x in make_model_dummy_inputs(model)
-            )
-        else:
-            dummy_inputs = tuple(x.to(config.device) for x in spec.make_dummy_inputs())
+        dummy_inputs = tuple(x.to(config.device) for x in spec.make_dummy_inputs())
 
         onnx_path = config.onnx_dir / spec.filename
         artifacts.append(
@@ -50,12 +53,15 @@ def export(config: ExportConfig) -> None:
         ALL_GRAPHS,
         artifacts,
         source_hop=int(model.mel2wav.source_hop),
+        token_mel_ratio=int(model._token_mel_ratio),
+        final_context_token_count=int(model._final_context_token_count),
+        vocoder_harmonics=int(model.mel2wav.nb_harmonics + 1),
     )
 
     if config.validate:
-        run_validation(
+        run_validation_with_model(
             artifact_dir=config.output_dir,
-            checkpoint_dir=config.checkpoint_dir,
+            model=model,
             device=config.device,
         )
 
@@ -66,8 +72,8 @@ def validate_artifacts(
     device: str,
 ) -> None:
     run_validation(
-        artifact_dir=artifact_dir,
-        checkpoint_dir=checkpoint_dir,
+        artifact_dir=artifact_dir.resolve(),
+        checkpoint_dir=checkpoint_dir.resolve(),
         device=device,
     )
     print(f"Validated ONNX parity under {artifact_dir}")

@@ -41,11 +41,13 @@ class ExportSession:
                 "dynamo": True,
             }
 
-            if dynamic_shapes is not None:
+            if dynamic_shapes:
                 if isinstance(dynamic_shapes, dict):
-                    export_kwargs["dynamic_shapes"] = {
+                    filtered_dynamic_shapes = {
                         k: v for k, v in dynamic_shapes.items() if k in input_names
                     }
+                    if filtered_dynamic_shapes:
+                        export_kwargs["dynamic_shapes"] = filtered_dynamic_shapes
                 else:
                     export_kwargs["dynamic_shapes"] = dynamic_shapes
 

@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import torch
 
-from ..constants import GRAPH_FLOW_DECODER_MEANFLOW2, MEANFLOW_T_SPAN
+from ..buckets import FLOW_MEL_BUCKETS
+from ..constants import MEANFLOW_T_SPAN, flow_decoder_graph_name
 from ..dynamic_shapes import FLOW_DECODER_DYNAMIC_SHAPES
 from ..graph_spec import GraphSpec
-from ..names import FLOW_DECODER_MEANFLOW2
+from ..names import flow_decoder_filename
 
 input_names = ["noise", "mask", "mu", "spks", "cond"]
 output_names = ["mel"]
@@ -42,30 +43,37 @@ def make_module(model):
     return FlowDecoderMeanflow2Export(model.flow.decoder)
 
 
-def make_dummy_inputs(batch: int = 1, mel_frames: int = 64, dtype=torch.float32):
+def make_dummy_inputs(mel_frames: int, dtype=torch.float32):
     return (
-        torch.randn(batch, 80, mel_frames, dtype=dtype),
-        torch.ones(batch, 1, mel_frames, dtype=dtype),
-        torch.randn(batch, 80, mel_frames, dtype=dtype),
-        torch.randn(batch, 80, dtype=dtype),
-        torch.randn(batch, 80, mel_frames, dtype=dtype),
+        torch.randn(1, 80, mel_frames, dtype=dtype),
+        torch.ones(1, 1, mel_frames, dtype=dtype),
+        torch.randn(1, 80, mel_frames, dtype=dtype),
+        torch.randn(1, 80, dtype=dtype),
+        torch.randn(1, 80, mel_frames, dtype=dtype),
     )
 
 
-FLOW_DECODER_MEANFLOW2_SPEC = GraphSpec(
-    name=GRAPH_FLOW_DECODER_MEANFLOW2,
-    filename=FLOW_DECODER_MEANFLOW2,
-    input_names=input_names,
-    output_names=output_names,
-    dynamic_shapes=dynamic_shapes,
-    make_module=make_module,
-    make_dummy_inputs=make_dummy_inputs,
-    input_dtypes={
-        "noise": "float32",
-        "mask": "float32",
-        "mu": "float32",
-        "spks": "float32",
-        "cond": "float32",
-    },
-    output_dtypes={"mel": "float32"},
+def make_spec(mel_bucket: int) -> GraphSpec:
+    return GraphSpec(
+        name=flow_decoder_graph_name(mel_bucket),
+        filename=flow_decoder_filename(mel_bucket),
+        input_names=input_names,
+        output_names=output_names,
+        dynamic_shapes=dynamic_shapes,
+        make_module=make_module,
+        make_dummy_inputs=lambda mel_bucket=mel_bucket: make_dummy_inputs(mel_bucket),
+        input_dtypes={
+            "noise": "float32",
+            "mask": "float32",
+            "mu": "float32",
+            "spks": "float32",
+            "cond": "float32",
+        },
+        output_dtypes={"mel": "float32"},
+    )
+
+
+FLOW_DECODER_MEANFLOW2_BUCKET_SPECS = tuple(
+    make_spec(bucket) for bucket in FLOW_MEL_BUCKETS
 )
+FLOW_DECODER_MEANFLOW2_SPEC = FLOW_DECODER_MEANFLOW2_BUCKET_SPECS[0]

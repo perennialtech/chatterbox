@@ -22,9 +22,23 @@ class OnnxSessions:
     ) -> "OnnxSessions":
         import onnxruntime as ort
 
-        artifact_dir = Path(artifact_dir)
+        artifact_dir = Path(artifact_dir).resolve()
         manifest = load_manifest(artifact_dir)
-        providers = providers or ["CPUExecutionProvider"]
+
+        if providers is None:
+            providers = ["CPUExecutionProvider"]
+        else:
+            available = set(ort.get_available_providers())
+            providers = [provider for provider in providers if provider in available]
+            if not providers:
+                raise OnnxRuntimeError(
+                    "None of the requested ONNX providers is available"
+                )
+
+        session_options = ort.SessionOptions()
+        session_options.graph_optimization_level = (
+            ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+        )
 
         sessions = {}
         for graph_name, graph in manifest["graphs"].items():
@@ -40,7 +54,9 @@ class OnnxSessions:
                         f"Missing ONNX artifact for {graph_name}: {path}"
                     )
                 sessions[graph_name] = ort.InferenceSession(
-                    str(path), providers=providers
+                    str(path),
+                    sess_options=session_options,
+                    providers=providers,
                 )
 
         return cls(
@@ -62,9 +78,11 @@ class OnnxSessions:
 
     def runner(self, graph_name: str) -> OnnxGraphRunner:
         graph = self.manifest["graphs"][graph_name]
+        session = self.require(graph_name)
         return OnnxGraphRunner(
             name=graph_name,
-            session=self.require(graph_name),
+            session=session,
             input_names=list(graph["inputs"]),
             output_names=list(graph["outputs"]),
+            actual_input_names=[inp.name for inp in session.get_inputs()],
         )

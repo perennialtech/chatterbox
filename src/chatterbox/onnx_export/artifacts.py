@@ -8,6 +8,13 @@ from typing import Any
 
 from ..audio import (DEC_COND_LEN, ENC_COND_LEN, MEL_HOP_24K, S3_HOP, S3_SR,
                      S3_TOKEN_HOP, S3_TOKEN_RATE, S3GEN_SR, SPEECH_VOCAB_SIZE)
+from ..models.s3gen.const import S3GEN_SIL
+from ..models.s3gen.pipeline import (_TOKEN_LENGTH_BUCKETS, FLOW_CHUNK_TOKENS,
+                                     FLOW_CONTEXT_TOKENS,
+                                     REF_MAX_PROMPT_TOKENS, REF_MAX_SECONDS,
+                                     REF_MIN_PROMPT_TOKENS, REF_MIN_SECONDS)
+from .buckets import (FLOW_MEL_BUCKETS, TOKEN_TO_MU_TOKEN_BUCKETS,
+                      VOCODER_MEL_BUCKETS)
 from .config import ExportConfig
 from .constants import MEANFLOW_T_SPAN
 from .graph_spec import GraphSpec
@@ -31,10 +38,12 @@ def sha256_file(path: Path) -> str:
 
 
 def checkpoint_hash(checkpoint_dir: Path) -> str:
+    checkpoint_dir = checkpoint_dir.resolve()
     h = hashlib.sha256()
-    for path in sorted(checkpoint_dir.glob("*")):
+    for path in sorted(checkpoint_dir.rglob("*")):
         if path.is_file():
-            h.update(path.name.encode())
+            rel = path.relative_to(checkpoint_dir)
+            h.update(str(rel).encode())
             h.update(sha256_file(path).encode())
     return h.hexdigest()
 
@@ -43,19 +52,43 @@ def manifest_hash(path: Path) -> str:
     return sha256_file(path)
 
 
-def _constants(source_hop: int) -> dict[str, Any]:
+def _constants(
+    *,
+    source_hop: int,
+    token_mel_ratio: int,
+    final_context_token_count: int,
+    vocoder_harmonics: int,
+) -> dict[str, Any]:
     n_trim = S3GEN_SR // 50
     return {
         "sample_rates": {"s3": S3_SR, "s3gen": S3GEN_SR},
         "hop_sizes": {"s3": S3_HOP, "s3_token": S3_TOKEN_HOP, "mel_24k": MEL_HOP_24K},
         "token_rate": S3_TOKEN_RATE,
         "speech_vocab_size": SPEECH_VOCAB_SIZE,
+        "s3gen_sil": S3GEN_SIL,
         "source_hop": source_hop,
         "meanflow_t_span": list(MEANFLOW_T_SPAN),
-        "trim_fade_len": 2 * n_trim,
         "prompt_limits": {
             "encoder_samples": ENC_COND_LEN,
             "decoder_samples": DEC_COND_LEN,
+            "ref_min_seconds": REF_MIN_SECONDS,
+            "ref_max_seconds": REF_MAX_SECONDS,
+            "ref_min_prompt_tokens": REF_MIN_PROMPT_TOKENS,
+            "ref_max_prompt_tokens": REF_MAX_PROMPT_TOKENS,
+        },
+        "flow_chunk_tokens": FLOW_CHUNK_TOKENS,
+        "flow_context_tokens": FLOW_CONTEXT_TOKENS,
+        "token_length_buckets": list(_TOKEN_LENGTH_BUCKETS),
+        "token_to_mu_token_buckets": list(TOKEN_TO_MU_TOKEN_BUCKETS),
+        "flow_mel_buckets": list(FLOW_MEL_BUCKETS),
+        "vocoder_mel_buckets": list(VOCODER_MEL_BUCKETS),
+        "token_mel_ratio": token_mel_ratio,
+        "final_context_token_count": final_context_token_count,
+        "vocoder_harmonics": vocoder_harmonics,
+        "fade": {
+            "n_trim": n_trim,
+            "trim_fade_len": 2 * n_trim,
+            "end_fade_len": 2 * n_trim,
         },
     }
 
@@ -66,8 +99,13 @@ def write_manifest(
     graph_specs: tuple[GraphSpec, ...],
     artifacts: list[ArtifactRecord],
     source_hop: int,
+    token_mel_ratio: int,
+    final_context_token_count: int,
+    vocoder_harmonics: int,
     ort_version: str | None = None,
 ) -> None:
+    output_dir = output_dir.resolve()
+    checkpoint_dir = config.checkpoint_dir.resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
 
     artifact_map = {artifact.graph_name: artifact for artifact in artifacts}
@@ -78,9 +116,10 @@ def write_manifest(
         if artifact is None:
             raise RuntimeError(f"Missing ONNX artifact for graph {spec.name}")
 
+        artifact_path = Path(artifact.path).resolve()
         graphs[spec.name] = {
             "filename": spec.filename,
-            "path": str(Path(artifact.path).relative_to(output_dir)),
+            "path": str(artifact_path.relative_to(output_dir)),
             "inputs": spec.input_names,
             "outputs": spec.output_names,
             "dynamic_shapes": _serialize_dynamic_shapes(spec.dynamic_shapes),
@@ -92,23 +131,30 @@ def write_manifest(
     serializable_artifacts = []
     for artifact in artifacts:
         art_dict = asdict(artifact)
+        art_dict["path"] = str(Path(art_dict["path"]).resolve().relative_to(output_dir))
         art_dict["dynamic_shapes"] = _serialize_dynamic_shapes(
             art_dict["dynamic_shapes"]
         )
         serializable_artifacts.append(art_dict)
 
     manifest = {
-        "schema_version": 3,
+        "schema_version": 4,
         "model": "chatterbox-vc",
         "checkpoint": {
-            "path": str(config.checkpoint_dir),
-            "hash": checkpoint_hash(config.checkpoint_dir),
+            "path": str(checkpoint_dir),
+            "hash": checkpoint_hash(checkpoint_dir),
         },
         "onnx": {
             "opset": config.opset,
             "external_data": config.external_data,
+            "batch_size": 1,
         },
-        "constants": _constants(source_hop),
+        "constants": _constants(
+            source_hop=source_hop,
+            token_mel_ratio=token_mel_ratio,
+            final_context_token_count=final_context_token_count,
+            vocoder_harmonics=vocoder_harmonics,
+        ),
         "graphs": graphs,
         "artifacts": serializable_artifacts,
     }
@@ -128,14 +174,13 @@ def write_manifest(
 
 
 def load_manifest(artifact_dir: Path) -> dict[str, Any]:
-    path = artifact_dir / "manifest.json"
+    path = Path(artifact_dir).resolve() / "manifest.json"
     if not path.exists():
         raise FileNotFoundError(f"Missing ONNX manifest: {path}")
     return json.loads(path.read_text())
 
 
 def _serialize_dynamic_shapes(shapes: Any) -> Any:
-    """Recursively convert torch.export.Dim objects to string representations."""
     if isinstance(shapes, dict):
         return {str(k): _serialize_dynamic_shapes(v) for k, v in shapes.items()}
     elif isinstance(shapes, (list, tuple)):

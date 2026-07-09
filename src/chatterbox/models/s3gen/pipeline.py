@@ -5,8 +5,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
-from ...audio import (S3_SR, S3_TOKEN_RATE, S3GEN_SR, mel_spectrogram,
-                      resample_audio)
+from ...audio import S3_SR, S3_TOKEN_RATE, S3GEN_SR, resample_audio
 from ..s3tokenizer import S3Tokenizer
 from ..speaker.campplus import CAMPPlus
 from ..speaker.features import extract_fbank_features
@@ -16,6 +15,7 @@ from .const import S3GEN_SIL
 from .decoder import ConditionalDecoder
 from .f0_predictor import ConvRNNF0Predictor
 from .flow_matching import ConditionalCFM
+from .mel import S3GenMelSpectrogram
 from .transformer.upsample_encoder import UpsampleConformerEncoder
 from .utils.mask import make_pad_mask
 from .vocoder import HiFTGenerator
@@ -196,7 +196,7 @@ class S3Token2Mel(torch.nn.Module):
     def __init__(self):
         super().__init__()
         self.tokenizer = S3Tokenizer("speech_tokenizer_v2_25hz")
-        self.mel_extractor = mel_spectrogram
+        self.mel_extractor = S3GenMelSpectrogram()
         self.speaker_encoder = CAMPPlus()
 
         encoder = UpsampleConformerEncoder(
