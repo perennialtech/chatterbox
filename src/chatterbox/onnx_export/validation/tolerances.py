@@ -15,7 +15,7 @@ class CosineTolerance:
 
 
 DEFAULT_TOLERANCES = {
-    "s3_tokenizer_log_mel": Tolerance(3e-3, 5e-6),
+    "s3_tokenizer_log_mel": Tolerance(3e-3, 1e-6),
     "reference_mel_24k": Tolerance(1e-3, 2e-4),
     "speaker_encoder": CosineTolerance(0.999),
     "token_to_mu": Tolerance(1e-3, 2e-4),
