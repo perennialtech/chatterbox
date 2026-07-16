@@ -6,8 +6,6 @@ from typing import Protocol
 
 import torch
 
-from .conditioning import VoiceConditionTensors
-
 
 @dataclass
 class VCResult:
@@ -19,9 +17,7 @@ class VCResult:
 class VCBackend(Protocol):
     sr: int
 
-    def set_target_voice_from_tensors(
-        self, target_voice: dict | VoiceConditionTensors
-    ) -> None: ...
+    def set_target_voice_from_tensors(self, target_voice: dict) -> None: ...
 
     def convert_from_path(
         self,
@@ -33,6 +29,6 @@ class VCBackend(Protocol):
     def convert_from_tensors(
         self,
         audio_16k: torch.Tensor,
-        target_voice: dict | VoiceConditionTensors | None = None,
+        target_voice: dict | None = None,
         profile: bool = False,
     ) -> VCResult: ...

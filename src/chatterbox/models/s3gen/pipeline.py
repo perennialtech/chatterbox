@@ -9,7 +9,7 @@ from ...audio import S3_SR, S3_TOKEN_RATE, S3GEN_SR, resample_audio
 from ..s3tokenizer import S3Tokenizer
 from ..speaker.campplus import CAMPPlus
 from ..speaker.features import extract_fbank_features
-from ..token_utils import drop_invalid_tokens
+from ..token_utils import drop_invalid_tokens as _drop_invalid_tokens
 from .conditioning import S3ReferenceCondition
 from .const import S3GEN_SIL
 from .decoder import ConditionalDecoder
@@ -433,7 +433,7 @@ class S3Token2Mel(torch.nn.Module):
     ):
         self.eval()
         if drop_invalid_tokens:
-            speech_tokens = drop_invalid_tokens_fn(speech_tokens)
+            speech_tokens = _drop_invalid_tokens(speech_tokens)
             if torch.as_tensor(speech_tokens).numel() == 0:
                 raise ValueError("At least one valid speech token is required")
             speech_token_lens = None
@@ -721,7 +721,7 @@ class S3Token2Wav(S3Token2Mel):
     ):
         self.eval()
         if drop_invalid_tokens:
-            speech_tokens = drop_invalid_tokens_fn(speech_tokens)
+            speech_tokens = _drop_invalid_tokens(speech_tokens)
             if torch.as_tensor(speech_tokens).numel() == 0:
                 raise ValueError("At least one valid speech token is required")
             speech_token_lens = None
@@ -746,6 +746,3 @@ class S3Token2Wav(S3Token2Mel):
 
         self._apply_output_fades(output_wavs)
         return output_wavs, output_sources
-
-
-drop_invalid_tokens_fn = drop_invalid_tokens

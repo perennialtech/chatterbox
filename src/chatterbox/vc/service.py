@@ -3,7 +3,6 @@ from __future__ import annotations
 from pathlib import Path
 
 from .backends.torch_backend import TorchVCBackend
-from .conditioning import VoiceConditionTensors
 from .types import VCBackend
 
 
@@ -40,9 +39,7 @@ class ChatterboxVC:
             )
         )
 
-    def set_target_voice_from_tensors(
-        self, target_voice: dict | VoiceConditionTensors
-    ) -> None:
+    def set_target_voice_from_tensors(self, target_voice: dict) -> None:
         self.backend.set_target_voice_from_tensors(target_voice)
 
     def generate(

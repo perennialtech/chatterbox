@@ -8,14 +8,12 @@ from pathlib import Path
 import torch
 from safetensors.torch import load_file
 
-from ...audio import S3GEN_SR
+from ...audio import S3_SR, S3GEN_SR, load_audio_mono
 from ...models.s3gen import S3Gen
 from ...models.s3gen.checkpoint_conversion import \
     convert_diffusers_transformer_keys
 from ...models.s3gen.conditioning import S3ReferenceCondition
-from ..conditioning import VoiceConditionTensors
 from ..errors import VoiceConditioningError
-from ..preprocess import load_wav_16k, load_wav_24k
 from ..types import VCResult
 
 logger = logging.getLogger(__name__)
@@ -57,7 +55,7 @@ class TorchVCBackend:
         self,
         s3gen: S3Gen,
         device: str,
-        ref_dict: dict | VoiceConditionTensors | S3ReferenceCondition | None = None,
+        ref_dict: dict | S3ReferenceCondition | None = None,
     ):
         self.sr = S3GEN_SR
         self.s3gen = s3gen
@@ -69,10 +67,8 @@ class TorchVCBackend:
 
     def _prepare_target_voice(
         self,
-        target_voice: dict | VoiceConditionTensors | S3ReferenceCondition,
+        target_voice: dict | S3ReferenceCondition,
     ) -> S3ReferenceCondition:
-        if isinstance(target_voice, VoiceConditionTensors):
-            target_voice = target_voice.as_dict()
         return self.s3gen.prepare_ref_condition(target_voice)
 
     @classmethod
@@ -140,12 +136,8 @@ class TorchVCBackend:
             compile=compile,
         )
 
-    def set_target_voice_from_tensors(
-        self, target_voice: dict | VoiceConditionTensors
-    ) -> None:
-        condition = VoiceConditionTensors.from_mapping(target_voice)
-        prepared_condition = self._prepare_target_voice(condition)
-        self.ref_dict = prepared_condition
+    def set_target_voice_from_tensors(self, target_voice: dict) -> None:
+        self.ref_dict = self._prepare_target_voice(target_voice)
 
     def convert_from_path(
         self,
@@ -154,23 +146,24 @@ class TorchVCBackend:
         profile: bool = False,
     ) -> VCResult:
         if target_voice_path:
-            s3gen_ref_wav = load_wav_24k(
+            s3gen_ref_wav = load_audio_mono(
                 target_voice_path,
+                S3GEN_SR,
                 self.device,
-            ).squeeze(0)
+            )
             self.ref_dict = self.s3gen.embed_ref(
                 s3gen_ref_wav,
                 S3GEN_SR,
                 device=self.device,
             )
 
-        audio_16k = load_wav_16k(audio_path, self.device)
+        audio_16k = load_audio_mono(audio_path, S3_SR, self.device).unsqueeze(0)
         return self.convert_from_tensors(audio_16k, self.ref_dict, profile)
 
     def convert_from_tensors(
         self,
         audio_16k: torch.Tensor,
-        target_voice: dict | VoiceConditionTensors | S3ReferenceCondition | None = None,
+        target_voice: dict | S3ReferenceCondition | None = None,
         profile: bool = False,
     ) -> VCResult:
         wall_start = time.perf_counter()

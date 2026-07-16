@@ -15,9 +15,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .resnet import (Downsample1D, MaskedGroupNorm1D, ResnetBlock1D,
-                     SinusoidalPosEmb, TimestepEmbedding, Upsample1D,
-                     _validate_mask_1d)
+from .resnet import (Downsample1D, SinusoidalPosEmb, TimestepEmbedding,
+                     Upsample1D, _validate_mask_1d)
 from .transformer_block import BasicTransformerBlock
 from .utils.intmeanflow import get_intmeanflow_time_mixer
 from .utils.mask import build_attention_mask
@@ -60,11 +59,37 @@ class CausalBlock1D(nn.Module):
         return output * mask
 
 
-class CausalResnetBlock1D(ResnetBlock1D):
+class CausalResnetBlock1D(nn.Module):
     def __init__(self, dim: int, dim_out: int, time_emb_dim: int, groups: int = 8):
-        super(CausalResnetBlock1D, self).__init__(dim, dim_out, time_emb_dim, groups)
+        super(CausalResnetBlock1D, self).__init__()
+        self.mlp = nn.Sequential(
+            nn.Mish(),
+            nn.Linear(time_emb_dim, dim_out),
+        )
         self.block1 = CausalBlock1D(dim, dim_out)
         self.block2 = CausalBlock1D(dim_out, dim_out)
+        self.res_conv = nn.Conv1d(dim, dim_out, 1)
+
+    def forward(
+        self,
+        x: torch.Tensor,
+        mask: torch.Tensor,
+        time_emb: torch.Tensor,
+    ) -> torch.Tensor:
+        _validate_mask_1d(x, mask)
+        if time_emb.ndim != 2:
+            raise ValueError(
+                f"time_emb must have shape [batch, time_emb_dim], got {tuple(time_emb.shape)}"
+            )
+        if time_emb.shape[0] != x.shape[0]:
+            raise ValueError(
+                f"time_emb batch size must match x batch size, got {time_emb.shape[0]} and {x.shape[0]}"
+            )
+
+        h = self.block1(x, mask)
+        h = h + self.mlp(time_emb).unsqueeze(-1)
+        h = self.block2(h, mask)
+        return (h + self.res_conv(x * mask)) * mask
 
 
 class CausalConv1d(torch.nn.Conv1d):
@@ -266,7 +291,7 @@ class ConditionalDecoder(nn.Module):
                 nn.init.kaiming_normal_(m.weight, nonlinearity="relu")
                 if m.bias is not None:
                     nn.init.constant_(m.bias, 0)
-            elif isinstance(m, (nn.GroupNorm, nn.LayerNorm, MaskedGroupNorm1D)):
+            elif isinstance(m, (nn.GroupNorm, nn.LayerNorm)):
                 if m.weight is not None:
                     nn.init.constant_(m.weight, 1)
                 if m.bias is not None:
