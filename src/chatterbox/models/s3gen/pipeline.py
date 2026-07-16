@@ -457,11 +457,6 @@ class S3Token2Mel(torch.nn.Module):
         )
         return output_mels[:, :, :original_mel_len].contiguous()
 
-    def forward(self, *args, **kwargs):
-        raise RuntimeError(
-            "Use inference() for full-utterance S3 token-to-mel generation"
-        )
-
 
 class S3Token2Wav(S3Token2Mel):
     def __init__(self):
