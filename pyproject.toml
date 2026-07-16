@@ -12,10 +12,10 @@ authors = [
 ]
 dependencies = [
     "conformer>=0.3",
-    "diffusers>=0.38",
-    "huggingface-hub>=1.20",
+    "diffusers>=0.39",
+    "huggingface-hub>=1.23",
     "librosa>=0.11",
-    "numpy>=1.24",
+    "numpy>=2.4",
     "omegaconf>=2.3",
     "safetensors>=0.8",
 ]
