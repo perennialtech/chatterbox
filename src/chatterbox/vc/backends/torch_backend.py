@@ -185,7 +185,7 @@ class TorchVCBackend:
         audio_16k = load_wav_16k(audio_path, self.device)
         if audio_16k.ndim == 1:
             audio_16k = audio_16k.unsqueeze(0)
-        return self.convert_from_tensors(audio_16k, self.ref_condition, profile)
+        return self.convert_from_tensors(audio_16k, profile=profile)
 
     def convert_from_tensors(
         self,
