@@ -4,7 +4,3 @@ class ChatterboxVCError(RuntimeError):
 
 class VoiceConditioningError(ChatterboxVCError):
     pass
-
-
-class BackendUnavailableError(ChatterboxVCError):
-    pass
