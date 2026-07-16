@@ -13,6 +13,7 @@ from ...models.s3gen import S3Gen
 from ...models.s3gen.checkpoint_conversion import \
     convert_diffusers_transformer_keys
 from ...models.s3gen.conditioning import S3ReferenceCondition
+from ..conditioning import VoiceConditionTensors
 from ..errors import VoiceConditioningError
 from ..types import VCResult
 
@@ -55,7 +56,7 @@ class TorchVCBackend:
         self,
         s3gen: S3Gen,
         device: str,
-        ref_dict: dict | S3ReferenceCondition | None = None,
+        ref_dict: dict | VoiceConditionTensors | S3ReferenceCondition | None = None,
     ):
         self.sr = S3GEN_SR
         self.s3gen = s3gen
@@ -67,8 +68,10 @@ class TorchVCBackend:
 
     def _prepare_target_voice(
         self,
-        target_voice: dict | S3ReferenceCondition,
+        target_voice: dict | VoiceConditionTensors | S3ReferenceCondition,
     ) -> S3ReferenceCondition:
+        if isinstance(target_voice, VoiceConditionTensors):
+            target_voice = target_voice.as_dict()
         return self.s3gen.prepare_ref_condition(target_voice)
 
     @classmethod
@@ -136,8 +139,12 @@ class TorchVCBackend:
             compile=compile,
         )
 
-    def set_target_voice_from_tensors(self, target_voice: dict) -> None:
-        self.ref_dict = self._prepare_target_voice(target_voice)
+    def set_target_voice_from_tensors(
+        self, target_voice: dict | VoiceConditionTensors
+    ) -> None:
+        condition = VoiceConditionTensors.from_mapping(target_voice)
+        prepared_condition = self._prepare_target_voice(condition)
+        self.ref_dict = prepared_condition
 
     def convert_from_path(
         self,
@@ -163,7 +170,7 @@ class TorchVCBackend:
     def convert_from_tensors(
         self,
         audio_16k: torch.Tensor,
-        target_voice: dict | S3ReferenceCondition | None = None,
+        target_voice: dict | VoiceConditionTensors | S3ReferenceCondition | None = None,
         profile: bool = False,
     ) -> VCResult:
         wall_start = time.perf_counter()
