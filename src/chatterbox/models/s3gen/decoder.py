@@ -349,7 +349,3 @@ class ConditionalDecoder(nn.Module):
         x = self.final_block(x, mask_up)
         output = self.final_proj(x * mask_up)
         return output * mask
-
-    def forward_export(self, x, mask, mu, spks, cond, t, r):
-        """Export wrapper for forward with x, mask, mu, spks, cond, t, and r using the same shapes as forward."""
-        return self.forward(x, mask, mu, t, spks, cond, r)

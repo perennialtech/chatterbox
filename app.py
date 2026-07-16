@@ -13,7 +13,7 @@ import gradio as gr
 import numpy as np
 
 APP_TITLE = "Chatterbox Voice Conversion"
-BACKEND_CHOICES = ("pytorch", "onnx", "tensorrt")
+BACKEND_CHOICES = ("pytorch",)
 
 LOGGER = logging.getLogger("chatterbox.app")
 logging.basicConfig(
@@ -26,10 +26,6 @@ logging.basicConfig(
 class AppSettings:
     backend: str
     device: str
-    onnx_artifact_dir: str
-    onnx_precision: str
-    onnx_providers: str
-    tensorrt_engine_dir: str
 
 
 @dataclass(frozen=True)
@@ -45,10 +41,6 @@ class LaunchSettings:
 class RuntimeConfig:
     backend: str
     device: str = ""
-    onnx_artifact_dir: str = ""
-    onnx_precision: str = "fp32"
-    onnx_providers: tuple[str, ...] = ("CPUExecutionProvider",)
-    tensorrt_engine_dir: str = ""
 
 
 @dataclass(frozen=True)
@@ -120,16 +112,6 @@ class RuntimeManager:
         if config.backend == "pytorch":
             return ChatterboxVC.from_pretrained(device=config.device)
 
-        if config.backend == "onnx":
-            return ChatterboxVC.from_onnx_artifacts(
-                config.onnx_artifact_dir,
-                precision=config.onnx_precision,
-                providers=list(config.onnx_providers),
-            )
-
-        if config.backend == "tensorrt":
-            return ChatterboxVC.from_tensorrt_engines(config.tensorrt_engine_dir)
-
         raise ValueError(f"Unsupported backend: {config.backend}")
 
 
@@ -171,20 +153,9 @@ def _default_device() -> str:
 
 
 def default_app_settings() -> AppSettings:
-    precision = os.environ.get("CHATTERBOX_ONNX_PRECISION", "fp32").strip().lower()
-    if precision not in {"fp32", "fp16"}:
-        precision = "fp32"
-
     return AppSettings(
         backend=_default_backend(),
         device=_default_device(),
-        onnx_artifact_dir=os.environ.get("CHATTERBOX_ONNX_ARTIFACT_DIR", ""),
-        onnx_precision=precision,
-        onnx_providers=os.environ.get(
-            "CHATTERBOX_ONNX_PROVIDERS",
-            "CPUExecutionProvider",
-        ),
-        tensorrt_engine_dir=os.environ.get("CHATTERBOX_TENSORRT_ENGINE_DIR", ""),
     )
 
 
@@ -215,27 +186,6 @@ def parse_args() -> tuple[AppSettings, LaunchSettings]:
         dest="device",
         default=app_defaults.device,
         help="PyTorch device used by the pytorch backend.",
-    )
-    parser.add_argument(
-        "--onnx-artifact-dir",
-        default=app_defaults.onnx_artifact_dir,
-        help="Artifact directory containing manifest.json for the onnx backend.",
-    )
-    parser.add_argument(
-        "--onnx-precision",
-        choices=("fp32", "fp16"),
-        default=app_defaults.onnx_precision,
-        help="ONNX artifact precision to use.",
-    )
-    parser.add_argument(
-        "--onnx-providers",
-        default=app_defaults.onnx_providers,
-        help="Comma-separated ONNX Runtime provider list.",
-    )
-    parser.add_argument(
-        "--tensorrt-engine-dir",
-        default=app_defaults.tensorrt_engine_dir,
-        help="TensorRT engine directory for the tensorrt backend.",
     )
     parser.add_argument(
         "--server-name",
@@ -272,10 +222,6 @@ def parse_args() -> tuple[AppSettings, LaunchSettings]:
         AppSettings(
             backend=args.backend,
             device=args.device,
-            onnx_artifact_dir=args.onnx_artifact_dir,
-            onnx_precision=args.onnx_precision,
-            onnx_providers=args.onnx_providers,
-            tensorrt_engine_dir=args.tensorrt_engine_dir,
         ),
         LaunchSettings(
             server_name=args.server_name,
@@ -285,28 +231,6 @@ def parse_args() -> tuple[AppSettings, LaunchSettings]:
             debug=args.debug,
         ),
     )
-
-
-def _split_providers(value: str) -> tuple[str, ...]:
-    providers = tuple(
-        provider.strip() for provider in value.split(",") if provider.strip()
-    )
-    if not providers:
-        raise ValueError("At least one ONNX Runtime provider is required.")
-    return providers
-
-
-def _existing_directory(value: str, label: str) -> Path:
-    text = str(value or "").strip()
-    if not text:
-        raise ValueError(f"{label} is required for the selected backend.")
-
-    path = Path(text).expanduser()
-    if not path.exists():
-        raise ValueError(f"{label} does not exist: {path}")
-    if not path.is_dir():
-        raise ValueError(f"{label} must be a directory: {path}")
-    return path.resolve()
 
 
 def _audio_path(value: Any, label: str) -> Path:
@@ -334,54 +258,20 @@ def _audio_path(value: Any, label: str) -> Path:
 def _runtime_config(
     backend: str,
     device: str,
-    onnx_artifact_dir: str,
-    onnx_precision: str,
-    onnx_providers: str,
-    tensorrt_engine_dir: str,
 ) -> RuntimeConfig:
     selected_backend = str(backend or "").strip().lower()
     if selected_backend not in BACKEND_CHOICES:
         raise ValueError(f"Unsupported backend: {backend}")
 
-    if selected_backend == "pytorch":
-        return RuntimeConfig(
-            backend="pytorch",
-            device=str(device or "cpu").strip() or "cpu",
-        )
-
-    if selected_backend == "onnx":
-        precision = str(onnx_precision or "fp32").strip().lower()
-        if precision not in {"fp32", "fp16"}:
-            raise ValueError("ONNX precision must be fp32 or fp16.")
-
-        artifact_dir = _existing_directory(onnx_artifact_dir, "ONNX artifact directory")
-        return RuntimeConfig(
-            backend="onnx",
-            onnx_artifact_dir=str(artifact_dir),
-            onnx_precision=precision,
-            onnx_providers=_split_providers(onnx_providers),
-        )
-
-    engine_dir = _existing_directory(tensorrt_engine_dir, "TensorRT engine directory")
     return RuntimeConfig(
-        backend="tensorrt",
-        tensorrt_engine_dir=str(engine_dir),
+        backend="pytorch",
+        device=str(device or "cpu").strip() or "cpu",
     )
 
 
 def _runtime_label(config: RuntimeConfig) -> str:
     if config.backend == "pytorch":
         return f"PyTorch device={config.device}"
-
-    if config.backend == "onnx":
-        providers = ",".join(config.onnx_providers)
-        return (
-            f"ONNX Runtime precision={config.onnx_precision} "
-            f"providers={providers} artifact_dir={config.onnx_artifact_dir}"
-        )
-
-    if config.backend == "tensorrt":
-        return f"TensorRT engine_dir={config.tensorrt_engine_dir}"
 
     return config.backend
 
@@ -390,18 +280,7 @@ def _runtime_payload(config: RuntimeConfig) -> dict[str, Any]:
     if config.backend == "pytorch":
         return {"backend": "pytorch", "device": config.device}
 
-    if config.backend == "onnx":
-        return {
-            "backend": "onnx",
-            "artifact_dir": config.onnx_artifact_dir,
-            "precision": config.onnx_precision,
-            "providers": list(config.onnx_providers),
-        }
-
-    return {
-        "backend": "tensorrt",
-        "engine_dir": config.tensorrt_engine_dir,
-    }
+    return {"backend": config.backend}
 
 
 def _jsonable(value: Any) -> Any:
@@ -525,10 +404,6 @@ def build_demo(settings: AppSettings) -> gr.Blocks:
     config = _runtime_config(
         backend=settings.backend,
         device=settings.device,
-        onnx_artifact_dir=settings.onnx_artifact_dir,
-        onnx_precision=settings.onnx_precision,
-        onnx_providers=settings.onnx_providers,
-        tensorrt_engine_dir=settings.tensorrt_engine_dir,
     )
     manager = RuntimeManager(config)
 
@@ -574,8 +449,7 @@ def build_demo(settings: AppSettings) -> gr.Blocks:
 Upload source speech and a target-voice reference, and run voice conversion.
 The configured runtime is loaded lazily and cached.
 
-Use clean target speech for best voice conditioning. ONNX and TensorRT modes
-require exported artifacts from this repository.
+Use clean target speech for best voice conditioning.
 """)
 
         with gr.Row():

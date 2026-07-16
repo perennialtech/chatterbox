@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .backends.onnx_backend import OnnxVCBackend
-from .backends.tensorrt_backend import TensorRTVCBackend
 from .backends.torch_backend import TorchVCBackend
 from .types import VCBackend
 
@@ -40,23 +38,6 @@ class ChatterboxVC:
                 compile=compile,
             )
         )
-
-    @classmethod
-    def from_onnx_artifacts(
-        cls,
-        artifact_dir: str | Path,
-        providers: list[str] | None = None,
-    ) -> "ChatterboxVC":
-        return cls(
-            OnnxVCBackend.from_artifact_dir(
-                artifact_dir=artifact_dir,
-                providers=providers,
-            )
-        )
-
-    @classmethod
-    def from_tensorrt_engines(cls, engine_dir: str | Path) -> "ChatterboxVC":
-        return cls(TensorRTVCBackend.from_engine_dir(engine_dir))
 
     def set_target_voice_from_tensors(self, target_voice: dict) -> None:
         self.backend.set_target_voice_from_tensors(target_voice)
