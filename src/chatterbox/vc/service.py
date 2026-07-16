@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from ..models.s3gen.conditioning import S3ReferenceCondition
 from .backends.torch_backend import TorchVCBackend
-from .conditioning import VoiceConditionTensors
 from .types import VCBackend
 
 
@@ -40,10 +40,11 @@ class ChatterboxVC:
             )
         )
 
-    def set_target_voice_from_tensors(
-        self, target_voice: dict | VoiceConditionTensors
+    def set_target_voice_condition(
+        self,
+        target_voice: dict | S3ReferenceCondition,
     ) -> None:
-        self.backend.set_target_voice_from_tensors(target_voice)
+        self.backend.set_target_voice_condition(target_voice)
 
     def generate(
         self,

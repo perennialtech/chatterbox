@@ -12,8 +12,8 @@ from ...audio import S3_SR, S3GEN_SR, load_audio_mono
 from ...models.s3gen import S3Gen
 from ...models.s3gen.checkpoint_conversion import \
     convert_diffusers_transformer_keys
-from ...models.s3gen.conditioning import S3ReferenceCondition
-from ..conditioning import VoiceConditionTensors
+from ...models.s3gen.conditioning import (ConditioningError,
+                                          S3ReferenceCondition)
 from ..errors import VoiceConditioningError
 from ..types import VCResult
 
@@ -68,22 +68,23 @@ class TorchVCBackend:
         self,
         s3gen: S3Gen,
         device: str,
-        ref_dict: dict | VoiceConditionTensors | S3ReferenceCondition | None = None,
+        ref_condition: dict | S3ReferenceCondition | None = None,
     ):
         self.sr = S3GEN_SR
         self.s3gen = s3gen
         self.device = device
-        self.ref_dict: S3ReferenceCondition | None = None
+        self.ref_condition: S3ReferenceCondition | None = None
 
-        if ref_dict is not None:
-            self.ref_dict = self._prepare_target_voice(ref_dict)
+        if ref_condition is not None:
+            try:
+                self.ref_condition = self._prepare_ref_condition(ref_condition)
+            except ConditioningError as exc:
+                raise VoiceConditioningError(str(exc)) from exc
 
-    def _prepare_target_voice(
+    def _prepare_ref_condition(
         self,
-        target_voice: dict | VoiceConditionTensors | S3ReferenceCondition,
+        target_voice: dict | S3ReferenceCondition,
     ) -> S3ReferenceCondition:
-        if isinstance(target_voice, VoiceConditionTensors):
-            target_voice = target_voice.as_dict()
         return self.s3gen.prepare_ref_condition(target_voice)
 
     @classmethod
@@ -96,11 +97,11 @@ class TorchVCBackend:
         ckpt_dir = Path(ckpt_dir)
         map_location = torch.device("cpu")
 
-        ref_dict = None
+        builtin_ref_condition = None
         builtin_voice = ckpt_dir / "conds.pt"
         if builtin_voice.exists():
             states = torch.load(builtin_voice, map_location=map_location)
-            ref_dict = states["gen"]
+            builtin_ref_condition = states["gen"]
 
         s3gen = S3Gen()
         state = load_file(ckpt_dir / "s3gen_meanflow.safetensors")
@@ -113,7 +114,7 @@ class TorchVCBackend:
         if _is_cuda_device(device):
             _configure_cuda_runtime(device)
 
-        backend = cls(s3gen, device, ref_dict=ref_dict)
+        backend = cls(s3gen, device, ref_condition=builtin_ref_condition)
 
         should_compile = compile or os.getenv("CHATTERBOX_COMPILE", "0").lower() in (
             "1",
@@ -126,7 +127,7 @@ class TorchVCBackend:
             s3gen.compile_for_inference()
 
         if _is_cuda_device(device) or should_compile:
-            s3gen.warmup(ref_dict=backend.ref_dict)
+            s3gen.warmup(ref_dict=backend.ref_condition)
 
         return backend
 
@@ -151,12 +152,16 @@ class TorchVCBackend:
             compile=compile,
         )
 
-    def set_target_voice_from_tensors(
-        self, target_voice: dict | VoiceConditionTensors
+    def set_target_voice_condition(
+        self,
+        target_voice: dict | S3ReferenceCondition,
     ) -> None:
-        condition = VoiceConditionTensors.from_mapping(target_voice)
-        prepared_condition = self._prepare_target_voice(condition)
-        self.ref_dict = prepared_condition
+        try:
+            ref_condition = self._prepare_ref_condition(target_voice)
+        except ConditioningError as exc:
+            raise VoiceConditioningError(str(exc)) from exc
+
+        self.ref_condition = ref_condition
 
     def convert_from_path(
         self,
@@ -165,49 +170,57 @@ class TorchVCBackend:
         profile: bool = False,
     ) -> VCResult:
         if target_voice_path:
-            s3gen_ref_wav = load_wav_24k(target_voice_path, self.device)
-            self.ref_dict = self.s3gen.embed_ref(
-                s3gen_ref_wav,
-                S3GEN_SR,
-                device=self.device,
-            )
+            try:
+                s3gen_ref_wav = load_wav_24k(target_voice_path, self.device)
+                ref_condition = self.s3gen.embed_ref(
+                    s3gen_ref_wav,
+                    S3GEN_SR,
+                    device=self.device,
+                )
+            except ConditioningError as exc:
+                raise VoiceConditioningError(str(exc)) from exc
+
+            self.ref_condition = ref_condition
 
         audio_16k = load_wav_16k(audio_path, self.device)
         if audio_16k.ndim == 1:
             audio_16k = audio_16k.unsqueeze(0)
-        return self.convert_from_tensors(audio_16k, self.ref_dict, profile)
+        return self.convert_from_tensors(audio_16k, self.ref_condition, profile)
 
     def convert_from_tensors(
         self,
         audio_16k: torch.Tensor,
-        target_voice: dict | VoiceConditionTensors | S3ReferenceCondition | None = None,
+        target_voice: dict | S3ReferenceCondition | None = None,
         profile: bool = False,
     ) -> VCResult:
         wall_start = time.perf_counter()
         active_sr = self.sr
 
-        with torch.inference_mode():
-            if target_voice is None:
-                ref_condition = self.ref_dict
-            else:
-                ref_condition = self._prepare_target_voice(target_voice)
+        try:
+            with torch.inference_mode():
+                if target_voice is None:
+                    ref_condition = self.ref_condition
+                else:
+                    ref_condition = self._prepare_ref_condition(target_voice)
 
-            if ref_condition is None:
-                raise VoiceConditioningError("Target voice is not set.")
+                if ref_condition is None:
+                    raise VoiceConditioningError("Target voice is not set.")
 
-            audio_16k = audio_16k.to(self.device)
-            if audio_16k.ndim == 1:
-                audio_16k = audio_16k.unsqueeze(0)
+                audio_16k = audio_16k.to(self.device)
+                if audio_16k.ndim == 1:
+                    audio_16k = audio_16k.unsqueeze(0)
 
-            s3_tokens, s3_token_lens = self.s3gen.tokenizer(audio_16k)
-            output_wavs, _ = self.s3gen.inference(
-                speech_tokens=s3_tokens,
-                speech_token_lens=s3_token_lens,
-                ref_dict=ref_condition,
-                drop_invalid_tokens=False,
-            )
+                s3_tokens, s3_token_lens = self.s3gen.tokenizer(audio_16k)
+                output_wavs, _ = self.s3gen.inference(
+                    speech_tokens=s3_tokens,
+                    speech_token_lens=s3_token_lens,
+                    ref_dict=ref_condition,
+                    drop_invalid_tokens=False,
+                )
 
-            wav = output_wavs.detach().cpu()
+                wav = output_wavs.detach().cpu()
+        except ConditioningError as exc:
+            raise VoiceConditioningError(str(exc)) from exc
 
         wall_total = time.perf_counter() - wall_start
         audio_duration = wav.shape[-1] / active_sr

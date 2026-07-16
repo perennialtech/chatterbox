@@ -46,10 +46,10 @@ wav, sample_rate, timings = vc.generate(
 )
 ```
 
-Target voice tensors can be cached and reused:
+Prepared target voice conditions can be cached and reused:
 
 ```python
-vc.set_target_voice_from_tensors(condition_tensors)
+vc.set_target_voice_condition(reference_condition)
 wav, sample_rate, timings = vc.generate(source_audio_16k_tensor)
 ```
 

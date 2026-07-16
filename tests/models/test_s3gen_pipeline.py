@@ -7,6 +7,8 @@ import torch
 import chatterbox.models.s3gen.pipeline as pipeline
 import chatterbox.vc.backends.torch_backend as torch_backend
 from chatterbox.audio import S3_SR, S3_TOKEN_RATE
+from chatterbox.models.s3gen.conditioning import (ConditioningError,
+                                                  S3ReferenceCondition)
 from chatterbox.models.s3gen.pipeline import (FLOW_CHUNK_TOKENS,
                                               REF_MAX_PROMPT_TOKENS,
                                               S3Token2Mel, S3Token2Wav)
@@ -271,6 +273,15 @@ class FakeBackendS3Gen:
         self.embedded_references = []
 
     def prepare_ref_condition(self, condition):
+        if isinstance(condition, S3ReferenceCondition):
+            condition.validate()
+        else:
+            S3ReferenceCondition.from_mapping(
+                condition,
+                device="cpu",
+                dtype=torch.float32,
+            )
+
         prepared = {"prepared": condition}
         self.prepared_conditions.append(prepared)
         return prepared
@@ -304,15 +315,15 @@ def _voice_condition(prompt_width=3, prompt_len=3, prompt_feat_width=None):
     }
 
 
-def test_torch_backend_rejects_invalid_target_without_replacing_active_target():
+def test_torch_backend_rejects_invalid_target_condition_without_replacing_active_target():
     model = FakeBackendS3Gen()
     backend = torch_backend.TorchVCBackend(model, "cpu")
 
-    backend.set_target_voice_from_tensors(_voice_condition())
-    active_target = backend.ref_dict
+    backend.set_target_voice_condition(_voice_condition())
+    active_target = backend.ref_condition
 
-    with pytest.raises(VoiceConditioningError):
-        backend.set_target_voice_from_tensors(
+    with pytest.raises(VoiceConditioningError) as error:
+        backend.set_target_voice_condition(
             _voice_condition(
                 prompt_width=4,
                 prompt_len=3,
@@ -320,14 +331,15 @@ def test_torch_backend_rejects_invalid_target_without_replacing_active_target():
             )
         )
 
-    assert backend.ref_dict is active_target
+    assert isinstance(error.value.__cause__, ConditioningError)
+    assert backend.ref_condition is active_target
 
 
 def test_torch_backend_uses_s3gen_inference_with_token_lengths_and_prepared_target():
     model = FakeBackendS3Gen()
     backend = torch_backend.TorchVCBackend(model, "cpu")
-    backend.set_target_voice_from_tensors(_voice_condition())
-    active_target = backend.ref_dict
+    backend.set_target_voice_condition(_voice_condition())
+    active_target = backend.ref_condition
 
     result = backend.convert_from_tensors(torch.zeros(1, 16))
 

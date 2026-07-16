@@ -4,6 +4,8 @@ from typing import Mapping
 import numpy as np
 import torch
 
+from ...audio import SPEECH_VOCAB_SIZE
+
 
 class ConditioningError(ValueError):
     pass
@@ -54,6 +56,13 @@ class S3ReferenceCondition:
         return condition
 
     def validate(self) -> None:
+        """Validate aligned reference-conditioning tensors.
+
+        Tensor widths are storage widths and may include right padding.
+        ``prompt_token_len`` identifies each item's valid prompt length;
+        ``trim_to_lengths`` requires one shared valid prompt length when a
+        batched condition is used for generation.
+        """
         if self.prompt_token.ndim != 2:
             raise ConditioningError("prompt_token must have shape [B, P]")
         if self.prompt_token_len.ndim != 1:
@@ -75,6 +84,13 @@ class S3ReferenceCondition:
             raise ConditioningError("prompt_feat must have 80 mel bins")
         if self.embedding.size(-1) != 192:
             raise ConditioningError("embedding must have 192 channels")
+
+        if torch.any(self.prompt_token < 0) or torch.any(
+            self.prompt_token >= SPEECH_VOCAB_SIZE
+        ):
+            raise ConditioningError(
+                f"prompt_token values must be in [0, {SPEECH_VOCAB_SIZE})"
+            )
 
         if torch.any(self.prompt_token_len <= 0):
             raise ConditioningError("prompt_token_len values must be positive")
