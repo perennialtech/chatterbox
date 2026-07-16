@@ -86,8 +86,8 @@ class VoiceConditionTensors:
                 "prompt_token_len is outside prompt_token bounds"
             )
 
-        required_prompt_mels = 2 * prompt_tokens
-        if self.prompt_feat.shape[1] < required_prompt_mels:
+        required_prompt_mels = 2 * self.prompt_token.shape[1]
+        if self.prompt_feat.shape[1] != required_prompt_mels:
             raise VoiceConditioningError(
                 f"prompt_feat has {self.prompt_feat.shape[1]} frames but {required_prompt_mels} are required"
             )

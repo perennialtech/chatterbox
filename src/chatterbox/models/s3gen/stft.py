@@ -51,8 +51,10 @@ class RealISTFT(nn.Module):
         window = torch.hann_window(n_fft, periodic=True)
 
         factors = torch.ones(freq_bins, dtype=torch.float32)
-        if freq_bins > 2:
+        if n_fft % 2 == 0:
             factors[1:-1] = 2.0
+        else:
+            factors[1:] = 2.0
         factors = factors.unsqueeze(1) / n_fft
 
         real_basis = torch.cos(angles) * factors * window

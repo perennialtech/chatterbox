@@ -8,10 +8,11 @@ from pathlib import Path
 import torch
 from safetensors.torch import load_file
 
-from ...audio import DEC_COND_LEN, S3GEN_SR
+from ...audio import S3GEN_SR
 from ...models.s3gen import S3Gen
 from ...models.s3gen.checkpoint_conversion import \
     convert_diffusers_transformer_keys
+from ...models.s3gen.conditioning import S3ReferenceCondition
 from ..conditioning import VoiceConditionTensors
 from ..errors import VoiceConditioningError
 from ..preprocess import load_wav_16k, load_wav_24k
@@ -35,14 +36,20 @@ def _configure_cuda_runtime(device) -> None:
 
 
 def download_pretrained_checkpoint(repo_id: str = REPO_ID) -> Path:
-    from huggingface_hub import hf_hub_download
+    from huggingface_hub import snapshot_download
 
-    local_path = None
-    for fpath in ["s3gen_meanflow.safetensors", "conds.pt"]:
-        local_path = hf_hub_download(repo_id=repo_id, filename=fpath)
-    if local_path is None:
-        raise FileNotFoundError("No checkpoint files were downloaded.")
-    return Path(local_path).parent
+    checkpoint_dir = Path(
+        snapshot_download(
+            repo_id=repo_id,
+            allow_patterns=["s3gen_meanflow.safetensors", "conds.pt"],
+        )
+    )
+    checkpoint_path = checkpoint_dir / "s3gen_meanflow.safetensors"
+    if not checkpoint_path.exists():
+        raise FileNotFoundError(
+            f"Required checkpoint file was not downloaded: {checkpoint_path.name}"
+        )
+    return checkpoint_dir
 
 
 class TorchVCBackend:
@@ -50,30 +57,23 @@ class TorchVCBackend:
         self,
         s3gen: S3Gen,
         device: str,
-        ref_dict: dict | VoiceConditionTensors | None = None,
+        ref_dict: dict | VoiceConditionTensors | S3ReferenceCondition | None = None,
     ):
         self.sr = S3GEN_SR
         self.s3gen = s3gen
         self.device = device
-        self._target_voice_cache: VoiceConditionTensors | None = None
-        self.ref_dict = None
+        self.ref_dict: S3ReferenceCondition | None = None
 
         if ref_dict is not None:
-            if isinstance(ref_dict, VoiceConditionTensors):
-                self._target_voice_cache = ref_dict
-                self.ref_dict = ref_dict.to_torch(
-                    device=self.device, dtype=self.s3gen.dtype
-                )
-            else:
-                self.ref_dict = self.s3gen.prepare_ref_dict(ref_dict)
-                np_condition = {
-                    k: (v.detach().cpu().numpy() if torch.is_tensor(v) else v)
-                    for k, v in self.ref_dict.items()
-                    if v is not None
-                }
-                self._target_voice_cache = VoiceConditionTensors.from_mapping(
-                    np_condition
-                )
+            self.ref_dict = self._prepare_target_voice(ref_dict)
+
+    def _prepare_target_voice(
+        self,
+        target_voice: dict | VoiceConditionTensors | S3ReferenceCondition,
+    ) -> S3ReferenceCondition:
+        if isinstance(target_voice, VoiceConditionTensors):
+            target_voice = target_voice.as_dict()
+        return self.s3gen.prepare_ref_condition(target_voice)
 
     @classmethod
     def from_local(
@@ -98,10 +98,11 @@ class TorchVCBackend:
         s3gen.to(device).eval()
 
         s3gen.mel2wav.optimize_for_inference()
-        ref_dict = s3gen.prepare_ref_dict(ref_dict) if ref_dict is not None else None
 
         if _is_cuda_device(device):
             _configure_cuda_runtime(device)
+
+        backend = cls(s3gen, device, ref_dict=ref_dict)
 
         should_compile = compile or os.getenv("CHATTERBOX_COMPILE", "0").lower() in (
             "1",
@@ -114,9 +115,9 @@ class TorchVCBackend:
             s3gen.compile_for_inference()
 
         if _is_cuda_device(device) or should_compile:
-            s3gen.warmup(ref_dict=ref_dict)
+            s3gen.warmup(ref_dict=backend.ref_dict)
 
-        return cls(s3gen, device, ref_dict=ref_dict)
+        return backend
 
     @classmethod
     def from_pretrained(
@@ -143,8 +144,8 @@ class TorchVCBackend:
         self, target_voice: dict | VoiceConditionTensors
     ) -> None:
         condition = VoiceConditionTensors.from_mapping(target_voice)
-        self._target_voice_cache = condition
-        self.ref_dict = condition.to_torch(device=self.device, dtype=self.s3gen.dtype)
+        prepared_condition = self._prepare_target_voice(condition)
+        self.ref_dict = prepared_condition
 
     def convert_from_path(
         self,
@@ -154,17 +155,14 @@ class TorchVCBackend:
     ) -> VCResult:
         if target_voice_path:
             s3gen_ref_wav = load_wav_24k(
-                target_voice_path, self.device, max_len=DEC_COND_LEN
+                target_voice_path,
+                self.device,
             ).squeeze(0)
             self.ref_dict = self.s3gen.embed_ref(
-                s3gen_ref_wav, S3GEN_SR, device=self.device
+                s3gen_ref_wav,
+                S3GEN_SR,
+                device=self.device,
             )
-            np_condition = {
-                k: (v.detach().cpu().numpy() if torch.is_tensor(v) else v)
-                for k, v in self.ref_dict.as_dict().items()
-                if v is not None
-            }
-            self._target_voice_cache = VoiceConditionTensors.from_mapping(np_condition)
 
         audio_16k = load_wav_16k(audio_path, self.device)
         return self.convert_from_tensors(audio_16k, self.ref_dict, profile)
@@ -172,7 +170,7 @@ class TorchVCBackend:
     def convert_from_tensors(
         self,
         audio_16k: torch.Tensor,
-        target_voice: dict | VoiceConditionTensors | None = None,
+        target_voice: dict | VoiceConditionTensors | S3ReferenceCondition | None = None,
         profile: bool = False,
     ) -> VCResult:
         wall_start = time.perf_counter()
@@ -180,32 +178,24 @@ class TorchVCBackend:
 
         with torch.inference_mode():
             if target_voice is None:
-                target_voice = self.ref_dict
-
-            if target_voice is None:
-                raise VoiceConditioningError("Target voice is not set.")
-
-            if isinstance(target_voice, VoiceConditionTensors):
-                ref_dict = target_voice.to_torch(
-                    device=self.device, dtype=self.s3gen.dtype
-                )
+                ref_condition = self.ref_dict
             else:
-                ref_dict = self.s3gen.prepare_ref_dict(target_voice)
+                ref_condition = self._prepare_target_voice(target_voice)
+
+            if ref_condition is None:
+                raise VoiceConditioningError("Target voice is not set.")
 
             audio_16k = audio_16k.to(self.device)
             if audio_16k.ndim == 1:
                 audio_16k = audio_16k.unsqueeze(0)
 
-            s3_tokens, _ = self.s3gen.tokenizer(audio_16k)
-            output_mels = self.s3gen.flow_inference(
+            s3_tokens, s3_token_lens = self.s3gen.tokenizer(audio_16k)
+            output_wavs, _ = self.s3gen.inference(
                 speech_tokens=s3_tokens,
-                ref_dict=ref_dict,
+                speech_token_lens=s3_token_lens,
+                ref_dict=ref_condition,
+                drop_invalid_tokens=False,
             )
-
-            output_mels = output_mels.to(dtype=self.s3gen.dtype)
-            output_wavs, _ = self.s3gen.hift_inference(output_mels, None)
-            fade_len = min(output_wavs.size(1), self.s3gen.trim_fade.numel())
-            output_wavs[:, :fade_len] *= self.s3gen.trim_fade[:fade_len]
 
             wav = output_wavs.detach().cpu()
 

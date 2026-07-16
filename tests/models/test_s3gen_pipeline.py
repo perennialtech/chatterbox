@@ -1,11 +1,16 @@
+import sys
+import types
+
 import pytest
 import torch
 
 import chatterbox.models.s3gen.pipeline as pipeline
+import chatterbox.vc.backends.torch_backend as torch_backend
 from chatterbox.audio import S3_SR, S3_TOKEN_RATE
 from chatterbox.models.s3gen.pipeline import (FLOW_CHUNK_TOKENS,
                                               REF_MAX_PROMPT_TOKENS,
                                               S3Token2Mel, S3Token2Wav)
+from chatterbox.vc.errors import VoiceConditioningError
 
 
 class DummyFlow(torch.nn.Module):
@@ -255,3 +260,138 @@ def test_apply_output_fades_uses_non_overlapping_short_fades():
 
     assert torch.all(faded > 0.0)
     assert torch.isfinite(faded).all()
+
+
+class FakeBackendS3Gen:
+    dtype = torch.float32
+
+    def __init__(self):
+        self.prepared_conditions = []
+        self.inference_calls = []
+        self.embedded_references = []
+
+    def prepare_ref_condition(self, condition):
+        prepared = {"prepared": condition}
+        self.prepared_conditions.append(prepared)
+        return prepared
+
+    def tokenizer(self, audio):
+        return (
+            torch.tensor([[1, 2]], dtype=torch.long, device=audio.device),
+            torch.tensor([2], dtype=torch.long, device=audio.device),
+        )
+
+    def inference(self, **kwargs):
+        self.inference_calls.append(kwargs)
+        return (
+            torch.ones(1, 8, device=kwargs["speech_tokens"].device),
+            torch.zeros(1, 1, 8, device=kwargs["speech_tokens"].device),
+        )
+
+    def embed_ref(self, wav, sample_rate, device):
+        self.embedded_references.append((wav, sample_rate, device))
+        return {"embedded": True}
+
+
+def _voice_condition(prompt_width=3, prompt_len=3, prompt_feat_width=None):
+    if prompt_feat_width is None:
+        prompt_feat_width = prompt_width * 2
+    return {
+        "prompt_token": torch.zeros(1, prompt_width, dtype=torch.long),
+        "prompt_token_len": torch.tensor([prompt_len], dtype=torch.long),
+        "prompt_feat": torch.zeros(1, prompt_feat_width, 80),
+        "embedding": torch.zeros(1, 192),
+    }
+
+
+def test_torch_backend_rejects_invalid_target_without_replacing_active_target():
+    model = FakeBackendS3Gen()
+    backend = torch_backend.TorchVCBackend(model, "cpu")
+
+    backend.set_target_voice_from_tensors(_voice_condition())
+    active_target = backend.ref_dict
+
+    with pytest.raises(VoiceConditioningError):
+        backend.set_target_voice_from_tensors(
+            _voice_condition(
+                prompt_width=4,
+                prompt_len=3,
+                prompt_feat_width=6,
+            )
+        )
+
+    assert backend.ref_dict is active_target
+
+
+def test_torch_backend_uses_s3gen_inference_with_token_lengths_and_prepared_target():
+    model = FakeBackendS3Gen()
+    backend = torch_backend.TorchVCBackend(model, "cpu")
+    backend.set_target_voice_from_tensors(_voice_condition())
+    active_target = backend.ref_dict
+
+    result = backend.convert_from_tensors(torch.zeros(1, 16))
+
+    assert torch.equal(result.wav, torch.ones(1, 8))
+    assert result.sample_rate == 24_000
+    assert len(model.inference_calls) == 1
+    call = model.inference_calls[0]
+    assert call["speech_token_lens"].tolist() == [2]
+    assert call["ref_dict"] is active_target
+    assert call["drop_invalid_tokens"] is False
+
+
+def test_torch_backend_path_reference_is_not_pretruncated(monkeypatch):
+    model = FakeBackendS3Gen()
+    backend = torch_backend.TorchVCBackend(model, "cpu")
+    requested_max_lengths = []
+
+    def fake_load_wav_24k(path, device, max_len=None):
+        requested_max_lengths.append(max_len)
+        return torch.zeros(1, 32)
+
+    monkeypatch.setattr(torch_backend, "load_wav_24k", fake_load_wav_24k)
+    monkeypatch.setattr(
+        torch_backend,
+        "load_wav_16k",
+        lambda path, device: torch.zeros(1, 16),
+    )
+
+    backend.convert_from_path("source.wav", target_voice_path="target.wav")
+
+    assert requested_max_lengths == [None]
+    assert len(model.embedded_references) == 1
+
+
+def test_download_pretrained_checkpoint_accepts_snapshot_without_builtin_condition(
+    monkeypatch,
+    tmp_path,
+):
+    (tmp_path / "s3gen_meanflow.safetensors").touch()
+    calls = []
+
+    def snapshot_download(**kwargs):
+        calls.append(kwargs)
+        return str(tmp_path)
+
+    hub = types.ModuleType("huggingface_hub")
+    hub.snapshot_download = snapshot_download
+    monkeypatch.setitem(sys.modules, "huggingface_hub", hub)
+
+    checkpoint_dir = torch_backend.download_pretrained_checkpoint("example/repo")
+
+    assert checkpoint_dir == tmp_path
+    assert calls == [
+        {
+            "repo_id": "example/repo",
+            "allow_patterns": ["s3gen_meanflow.safetensors", "conds.pt"],
+        }
+    ]
+
+
+def test_download_pretrained_checkpoint_requires_model_file(monkeypatch, tmp_path):
+    hub = types.ModuleType("huggingface_hub")
+    hub.snapshot_download = lambda **kwargs: str(tmp_path)
+    monkeypatch.setitem(sys.modules, "huggingface_hub", hub)
+
+    with pytest.raises(FileNotFoundError, match="s3gen_meanflow.safetensors"):
+        torch_backend.download_pretrained_checkpoint("example/repo")

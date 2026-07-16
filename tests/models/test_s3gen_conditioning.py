@@ -3,6 +3,8 @@ import torch
 
 from chatterbox.models.s3gen.conditioning import (ConditioningError,
                                                   S3ReferenceCondition)
+from chatterbox.vc.conditioning import VoiceConditionTensors
+from chatterbox.vc.errors import VoiceConditioningError
 
 
 def _valid_condition(**overrides):
@@ -63,3 +65,15 @@ def test_reference_condition_caps_prompt_token_length():
     assert trimmed.prompt_token.shape == (1, 5)
     assert trimmed.prompt_feat.shape == (1, 10, 80)
     assert trimmed.prompt_token_len.tolist() == [5]
+
+
+def test_voice_condition_rejects_features_shorter_than_stored_prompt_width():
+    with pytest.raises(VoiceConditioningError):
+        VoiceConditionTensors.from_mapping(
+            {
+                "prompt_token": torch.zeros(1, 4, dtype=torch.long),
+                "prompt_token_len": torch.tensor([3], dtype=torch.long),
+                "prompt_feat": torch.zeros(1, 6, 80),
+                "embedding": torch.zeros(1, 192),
+            }
+        )

@@ -15,8 +15,8 @@ The package contains:
 Install the project with the runtime extras needed by your workflow.
 
 ```bash
-# PyTorch execution
-uv sync
+# CPU PyTorch execution
+uv sync --extra cpu
 
 # Gradio UI with CPU PyTorch execution
 uv sync --extra cpu,ui

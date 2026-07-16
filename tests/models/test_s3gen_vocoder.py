@@ -69,3 +69,18 @@ def test_real_stft_istft_reconstructs_random_waveform():
 
     assert y.shape == x.shape
     assert torch.allclose(y, x, atol=1e-4, rtol=1e-4)
+
+
+def test_real_stft_istft_reconstructs_odd_fft_waveform():
+    generator = torch.Generator().manual_seed(4321)
+    x = torch.randn(1, 127, generator=generator)
+    stft = RealSTFT(n_fft=15, hop_len=3, center=True)
+    istft = RealISTFT(n_fft=15, hop_len=3, center=True)
+
+    real, imag = stft(x)
+    magnitude = torch.sqrt(real.square() + imag.square())
+    phase = torch.atan2(imag, real)
+    y = istft(magnitude, phase)
+
+    assert y.shape == x.shape
+    assert torch.allclose(y, x, atol=1e-4, rtol=1e-4)
