@@ -30,7 +30,21 @@ REF_MIN_PROMPT_TOKENS = max(1, int(round(REF_MIN_SECONDS * S3_TOKEN_RATE)))
 FLOW_CHUNK_TOKENS = 250
 FLOW_CONTEXT_TOKENS = 25
 
-_TOKEN_LENGTH_BUCKETS = (32, 64, 128, 192, 256, 384, 512, 768, 1024, 1536, 2048, 3072)
+_TOKEN_LENGTH_BUCKETS = (
+    32,
+    64,
+    128,
+    192,
+    256,
+    384,
+    512,
+    576,
+    768,
+    1024,
+    1536,
+    2048,
+    3072,
+)
 
 
 def _repeat_batch_dim(tnsr, B, ndim):
@@ -612,19 +626,33 @@ class S3Token2Wav(S3Token2Mel):
     def warmup(
         self,
         ref_condition: Optional[dict | S3ReferenceCondition] = None,
-        total_token_buckets=(384, 512, 768, 1024),
+        speech_token_lengths=(
+            1,
+            FLOW_CHUNK_TOKENS,
+            2 * FLOW_CHUNK_TOKENS + FLOW_CONTEXT_TOKENS,
+        ),
     ) -> None:
+        """Warm flow and vocoder paths for representative source-token lengths.
+
+        Each length is the unprompted source-token sequence length before flow
+        chunking adds left/right context or terminal silence context.
+        """
         self.eval()
         if ref_condition is None:
             return
 
         ref_condition = self.prepare_ref_condition(ref_condition)
-        prompt_len = ref_condition.prompt_token.size(1)
 
-        for total_bucket in total_token_buckets:
-            speech_len = max(1, total_bucket - prompt_len)
+        for speech_token_len in speech_token_lengths:
+            speech_token_len = int(speech_token_len)
+            if speech_token_len <= 0:
+                raise ValueError("speech_token_lengths must contain positive lengths")
+
             speech_tokens = torch.zeros(
-                1, speech_len, dtype=torch.long, device=self.device
+                1,
+                speech_token_len,
+                dtype=torch.long,
+                device=self.device,
             )
             output_mels = self.flow_inference(
                 speech_tokens=speech_tokens,
