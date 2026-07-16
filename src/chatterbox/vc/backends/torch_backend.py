@@ -34,6 +34,18 @@ def _configure_cuda_runtime(device) -> None:
     torch.set_float32_matmul_precision("high")
 
 
+def load_wav_24k(
+    path: str | Path,
+    device,
+    max_len: int | None = None,
+) -> torch.Tensor:
+    return load_audio_mono(path, S3GEN_SR, device, max_len=max_len)
+
+
+def load_wav_16k(path: str | Path, device) -> torch.Tensor:
+    return load_audio_mono(path, S3_SR, device)
+
+
 def download_pretrained_checkpoint(repo_id: str = REPO_ID) -> Path:
     from huggingface_hub import snapshot_download
 
@@ -153,18 +165,16 @@ class TorchVCBackend:
         profile: bool = False,
     ) -> VCResult:
         if target_voice_path:
-            s3gen_ref_wav = load_audio_mono(
-                target_voice_path,
-                S3GEN_SR,
-                self.device,
-            )
+            s3gen_ref_wav = load_wav_24k(target_voice_path, self.device)
             self.ref_dict = self.s3gen.embed_ref(
                 s3gen_ref_wav,
                 S3GEN_SR,
                 device=self.device,
             )
 
-        audio_16k = load_audio_mono(audio_path, S3_SR, self.device).unsqueeze(0)
+        audio_16k = load_wav_16k(audio_path, self.device)
+        if audio_16k.ndim == 1:
+            audio_16k = audio_16k.unsqueeze(0)
         return self.convert_from_tensors(audio_16k, self.ref_dict, profile)
 
     def convert_from_tensors(
