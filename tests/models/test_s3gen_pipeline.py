@@ -214,23 +214,22 @@ def test_long_ref_wav_is_center_cropped_and_prompt_capped(monkeypatch):
 
 
 @pytest.mark.parametrize("seconds", [5, 15, 30])
-def test_chunked_and_unchunked_flow_shapes_match(seconds):
+def test_chunked_flow_returns_the_exact_target_mel_length(seconds):
     model = DummyToken2Wav()
     token_count = seconds * int(S3_TOKEN_RATE)
     tokens = torch.arange(token_count)
 
-    chunked, chunked_mel_len = model._chunked_flow_inference_impl(
-        tokens,
-        ref_dict=_ref_dict(),
-    )
-    unchunked, unchunked_mel_len = model._unchunked_flow_inference_impl(
+    output, original_mel_len = model._chunked_flow_inference_impl(
         tokens,
         ref_dict=_ref_dict(),
     )
 
-    assert chunked.shape == unchunked.shape
-    assert chunked.shape == (1, 80, token_count * model._token_mel_ratio)
-    assert chunked_mel_len == unchunked_mel_len
+    expected_chunks = (token_count + FLOW_CHUNK_TOKENS - 1) // FLOW_CHUNK_TOKENS
+    expected_mel_len = token_count * model._token_mel_ratio
+
+    assert output.shape == (1, 80, expected_mel_len)
+    assert original_mel_len == expected_mel_len
+    assert len(model.flow.calls) == expected_chunks
 
 
 def test_flow_generation_is_always_chunked_for_long_inputs():

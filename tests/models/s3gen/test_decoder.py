@@ -48,7 +48,6 @@ def test_conditional_decoder_accepts_cpu_scalar_time_conditions_on_cuda():
         num_mid_blocks=1,
         num_heads=1,
         attention_head_dim=8,
-        meanflow=True,
     ).to(device)
     model.eval()
 
@@ -83,7 +82,6 @@ def test_conditional_decoder_rebuilds_attention_masks_across_resolutions_on_cpu(
         num_mid_blocks=1,
         num_heads=1,
         attention_head_dim=8,
-        meanflow=False,
     )
     model.eval()
 
