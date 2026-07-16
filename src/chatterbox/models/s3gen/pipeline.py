@@ -279,30 +279,27 @@ class S3Token2Mel(torch.nn.Module):
         )
 
     def prepare_ref_condition(
-        self, ref_dict: dict | S3ReferenceCondition
+        self, ref_condition: dict | S3ReferenceCondition
     ) -> S3ReferenceCondition:
         data = (
-            ref_dict.as_dict()
-            if isinstance(ref_dict, S3ReferenceCondition)
-            else ref_dict
+            ref_condition.as_dict()
+            if isinstance(ref_condition, S3ReferenceCondition)
+            else ref_condition
         )
         return S3ReferenceCondition.from_mapping(
             data, device=self.device, dtype=self.dtype
         ).trim_to_lengths(max_prompt_tokens=REF_MAX_PROMPT_TOKENS)
 
-    def prepare_ref_dict(self, ref_dict: dict | S3ReferenceCondition) -> dict:
-        return self.prepare_ref_condition(ref_dict).as_dict()
-
     def _prepare_reference_condition(
         self,
         ref_wav: Optional[torch.Tensor],
         ref_sr: Optional[int],
-        ref_dict: Optional[dict | S3ReferenceCondition],
+        ref_condition: Optional[dict | S3ReferenceCondition],
     ) -> S3ReferenceCondition:
-        if (ref_wav is None) == (ref_dict is None):
-            raise ValueError("Provide exactly one of ref_wav or ref_dict")
-        if ref_dict is not None:
-            return self.prepare_ref_condition(ref_dict)
+        if (ref_wav is None) == (ref_condition is None):
+            raise ValueError("Provide exactly one of ref_wav or ref_condition")
+        if ref_condition is not None:
+            return self.prepare_ref_condition(ref_condition)
         return self.embed_ref(ref_wav, ref_sr)
 
     def _prepare_reference_waveform(
@@ -426,7 +423,7 @@ class S3Token2Mel(torch.nn.Module):
         speech_tokens,
         ref_wav: Optional[torch.Tensor] = None,
         ref_sr: Optional[int] = None,
-        ref_dict: Optional[dict | S3ReferenceCondition] = None,
+        ref_condition: Optional[dict | S3ReferenceCondition] = None,
         drop_invalid_tokens: bool = True,
         n_cfm_timesteps: Optional[int] = None,
         speech_token_lens: Optional[torch.Tensor] = None,
@@ -444,7 +441,9 @@ class S3Token2Mel(torch.nn.Module):
                 speech_token_lens=speech_token_lens,
             )
         )
-        ref_condition = self._prepare_reference_condition(ref_wav, ref_sr, ref_dict)
+        ref_condition = self._prepare_reference_condition(
+            ref_wav, ref_sr, ref_condition
+        )
         speech_tokens, speech_token_lens = self._append_silence_context(
             speech_tokens,
             speech_token_lens,
@@ -534,7 +533,7 @@ class S3Token2Wav(S3Token2Mel):
         speech_tokens,
         ref_wav: Optional[torch.Tensor] = None,
         ref_sr: Optional[int] = None,
-        ref_dict: Optional[dict | S3ReferenceCondition] = None,
+        ref_condition: Optional[dict | S3ReferenceCondition] = None,
         n_cfm_timesteps: Optional[int] = None,
         speech_token_lens: Optional[torch.Tensor] = None,
     ) -> tuple[torch.Tensor, int]:
@@ -544,7 +543,9 @@ class S3Token2Wav(S3Token2Mel):
                 speech_token_lens=speech_token_lens,
             )
         )
-        ref_condition = self._prepare_reference_condition(ref_wav, ref_sr, ref_dict)
+        ref_condition = self._prepare_reference_condition(
+            ref_wav, ref_sr, ref_condition
+        )
 
         target_token_len = int(speech_token_lens.max().detach().cpu())
         chunk_tokens = max(1, FLOW_CHUNK_TOKENS)
@@ -615,14 +616,14 @@ class S3Token2Wav(S3Token2Mel):
     @torch.inference_mode()
     def warmup(
         self,
-        ref_dict: Optional[dict | S3ReferenceCondition] = None,
+        ref_condition: Optional[dict | S3ReferenceCondition] = None,
         total_token_buckets=(384, 512, 768, 1024),
     ) -> None:
         self.eval()
-        if ref_dict is None:
+        if ref_condition is None:
             return
 
-        ref_condition = self.prepare_ref_condition(ref_dict)
+        ref_condition = self.prepare_ref_condition(ref_condition)
         prompt_len = ref_condition.prompt_token.size(1)
 
         for total_bucket in total_token_buckets:
@@ -632,7 +633,7 @@ class S3Token2Wav(S3Token2Mel):
             )
             output_mels = self.flow_inference(
                 speech_tokens=speech_tokens,
-                ref_dict=ref_condition,
+                ref_condition=ref_condition,
                 n_cfm_timesteps=2,
             )
             self.hift_inference(output_mels.to(dtype=self.dtype), None)
@@ -646,7 +647,7 @@ class S3Token2Wav(S3Token2Mel):
         speech_tokens,
         ref_wav: Optional[torch.Tensor] = None,
         ref_sr: Optional[int] = None,
-        ref_dict: Optional[dict | S3ReferenceCondition] = None,
+        ref_condition: Optional[dict | S3ReferenceCondition] = None,
         speech_token_lens: Optional[torch.Tensor] = None,
         drop_invalid_tokens: bool = False,
         skip_vocoder: bool = False,
@@ -657,7 +658,7 @@ class S3Token2Wav(S3Token2Mel):
                 speech_tokens=speech_tokens,
                 ref_wav=ref_wav,
                 ref_sr=ref_sr,
-                ref_dict=ref_dict,
+                ref_condition=ref_condition,
                 n_cfm_timesteps=n_cfm_timesteps,
                 speech_token_lens=speech_token_lens,
             )
@@ -666,7 +667,7 @@ class S3Token2Wav(S3Token2Mel):
             speech_tokens=speech_tokens,
             ref_wav=ref_wav,
             ref_sr=ref_sr,
-            ref_dict=ref_dict,
+            ref_condition=ref_condition,
             drop_invalid_tokens=drop_invalid_tokens,
             n_cfm_timesteps=n_cfm_timesteps,
             speech_token_lens=speech_token_lens,
@@ -678,7 +679,7 @@ class S3Token2Wav(S3Token2Mel):
         speech_tokens,
         ref_wav: Optional[torch.Tensor] = None,
         ref_sr: Optional[int] = None,
-        ref_dict: Optional[dict | S3ReferenceCondition] = None,
+        ref_condition: Optional[dict | S3ReferenceCondition] = None,
         n_cfm_timesteps: Optional[int] = None,
         speech_token_lens: Optional[torch.Tensor] = None,
     ):
@@ -688,7 +689,7 @@ class S3Token2Wav(S3Token2Mel):
             speech_token_lens=speech_token_lens,
             ref_wav=ref_wav,
             ref_sr=ref_sr,
-            ref_dict=ref_dict,
+            ref_condition=ref_condition,
             n_cfm_timesteps=n_cfm_timesteps,
         )
         return output_mels
@@ -714,7 +715,7 @@ class S3Token2Wav(S3Token2Mel):
         speech_tokens,
         ref_wav: Optional[torch.Tensor] = None,
         ref_sr: Optional[int] = None,
-        ref_dict: Optional[dict | S3ReferenceCondition] = None,
+        ref_condition: Optional[dict | S3ReferenceCondition] = None,
         drop_invalid_tokens: bool = True,
         n_cfm_timesteps: Optional[int] = None,
         speech_token_lens: Optional[torch.Tensor] = None,
@@ -731,7 +732,7 @@ class S3Token2Wav(S3Token2Mel):
             speech_token_lens=speech_token_lens,
             ref_wav=ref_wav,
             ref_sr=ref_sr,
-            ref_dict=ref_dict,
+            ref_condition=ref_condition,
             n_cfm_timesteps=n_cfm_timesteps,
         )
         output_mels = output_mels.to(dtype=self.dtype)

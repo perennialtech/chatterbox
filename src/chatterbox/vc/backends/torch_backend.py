@@ -127,7 +127,7 @@ class TorchVCBackend:
             s3gen.compile_for_inference()
 
         if _is_cuda_device(device) or should_compile:
-            s3gen.warmup(ref_dict=backend.ref_condition)
+            s3gen.warmup(ref_condition=backend.ref_condition)
 
         return backend
 
@@ -214,7 +214,7 @@ class TorchVCBackend:
                 output_wavs, _ = self.s3gen.inference(
                     speech_tokens=s3_tokens,
                     speech_token_lens=s3_token_lens,
-                    ref_dict=ref_condition,
+                    ref_condition=ref_condition,
                     drop_invalid_tokens=False,
                 )
 

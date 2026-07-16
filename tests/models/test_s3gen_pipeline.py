@@ -109,7 +109,7 @@ class FakeTokenizer(torch.nn.Module):
         )
 
 
-def _ref_dict(prompt_tokens: int = 1):
+def _ref_condition_mapping(prompt_tokens: int = 1):
     return {
         "prompt_token": torch.zeros(1, prompt_tokens, dtype=torch.long),
         "prompt_token_len": torch.tensor([prompt_tokens], dtype=torch.long),
@@ -124,7 +124,7 @@ def test_s3token2mel_inference_accepts_1d_token_vector_as_batch_one():
         torch.tensor([1, 2, 3]),
         ref_wav=None,
         ref_sr=None,
-        ref_dict=_ref_dict(),
+        ref_condition=_ref_condition_mapping(),
         drop_invalid_tokens=False,
     )
 
@@ -140,7 +140,7 @@ def test_s3token2wav_inference_short_targets_have_exact_trimmed_sample_count(
     model = DummyToken2Wav()
     wav, source = model.inference(
         torch.arange(num_tokens),
-        ref_dict=_ref_dict(),
+        ref_condition=_ref_condition_mapping(),
         drop_invalid_tokens=False,
     )
 
@@ -157,7 +157,7 @@ def test_s3token2wav_forward_generates_full_utterance_without_lookahead_truncati
     model = DummyToken2Wav()
     wav, source = model(
         torch.tensor([1, 2, 3]),
-        ref_dict=_ref_dict(),
+        ref_condition=_ref_condition_mapping(),
         drop_invalid_tokens=False,
     )
 
@@ -175,14 +175,16 @@ def test_s3token2wav_rejects_empty_tokens_after_invalid_token_drop():
     with pytest.raises(ValueError, match="At least one valid speech token"):
         model.inference(
             torch.tensor([-1, 999999]),
-            ref_dict=_ref_dict(),
+            ref_condition=_ref_condition_mapping(),
             drop_invalid_tokens=True,
         )
 
 
 def test_direct_ref_dict_prompt_is_capped_like_reference_audio():
     model = DummyToken2Wav()
-    condition = model.prepare_ref_condition(_ref_dict(REF_MAX_PROMPT_TOKENS + 25))
+    condition = model.prepare_ref_condition(
+        _ref_condition_mapping(REF_MAX_PROMPT_TOKENS + 25)
+    )
 
     assert condition.prompt_token.shape == (1, REF_MAX_PROMPT_TOKENS)
     assert condition.prompt_token_len.tolist() == [REF_MAX_PROMPT_TOKENS]
@@ -228,7 +230,7 @@ def test_chunked_flow_returns_the_exact_target_mel_length(seconds):
 
     output, original_mel_len = model._chunked_flow_inference_impl(
         tokens,
-        ref_dict=_ref_dict(),
+        ref_condition=_ref_condition_mapping(),
     )
 
     expected_chunks = (token_count + FLOW_CHUNK_TOKENS - 1) // FLOW_CHUNK_TOKENS
@@ -245,7 +247,7 @@ def test_flow_generation_is_always_chunked_for_long_inputs():
 
     output = model.flow_inference(
         torch.arange(token_count),
-        ref_dict=_ref_dict(),
+        ref_condition=_ref_condition_mapping(),
     )
 
     assert output.shape == (1, 80, token_count * model._token_mel_ratio)
@@ -348,7 +350,7 @@ def test_torch_backend_uses_s3gen_inference_with_token_lengths_and_prepared_targ
     assert len(model.inference_calls) == 1
     call = model.inference_calls[0]
     assert call["speech_token_lens"].tolist() == [2]
-    assert call["ref_dict"] is active_target
+    assert call["ref_condition"] is active_target
     assert call["drop_invalid_tokens"] is False
 
 
