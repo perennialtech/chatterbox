@@ -13,7 +13,7 @@ authors = [
 dependencies = [
     "conformer>=0.3",
     "diffusers>=0.39",
-    "huggingface-hub>=1.23",
+    "huggingface-hub>=1.24",
     "librosa>=0.11",
     "numpy>=2.4",
     "omegaconf>=2.3",
@@ -26,37 +26,37 @@ Repository = "https://github.com/resemble-ai/chatterbox"
 
 [project.optional-dependencies]
 cpu = [
-    "torch==2.12.1",
-    "torchaudio==2.11.0",
-    "torchcodec==0.14.0",
+    "torch>=2.13",
+    "torchaudio>=2.11",
+    "torchcodec>=0.15",
 ]
 
 cuda = [
-    "torch==2.12.1; sys_platform == 'linux' or sys_platform == 'win32'",
-    "torchaudio==2.11.0; sys_platform == 'linux' or sys_platform == 'win32'",
-    "torchcodec==0.14.0; sys_platform == 'linux' or sys_platform == 'win32'",
+    "torch>=2.13; sys_platform == \"linux\" or sys_platform == \"win32\"",
+    "torchaudio>=2.11; sys_platform == \"linux\" or sys_platform == \"win32\"",
+    "torchcodec>=0.15; sys_platform == \"linux\" or sys_platform == \"win32\"",
 ]
 
 rocm = [
-    "torch==2.12.1; sys_platform == 'linux'",
-    "torchaudio==2.11.0; sys_platform == 'linux'",
-    "torchcodec==0.14.0; sys_platform == 'linux'",
-    "pytorch-triton-rocm; sys_platform == 'linux'",
-    "triton-rocm; sys_platform == 'linux'",
+    "pytorch-triton-rocm>=3.5; sys_platform == \"linux\"",
+    "torch>=2.13; sys_platform == \"linux\"",
+    "torchaudio>=2.11; sys_platform == \"linux\"",
+    "torchcodec>=0.15; sys_platform == \"linux\"",
+    "triton-rocm>=3.7; sys_platform == \"linux\"",
 ]
 
 ui = [
-    "gradio>=6.8",
+    "gradio>=6.20",
 ]
 
 [dependency-groups]
 dev = [
-    "basedpyright>=1.39.7",
-    "black>=26.5.1",
-    "isort>=8.0.1",
-    "pytest>=9.1.1",
-    "ruff>=0.15.17",
-    "torchvision>=0.27.1",
+    "basedpyright>=1.39",
+    "black>=26.5",
+    "isort>=8.0",
+    "pytest>=9.1",
+    "ruff>=0.15",
+    "torchvision>=0.28",
 ]
 
 [tool.uv]
@@ -111,7 +111,7 @@ triton-rocm = [
 ]
 
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=83.0"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
