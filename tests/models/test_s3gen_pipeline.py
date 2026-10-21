@@ -1,5 +1,6 @@
 import sys
 import types
+from contextlib import nullcontext
 
 import pytest
 import torch
@@ -7,11 +8,13 @@ import torch
 import chatterbox.models.s3gen.pipeline as pipeline
 import chatterbox.vc.backends.torch_backend as torch_backend
 from chatterbox.audio import S3_SR, S3_TOKEN_RATE
-from chatterbox.models.s3gen.conditioning import (ConditioningError,
-                                                  S3ReferenceCondition)
-from chatterbox.models.s3gen.pipeline import (FLOW_CHUNK_TOKENS,
-                                              REF_MAX_PROMPT_TOKENS,
-                                              S3Token2Mel, S3Token2Wav)
+from chatterbox.models.s3gen.conditioning import ConditioningError, S3ReferenceCondition
+from chatterbox.models.s3gen.pipeline import (
+    FLOW_CHUNK_TOKENS,
+    REF_MAX_PROMPT_TOKENS,
+    S3Token2Mel,
+    S3Token2Wav,
+)
 from chatterbox.vc.errors import VoiceConditioningError
 
 
@@ -266,6 +269,90 @@ def test_apply_output_fades_uses_non_overlapping_short_fades():
     assert torch.isfinite(faded).all()
 
 
+@pytest.mark.parametrize(
+    "device,env,expected_mode",
+    [
+        ("cpu", "1", "default"),
+        ("cuda", "1", "reduce-overhead"),
+        ("cuda", "0", "default"),
+    ],
+)
+def test_compile_uses_cuda_graphs_only_for_bucketed_cuda_flow(
+    monkeypatch, device, env, expected_mode
+):
+    model = DummyToken2Wav()
+    model.flow.encoder = torch.nn.Identity()
+    model.flow.decoder = torch.nn.Module()
+    model.flow.decoder.estimator = torch.nn.Identity()
+    monkeypatch.setattr(
+        DummyToken2Wav, "device", property(lambda self: torch.device(device))
+    )
+    monkeypatch.setenv("CHATTERBOX_CUDA_GRAPHS", env)
+    calls = []
+
+    def compile(module, **kwargs):
+        calls.append(kwargs)
+        return module
+
+    monkeypatch.setattr(torch, "compile", compile)
+    monkeypatch.setattr(
+        model.mel2wav, "compile_for_inference", lambda: None, raising=False
+    )
+    model.compile_for_inference()
+    assert len(calls) == 2
+    assert all(call["mode"] == expected_mode for call in calls)
+    assert all(call["dynamic"] is True for call in calls)
+
+
+def test_graph_step_begins_for_each_flow_window(monkeypatch):
+    model = DummyToken2Wav()
+    model._use_cuda_graphs = True
+    steps = []
+    monkeypatch.setattr(
+        torch.compiler, "cudagraph_mark_step_begin", lambda: steps.append(1)
+    )
+    model.flow_inference(
+        torch.arange(FLOW_CHUNK_TOKENS * 2 + 1),
+        ref_condition=_ref_condition_mapping(),
+    )
+    assert len(steps) == 3
+
+
+def test_graph_warmup_includes_capture_iterations():
+    model = DummyToken2Wav()
+    model._use_cuda_graphs = True
+    model.warmup(ref_condition=_ref_condition_mapping(), speech_token_lengths=(25, 75))
+    assert model.mel2wav.call_count == 6
+
+
+@pytest.mark.parametrize(
+    "device,env,enabled",
+    [("cpu", "1", False), ("cuda", "1", True), ("cuda", "0", False)],
+)
+def test_flow_autocast_is_cuda_only_and_can_be_disabled(
+    monkeypatch, device, env, enabled
+):
+    model = DummyToken2Wav()
+    monkeypatch.setattr(
+        DummyToken2Wav, "device", property(lambda self: torch.device(device))
+    )
+    monkeypatch.setenv("CHATTERBOX_FLOW_FP16", env)
+    calls = []
+
+    def autocast(*args, **kwargs):
+        calls.append((args, kwargs))
+        return nullcontext()
+
+    monkeypatch.setattr(torch, "autocast", autocast)
+    model._generate_mel(
+        torch.zeros(1, 25, dtype=torch.long),
+        torch.tensor([25]),
+        S3ReferenceCondition(**_ref_condition_mapping()),
+        None,
+    )
+    assert calls == [(("cuda",), {"dtype": torch.float16, "enabled": enabled})]
+
+
 class FakeBackendS3Gen:
     dtype = torch.float32
 
@@ -354,7 +441,7 @@ def test_torch_backend_uses_s3gen_inference_with_token_lengths_and_prepared_targ
     assert call["drop_invalid_tokens"] is False
 
 
-def test_torch_backend_path_reference_is_not_pretruncated(monkeypatch):
+def test_torch_backend_path_reference_is_not_pretruncated(monkeypatch, tmp_path):
     model = FakeBackendS3Gen()
     backend = torch_backend.TorchVCBackend(model, "cpu")
     requested_max_lengths = []
@@ -370,7 +457,9 @@ def test_torch_backend_path_reference_is_not_pretruncated(monkeypatch):
         lambda path, device: torch.zeros(1, 16),
     )
 
-    backend.convert_from_path("source.wav", target_voice_path="target.wav")
+    target = tmp_path / "target.wav"
+    target.touch()
+    backend.convert_from_path("source.wav", target_voice_path=target)
 
     assert requested_max_lengths == [None]
     assert len(model.embedded_references) == 1

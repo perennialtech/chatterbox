@@ -46,6 +46,12 @@ class ChatterboxVC:
     ) -> None:
         self.backend.set_target_voice_condition(target_voice)
 
+    def set_target_voice_path(self, target_voice_path: str | Path) -> None:
+        self.backend.set_target_voice_path(target_voice_path)
+
+    def warmup(self) -> None:
+        self.backend.warmup()
+
     def generate(
         self,
         audio,
@@ -59,6 +65,8 @@ class ChatterboxVC:
                 profile=profile,
             )
         else:
+            if target_voice_path is not None:
+                self.backend.set_target_voice_path(target_voice_path)
             result = self.backend.convert_from_tensors(
                 audio,
                 target_voice=None,

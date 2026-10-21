@@ -1,4 +1,5 @@
 import logging
+import os
 from typing import Optional
 
 import numpy as np
@@ -423,12 +424,17 @@ class S3Token2Mel(torch.nn.Module):
     ) -> torch.Tensor:
         n_cfm_timesteps = n_cfm_timesteps or 2
 
-        output_mels, _ = self.flow.inference(
-            token=speech_tokens,
-            token_len=speech_token_lens,
-            n_timesteps=n_cfm_timesteps,
-            **ref_condition.as_dict(),
-        )
+        use_fp16 = torch.device(self.device).type == "cuda" and os.getenv(
+            "CHATTERBOX_FLOW_FP16", "1"
+        ).lower() in ("1", "true", "yes", "on")
+        # Tokenization, reference preparation, and the vocoder remain in FP32.
+        with torch.autocast("cuda", dtype=torch.float16, enabled=use_fp16):
+            output_mels, _ = self.flow.inference(
+                token=speech_tokens,
+                token_len=speech_token_lens,
+                n_timesteps=n_cfm_timesteps,
+                **ref_condition.as_dict(),
+            )
         return output_mels
 
     @torch.inference_mode()
@@ -495,16 +501,21 @@ class S3Token2Wav(S3Token2Mel):
 
     def compile_for_inference(self) -> "S3Token2Wav":
         self.eval()
+        self._use_cuda_graphs = torch.device(self.device).type == "cuda" and os.getenv(
+            "CHATTERBOX_CUDA_GRAPHS", "1"
+        ).lower() in ("1", "true", "yes", "on")
+        # Flow shapes are bucketed; the variable-length vocoder stays graph-free.
+        mode = "reduce-overhead" if self._use_cuda_graphs else "default"
         backend = "inductor"
         self.flow.encoder = torch.compile(
             self.flow.encoder,
-            mode="default",
+            mode=mode,
             backend=backend,
             dynamic=True,
         )
         self.flow.decoder.estimator = torch.compile(
             self.flow.decoder.estimator,
-            mode="default",
+            mode=mode,
             backend=backend,
             dynamic=True,
         )
@@ -529,6 +540,10 @@ class S3Token2Wav(S3Token2Mel):
     ) -> torch.Tensor:
         prompt_len = ref_condition.prompt_token.size(1)
         speech_tokens = self._pad_tokens_to_bucket(speech_tokens, prompt_len)
+        if getattr(self, "_use_cuda_graphs", False):
+            # Each window consumes the previous graph outputs before starting a
+            # new step. Returned mels are computed outside the compiled modules.
+            torch.compiler.cudagraph_mark_step_begin()
         return self._generate_mel(
             speech_tokens=speech_tokens,
             speech_token_lens=speech_token_lens,
@@ -628,6 +643,7 @@ class S3Token2Wav(S3Token2Mel):
         ref_condition: Optional[dict | S3ReferenceCondition] = None,
         speech_token_lengths=(
             1,
+            75,
             FLOW_CHUNK_TOKENS,
             2 * FLOW_CHUNK_TOKENS + FLOW_CONTEXT_TOKENS,
         ),
@@ -654,12 +670,15 @@ class S3Token2Wav(S3Token2Mel):
                 dtype=torch.long,
                 device=self.device,
             )
-            output_mels = self.flow_inference(
-                speech_tokens=speech_tokens,
-                ref_condition=ref_condition,
-                n_cfm_timesteps=2,
-            )
-            self.hift_inference(output_mels.to(dtype=self.dtype), None)
+            # Inductor warms, records, then replays CUDA graphs on separate calls.
+            iterations = 3 if getattr(self, "_use_cuda_graphs", False) else 1
+            for _ in range(iterations):
+                output_mels = self.flow_inference(
+                    speech_tokens=speech_tokens,
+                    ref_condition=ref_condition,
+                    n_cfm_timesteps=2,
+                )
+                self.hift_inference(output_mels.to(dtype=self.dtype), None)
 
         if torch.device(self.device).type == "cuda":
             torch.cuda.synchronize(torch.device(self.device))
