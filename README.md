@@ -81,3 +81,7 @@ The app accepts source speech and target-voice reference audio, and returns play
 ## Determinism
 
 The flow decoder starts from noise, and the vocoder source path uses phase/noise inputs. High-level backends generate these tensors internally, so repeated runs are not bit-identical.
+
+## Development
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for tests, latency benchmarks, and precision checks.
