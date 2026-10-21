@@ -8,6 +8,12 @@ The baseline is commit `b9940717c1e8a31bda54baffb2f21ccf170f23d1`. Both revision
 
 The source is cropped from `espeak.wav` to 1, 3, 5, and 10 seconds. The reference is byte-identical to `voices/default_voice.wav` in the TTS project (SHA-256 `38f177eefe6df0c2ad04086694569448f7f3cba7c082fd28ba25a78586329ff2`). Each length has a separate initial call, three warmup calls, and 30 timed calls. Timings include completion of the CPU waveform copy, not just GPU kernel submission.
 
+Artifact fingerprints:
+
+- Checkpoint SHA-256: `d65cb687a2ed581ee6cc297e919ffefa63386944f42364ae13b78a594945514f`.
+- Source SHA-256: `b0d844369b6090eee9afea4b36367ac390277328eb0334943bdfe7fe5e54eb44`.
+- Container image ID: `cbe884a55883200205237fd5dbd1d3587c9b1a825eb128e66b80aa903760766a`; NVIDIA driver: `595.99.02`.
+
 File mode measures source decoding/resampling plus repeated `target_voice_path` calls. Tensor mode prepares the requested reference outside the timed calls and supplies 16 kHz audio tensors. This distinction separates the reference-cache benefit from faster flow execution.
 
 See [the contributor guide](../CONTRIBUTING.md) for the benchmark and precision-comparison commands.
@@ -47,6 +53,9 @@ An additional run preloads the actual target and calls the public `warmup()` met
 | Baseline, 1–10 s | 1,588 MiB (1.55 GiB) | 1.28 GiB |
 | Optimized, 1–10 s | 1,842 MiB (1.80 GiB) | 1.45 GiB |
 | Optimized, including public warmup | 2,264 MiB (2.21 GiB) | 1.80 GiB |
+| Optimized, 12 serialized workers | 2,966 MiB (2.90 GiB) | 2.12 GiB |
+
+The worker check matches the TTS service's serialized `to_thread` conversion pattern. Twelve distinct `ThreadPoolExecutor` workers make three calls each under one shared lock, rotating through 0.25, 1, 3, 5, 10, and 10.12 second inputs. It starts without main-thread flow warmup, so different workers can initialize new shapes. All calls produce finite audio with the expected token-frame duration. Worker changes increase memory use, but the measured peak remains below 4 GiB. This is not a concurrent-conversion benchmark: calls on one converter must remain serialized.
 
 ## Quality and scope
 
