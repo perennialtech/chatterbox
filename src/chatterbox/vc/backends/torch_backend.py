@@ -10,16 +10,15 @@ from safetensors.torch import load_file
 
 from ...audio import S3_SR, S3GEN_SR, load_audio_mono
 from ...models.s3gen import S3Gen
-from ...models.s3gen.checkpoint_conversion import \
-    convert_diffusers_transformer_keys
-from ...models.s3gen.conditioning import (ConditioningError,
-                                          S3ReferenceCondition)
+from ...models.s3gen.checkpoint_conversion import convert_diffusers_transformer_keys
+from ...models.s3gen.conditioning import ConditioningError, S3ReferenceCondition
 from ..errors import VoiceConditioningError
 from ..types import VCResult
 
 logger = logging.getLogger(__name__)
 
 REPO_ID = "ResembleAI/chatterbox-turbo"
+_VoiceFileKey = tuple[Path, int, int, int, int, int]
 
 
 def _is_cuda_device(device) -> bool:
@@ -74,6 +73,7 @@ class TorchVCBackend:
         self.s3gen = s3gen
         self.device = device
         self.ref_condition: S3ReferenceCondition | None = None
+        self._target_voice_key: _VoiceFileKey | None = None
 
         if ref_condition is not None:
             try:
@@ -162,6 +162,43 @@ class TorchVCBackend:
             raise VoiceConditioningError(str(exc)) from exc
 
         self.ref_condition = ref_condition
+        self._target_voice_key = None
+
+    @staticmethod
+    def _voice_file_key(path: Path) -> _VoiceFileKey:
+        stat = path.stat()
+        return (
+            path,
+            stat.st_dev,
+            stat.st_ino,
+            stat.st_size,
+            stat.st_mtime_ns,
+            stat.st_ctime_ns,
+        )
+
+    def set_target_voice_path(self, target_voice_path: str | Path) -> None:
+        """Prepare one target voice, reusing it while the reference file is unchanged."""
+        path = Path(target_voice_path).resolve(strict=True)
+        key = self._voice_file_key(path)
+        if key == self._target_voice_key:
+            return
+
+        try:
+            wav = load_wav_24k(path, self.device)
+            condition = self.s3gen.embed_ref(wav, S3GEN_SR, device=self.device)
+        except ConditioningError as exc:
+            raise VoiceConditioningError(str(exc)) from exc
+
+        # A file changed during loading must be read again on the next request.
+        unchanged = self._voice_file_key(path) == key
+        self.ref_condition = condition
+        self._target_voice_key = key if unchanged else None
+
+    def warmup(self) -> None:
+        """Warm flow and vocoder shapes using the active target voice."""
+        if self.ref_condition is None:
+            raise VoiceConditioningError("Target voice is not set.")
+        self.s3gen.warmup(ref_condition=self.ref_condition)
 
     def convert_from_path(
         self,
@@ -170,17 +207,7 @@ class TorchVCBackend:
         profile: bool = False,
     ) -> VCResult:
         if target_voice_path:
-            try:
-                s3gen_ref_wav = load_wav_24k(target_voice_path, self.device)
-                ref_condition = self.s3gen.embed_ref(
-                    s3gen_ref_wav,
-                    S3GEN_SR,
-                    device=self.device,
-                )
-            except ConditioningError as exc:
-                raise VoiceConditioningError(str(exc)) from exc
-
-            self.ref_condition = ref_condition
+            self.set_target_voice_path(target_voice_path)
 
         audio_16k = load_wav_16k(audio_path, self.device)
         if audio_16k.ndim == 1:

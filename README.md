@@ -53,6 +53,21 @@ vc.set_target_voice_condition(reference_condition)
 wav, sample_rate, timings = vc.generate(source_audio_16k_tensor)
 ```
 
+For a service using one reference file, prepare it before accepting requests:
+
+```python
+vc = ChatterboxVC.from_pretrained(device="cuda", compile=True)
+vc.set_target_voice_path("target.wav")
+vc.warmup()
+wav, sample_rate, timings = vc.generate(source_audio_16k_tensor)
+```
+
+Tensor inputs must contain mono audio sampled at 16 kHz. File inputs are decoded and resampled automatically. Repeated `target_voice_path` values reuse the active reference while the file is unchanged. Only one reference is cached; selecting another voice replaces it. Changes to the file, including replacement or a symlink pointing to another file, trigger preparation again.
+
+Compilation and new input shapes can make initial calls slow. `warmup()` prepares representative flow and vocoder shapes with the active target voice; it does not guarantee that every possible input shape is already compiled.
+
+CUDA conversion uses FP16 autocast for the flow model, with FP32 solver state. Tokenization, reference preparation, and vocoding stay in FP32. Set `CHATTERBOX_FLOW_FP16=0` to use FP32 flow execution. With `compile=True`, the bucketed flow modules also use CUDA graph replay; set `CHATTERBOX_CUDA_GRAPHS=0` to disable replay without disabling compilation. CPU execution does not use these CUDA optimizations.
+
 ## Gradio app
 
 The repository includes a browser UI in [`app.py`](app.py). Install the `ui` extra together with the runtime extras for the backend you plan to use, then launch:

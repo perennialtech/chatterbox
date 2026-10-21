@@ -40,7 +40,11 @@ class ConditionalCFM(torch.nn.Module):
         spks=None,
         cond=None,
     ):
-        noise = torch.randn_like(mu) * temperature
+        # Keep the solver state and seeded noise stable under flow autocast.
+        noise_dtype = (
+            torch.float32 if mu.dtype in (torch.float16, torch.bfloat16) else mu.dtype
+        )
+        noise = torch.randn_like(mu, dtype=noise_dtype) * temperature
         t_span = self.make_t_span(n_timesteps, mu.device, mu.dtype)
         return (
             self.decode_from_noise(

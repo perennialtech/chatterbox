@@ -19,6 +19,10 @@ class VCResult:
 class VCBackend(Protocol):
     sr: int
 
+    def set_target_voice_path(self, target_voice_path: str | Path) -> None: ...
+
+    def warmup(self) -> None: ...
+
     def set_target_voice_condition(
         self,
         target_voice: dict | S3ReferenceCondition,
