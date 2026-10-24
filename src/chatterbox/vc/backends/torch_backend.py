@@ -237,11 +237,12 @@ class TorchVCBackend:
                 if audio_16k.ndim == 1:
                     audio_16k = audio_16k.unsqueeze(0)
 
-                s3_tokens, s3_token_lens = self.s3gen.tokenizer(audio_16k)
+                s3_tokens, _ = self.s3gen.tokenizer(audio_16k)
+                # The tokenizer returns one unpadded sequence for this backend.
                 output_wavs, _ = self.s3gen.inference(
                     speech_tokens=s3_tokens,
-                    speech_token_lens=s3_token_lens,
-                    ref_condition=ref_condition,
+                    speech_token_lens=None,
+                    _prepared_condition=ref_condition,
                     drop_invalid_tokens=False,
                 )
 

@@ -15,7 +15,7 @@ class ModelConfig:
     n_audio_layer: int = 6
     n_codebook_size: int = 3**8
 
-    use_sdpa: bool = False
+    use_sdpa: bool = True
 
 
 class LayerNorm(nn.LayerNorm):
@@ -125,9 +125,7 @@ class FSQCodebook(nn.Module):
         h = h * 0.9990000128746033
         codes = (h.round() + 1.0).to(dtype=torch.int32)
 
-        indices = codes[:, 0] * self.powers[0]
-        for i in range(1, 8):
-            indices = indices + codes[:, i] * self.powers[i]
+        indices = (codes * self.powers).sum(dim=-1, dtype=torch.int32)
         return indices.reshape(*x_shape[:-1])
 
     def decode(self, embed_ind: Tensor) -> Tensor:

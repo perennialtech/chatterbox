@@ -30,6 +30,9 @@ def test_hift_inference_output_length_matches_mel_count_times_source_hop():
     speech_feat = torch.randn(1, 80, num_mels)
     phase = torch.zeros(1, vocoder.nb_harmonics + 1, 1)
     noise = torch.zeros(1, vocoder.nb_harmonics + 1, num_mels * vocoder.source_hop)
+    expected_source = vocoder.source_from_f0(
+        vocoder.predict_f0(speech_feat), source_phase=phase, source_noise=noise
+    )
 
     wav, source = vocoder.inference(
         speech_feat,
@@ -39,6 +42,7 @@ def test_hift_inference_output_length_matches_mel_count_times_source_hop():
 
     assert wav.shape == (1, num_mels * vocoder.source_hop)
     assert source.shape == (1, 1, num_mels * vocoder.source_hop)
+    assert torch.equal(source, expected_source)
 
 
 def _roundtrip(x):

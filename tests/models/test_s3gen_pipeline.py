@@ -156,6 +156,27 @@ def test_s3token2wav_inference_short_targets_have_exact_trimmed_sample_count(
     assert model.mel2wav.call_count == 1
 
 
+def test_prepared_backend_condition_avoids_revalidation_and_length_readback(monkeypatch):
+    model = DummyToken2Wav()
+    condition = model.prepare_ref_condition(_ref_condition_mapping())
+
+    def sync_forbidden(self):
+        raise AssertionError("unnecessary CPU transfer")
+
+    monkeypatch.setattr(torch.Tensor, "cpu", sync_forbidden)
+    monkeypatch.setattr(
+        model, "prepare_ref_condition",
+        lambda *args: (_ for _ in ()).throw(AssertionError("revalidation")),
+    )
+    wav, source = model.inference(
+        torch.tensor([1, 2, 3]),
+        _prepared_condition=condition,
+        drop_invalid_tokens=False,
+    )
+    assert wav.shape == (1, 6 * model.mel2wav.source_hop)
+    assert source.shape == (1, 1, 6 * model.mel2wav.source_hop)
+
+
 def test_s3token2wav_forward_generates_full_utterance_without_lookahead_truncation():
     model = DummyToken2Wav()
     wav, source = model(
@@ -436,8 +457,8 @@ def test_torch_backend_uses_s3gen_inference_with_token_lengths_and_prepared_targ
     assert result.sample_rate == 24_000
     assert len(model.inference_calls) == 1
     call = model.inference_calls[0]
-    assert call["speech_token_lens"].tolist() == [2]
-    assert call["ref_condition"] is active_target
+    assert call["speech_token_lens"] is None
+    assert call["_prepared_condition"] is active_target
     assert call["drop_invalid_tokens"] is False
 
 

@@ -70,8 +70,9 @@ class S3Tokenizer(S3TokenizerV2):
 
     def _quantize_mel_full(self, mel: torch.Tensor) -> tuple[torch.Tensor, int]:
         mel_len = torch.tensor([mel.size(-1)], dtype=torch.long, device=self.device)
-        speech_tokens, speech_token_lens = self.quantize(mel, mel_len)
-        token_len = int(speech_token_lens[0].detach().cpu())
+        speech_tokens, _ = self.quantize(mel, mel_len)
+        # Each chunk is unpadded, so its encoded width is its valid length.
+        token_len = speech_tokens.size(1)
         return speech_tokens[0, :token_len].long(), token_len
 
     def _quantize_mel_chunked(self, mel: torch.Tensor) -> tuple[torch.Tensor, int]:
