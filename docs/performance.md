@@ -84,4 +84,13 @@ Warmed, file-based conversion on an RTX 3080 with PyTorch 2.14.1+cu130, compiled
 | 5 s | 60.2 ms | 55.3 ms | 8.2% |
 | 10 s | 79.3 ms | 74.6 ms | 6.0% |
 
-Peak reserved PyTorch memory was 1.95 GiB in both runs. These figures exclude service overhead and cold-start compilation. An ablation of additional tokenization, conditioning, and vocoder micro-optimizations did not improve the full conversion results and was not retained.
+Prepared 16 kHz tensor inputs also improve without involving file decoding during the timed calls, using the same model, voice, and measurement settings:
+
+| Source length | PR #1 master median | With conditional `eval()` | Median reduction |
+| --- | --- | --- | --- |
+| 1 s | 48.8 ms | 41.2 ms | 15.6% |
+| 3 s | 50.1 ms | 45.4 ms | 9.4% |
+| 5 s | 54.7 ms | 49.6 ms | 9.4% |
+| 10 s | 77.2 ms | 68.3 ms | 11.5% |
+
+Peak reserved PyTorch memory was 1.95 GiB for both revisions. These figures exclude service overhead and cold-start compilation. An ablation of additional tokenization, conditioning, and vocoder micro-optimizations did not improve the full conversion results and was not retained.
