@@ -498,3 +498,34 @@ def test_download_pretrained_checkpoint_requires_model_file(monkeypatch, tmp_pat
 
     with pytest.raises(FileNotFoundError, match="s3gen_meanflow.safetensors"):
         torch_backend.download_pretrained_checkpoint("example/repo")
+
+
+@pytest.mark.parametrize("method", ["inference", "flow_inference", "hift_inference"])
+def test_repeated_inference_skips_eval_when_already_in_eval_mode(monkeypatch, method):
+    model = DummyToken2Wav().eval()
+    original_eval = model.eval
+    calls = 0
+
+    def counted_eval():
+        nonlocal calls
+        calls += 1
+        return original_eval()
+
+    monkeypatch.setattr(model, "eval", counted_eval)
+
+    def run():
+        if method == "hift_inference":
+            return model.hift_inference(torch.zeros(1, 80, 4))
+        kwargs = {"ref_condition": _ref_condition_mapping()}
+        if method == "inference":
+            kwargs["drop_invalid_tokens"] = False
+        return getattr(model, method)(torch.tensor([1, 2, 3]), **kwargs)
+
+    run()
+    run()
+    assert calls == 0
+
+    model.train()
+    run()
+    assert calls == 1
+    assert not model.training

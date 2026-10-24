@@ -368,7 +368,8 @@ class S3Token2Mel(torch.nn.Module):
         ref_sr: int,
         device="auto",
     ) -> S3ReferenceCondition:
-        self.eval()
+        if self.training:
+            self.eval()
         device = self.device if device == "auto" else device
         ref_wav = self._prepare_reference_waveform(ref_wav, ref_sr, device)
 
@@ -448,7 +449,8 @@ class S3Token2Mel(torch.nn.Module):
         n_cfm_timesteps: Optional[int] = None,
         speech_token_lens: Optional[torch.Tensor] = None,
     ):
-        self.eval()
+        if self.training:
+            self.eval()
         if drop_invalid_tokens:
             speech_tokens = _drop_invalid_tokens(speech_tokens)
             if torch.as_tensor(speech_tokens).numel() == 0:
@@ -725,7 +727,8 @@ class S3Token2Wav(S3Token2Mel):
         n_cfm_timesteps: Optional[int] = None,
         speech_token_lens: Optional[torch.Tensor] = None,
     ):
-        self.eval()
+        if self.training:
+            self.eval()
         output_mels, _ = self._chunked_flow_inference_impl(
             speech_tokens=speech_tokens,
             speech_token_lens=speech_token_lens,
@@ -738,7 +741,8 @@ class S3Token2Wav(S3Token2Mel):
 
     @torch.inference_mode()
     def hift_inference(self, speech_feat, cache_source: torch.Tensor | None = None):
-        self.eval()
+        if self.training:
+            self.eval()
         if cache_source is None:
             cache_source = torch.zeros(
                 speech_feat.size(0),
@@ -762,7 +766,9 @@ class S3Token2Wav(S3Token2Mel):
         n_cfm_timesteps: Optional[int] = None,
         speech_token_lens: Optional[torch.Tensor] = None,
     ):
-        self.eval()
+        # Recursive eval() visits thousands of modules; only change mode when needed.
+        if self.training:
+            self.eval()
         if drop_invalid_tokens:
             speech_tokens = _drop_invalid_tokens(speech_tokens)
             if torch.as_tensor(speech_tokens).numel() == 0:

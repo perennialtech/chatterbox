@@ -70,3 +70,27 @@ First calls and unseen shapes can spend substantial time compiling. Warmed timin
 True incremental conversion changes the future context seen by the tokenizer and flow model. This evaluation keeps the offline behavior rather than introducing chunk seams or relying on retraining.
 
 Compiler freezing was tested, but its small full-call improvement in exploratory runs did not justify additional stored weight copies and compilation cost. A forced cuDNN attention backend was slower than the existing memory-efficient backend for the decoder's masked attention. FlashAttention rejected the non-null attention mask. None of these alternatives is enabled.
+
+## Avoiding redundant evaluation-mode traversals (2026-10-24)
+
+Calling `eval()` on the 2,517-module S3Gen instance takes approximately 4.5 ms, even when it is already in evaluation mode. The inference methods now make the transition only when the top-level model is in training mode. A subsequent `train()` call still causes the next inference to switch back to evaluation.
+
+Warmed, file-based conversion on an RTX 3080 with PyTorch 2.14.1+cu130, compiled flow/vocoder, two CPU threads, and three warmup plus 30 measured calls per length. Both runs use the same eSpeak recording as **both** source and reference, rather than the production reference used in the earlier benchmark. The shared compiler cache was warmed before timing, and production services were not changed.
+
+| Source length | PR #1 master median | With conditional `eval()` | Median reduction |
+| --- | --- | --- | --- |
+| 1 s | 48.0 ms | 42.9 ms | 10.6% |
+| 3 s | 55.7 ms | 50.4 ms | 9.6% |
+| 5 s | 60.2 ms | 55.3 ms | 8.2% |
+| 10 s | 79.3 ms | 74.6 ms | 6.0% |
+
+Prepared 16 kHz tensor inputs also improve without involving file decoding during the timed calls, using the same model, voice, and measurement settings:
+
+| Source length | PR #1 master median | With conditional `eval()` | Median reduction |
+| --- | --- | --- | --- |
+| 1 s | 48.8 ms | 41.2 ms | 15.6% |
+| 3 s | 50.1 ms | 45.4 ms | 9.4% |
+| 5 s | 54.7 ms | 49.6 ms | 9.4% |
+| 10 s | 77.2 ms | 68.3 ms | 11.5% |
+
+Peak reserved PyTorch memory was 1.95 GiB for both revisions. These figures exclude service overhead and cold-start compilation. An ablation of additional tokenization, conditioning, and vocoder micro-optimizations did not improve the full conversion results and was not retained.
