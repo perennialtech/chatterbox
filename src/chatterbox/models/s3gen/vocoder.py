@@ -467,8 +467,9 @@ class HiFTGenerator(nn.Module):
                 source_f0.expand(-1, self.nb_harmonics + 1, -1)
             )
 
-        # Reuse the upsampled F0 already needed to size the source noise.
-        s, _ = self.m_source(source_f0, source_phase, source_noise)
+        s = self.source_from_f0(
+            f0, source_phase=source_phase, source_noise=source_noise
+        )
 
         if cache_source is not None and cache_source.numel() != 0:
             if cache_source.ndim != 3:

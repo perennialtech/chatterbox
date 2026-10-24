@@ -88,12 +88,10 @@ def _prepare_speech_tokens(
     if speech_tokens.size(0) != 1:
         raise ValueError("Only batch size 1 is supported")
 
-    original_token_len = None
     if speech_token_lens is None:
-        original_token_len = speech_tokens.size(1)
         speech_token_lens = torch.full(
             (speech_tokens.size(0),),
-            original_token_len,
+            speech_tokens.size(-1),
             dtype=torch.long,
             device=device,
         )
@@ -108,8 +106,7 @@ def _prepare_speech_tokens(
     if speech_token_lens.numel() != speech_tokens.size(0):
         raise ValueError("speech_token_lens must have one entry per batch item")
 
-    if original_token_len is None:
-        original_token_len = int(speech_token_lens.max().detach().cpu())
+    original_token_len = int(speech_token_lens.max().detach().cpu())
     if original_token_len <= 0:
         raise ValueError("At least one speech token is required")
     if original_token_len > speech_tokens.size(1):
@@ -371,7 +368,8 @@ class S3Token2Mel(torch.nn.Module):
         ref_sr: int,
         device="auto",
     ) -> S3ReferenceCondition:
-        self.eval()
+        if self.training:
+            self.eval()
         device = self.device if device == "auto" else device
         ref_wav = self._prepare_reference_waveform(ref_wav, ref_sr, device)
 
@@ -451,7 +449,8 @@ class S3Token2Mel(torch.nn.Module):
         n_cfm_timesteps: Optional[int] = None,
         speech_token_lens: Optional[torch.Tensor] = None,
     ):
-        self.eval()
+        if self.training:
+            self.eval()
         if drop_invalid_tokens:
             speech_tokens = _drop_invalid_tokens(speech_tokens)
             if torch.as_tensor(speech_tokens).numel() == 0:
@@ -563,7 +562,6 @@ class S3Token2Wav(S3Token2Mel):
         ref_condition: Optional[dict | S3ReferenceCondition] = None,
         n_cfm_timesteps: Optional[int] = None,
         speech_token_lens: Optional[torch.Tensor] = None,
-        _prepared_condition: S3ReferenceCondition | None = None,
     ) -> tuple[torch.Tensor, int]:
         speech_tokens, speech_token_lens, original_mel_len = (
             self._prepare_target_tokens(
@@ -571,14 +569,11 @@ class S3Token2Wav(S3Token2Mel):
                 speech_token_lens=speech_token_lens,
             )
         )
-        if _prepared_condition is not None:
-            ref_condition = _prepared_condition
-        else:
-            ref_condition = self._prepare_reference_condition(
-                ref_wav, ref_sr, ref_condition
-            )
+        ref_condition = self._prepare_reference_condition(
+            ref_wav, ref_sr, ref_condition
+        )
 
-        target_token_len = original_mel_len // self._token_mel_ratio
+        target_token_len = int(speech_token_lens.max().detach().cpu())
         chunk_tokens = max(1, FLOW_CHUNK_TOKENS)
         context_tokens = max(FLOW_CONTEXT_TOKENS, self._final_context_token_count)
         token_mel_ratio = self._token_mel_ratio
@@ -732,7 +727,8 @@ class S3Token2Wav(S3Token2Mel):
         n_cfm_timesteps: Optional[int] = None,
         speech_token_lens: Optional[torch.Tensor] = None,
     ):
-        self.eval()
+        if self.training:
+            self.eval()
         output_mels, _ = self._chunked_flow_inference_impl(
             speech_tokens=speech_tokens,
             speech_token_lens=speech_token_lens,
@@ -745,7 +741,8 @@ class S3Token2Wav(S3Token2Mel):
 
     @torch.inference_mode()
     def hift_inference(self, speech_feat, cache_source: torch.Tensor | None = None):
-        self.eval()
+        if self.training:
+            self.eval()
         if cache_source is None:
             cache_source = torch.zeros(
                 speech_feat.size(0),
@@ -768,9 +765,10 @@ class S3Token2Wav(S3Token2Mel):
         drop_invalid_tokens: bool = True,
         n_cfm_timesteps: Optional[int] = None,
         speech_token_lens: Optional[torch.Tensor] = None,
-        _prepared_condition: S3ReferenceCondition | None = None,
     ):
-        self.eval()
+        # Recursive eval() visits thousands of modules; only change mode when needed.
+        if self.training:
+            self.eval()
         if drop_invalid_tokens:
             speech_tokens = _drop_invalid_tokens(speech_tokens)
             if torch.as_tensor(speech_tokens).numel() == 0:
@@ -784,7 +782,6 @@ class S3Token2Wav(S3Token2Mel):
             ref_sr=ref_sr,
             ref_condition=ref_condition,
             n_cfm_timesteps=n_cfm_timesteps,
-            _prepared_condition=_prepared_condition,
         )
         output_mels = output_mels.to(dtype=self.dtype)
         output_wavs, output_sources = self.hift_inference(output_mels, None)

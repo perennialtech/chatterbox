@@ -156,27 +156,6 @@ def test_s3token2wav_inference_short_targets_have_exact_trimmed_sample_count(
     assert model.mel2wav.call_count == 1
 
 
-def test_prepared_backend_condition_avoids_revalidation_and_length_readback(monkeypatch):
-    model = DummyToken2Wav()
-    condition = model.prepare_ref_condition(_ref_condition_mapping())
-
-    def sync_forbidden(self):
-        raise AssertionError("unnecessary CPU transfer")
-
-    monkeypatch.setattr(torch.Tensor, "cpu", sync_forbidden)
-    monkeypatch.setattr(
-        model, "prepare_ref_condition",
-        lambda *args: (_ for _ in ()).throw(AssertionError("revalidation")),
-    )
-    wav, source = model.inference(
-        torch.tensor([1, 2, 3]),
-        _prepared_condition=condition,
-        drop_invalid_tokens=False,
-    )
-    assert wav.shape == (1, 6 * model.mel2wav.source_hop)
-    assert source.shape == (1, 1, 6 * model.mel2wav.source_hop)
-
-
 def test_s3token2wav_forward_generates_full_utterance_without_lookahead_truncation():
     model = DummyToken2Wav()
     wav, source = model(
@@ -457,8 +436,8 @@ def test_torch_backend_uses_s3gen_inference_with_token_lengths_and_prepared_targ
     assert result.sample_rate == 24_000
     assert len(model.inference_calls) == 1
     call = model.inference_calls[0]
-    assert call["speech_token_lens"] is None
-    assert call["_prepared_condition"] is active_target
+    assert call["speech_token_lens"].tolist() == [2]
+    assert call["ref_condition"] is active_target
     assert call["drop_invalid_tokens"] is False
 
 
@@ -519,3 +498,34 @@ def test_download_pretrained_checkpoint_requires_model_file(monkeypatch, tmp_pat
 
     with pytest.raises(FileNotFoundError, match="s3gen_meanflow.safetensors"):
         torch_backend.download_pretrained_checkpoint("example/repo")
+
+
+@pytest.mark.parametrize("method", ["inference", "flow_inference", "hift_inference"])
+def test_repeated_inference_skips_eval_when_already_in_eval_mode(monkeypatch, method):
+    model = DummyToken2Wav().eval()
+    original_eval = model.eval
+    calls = 0
+
+    def counted_eval():
+        nonlocal calls
+        calls += 1
+        return original_eval()
+
+    monkeypatch.setattr(model, "eval", counted_eval)
+
+    def run():
+        if method == "hift_inference":
+            return model.hift_inference(torch.zeros(1, 80, 4))
+        kwargs = {"ref_condition": _ref_condition_mapping()}
+        if method == "inference":
+            kwargs["drop_invalid_tokens"] = False
+        return getattr(model, method)(torch.tensor([1, 2, 3]), **kwargs)
+
+    run()
+    run()
+    assert calls == 0
+
+    model.train()
+    run()
+    assert calls == 1
+    assert not model.training

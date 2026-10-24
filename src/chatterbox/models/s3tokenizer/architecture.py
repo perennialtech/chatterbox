@@ -125,7 +125,9 @@ class FSQCodebook(nn.Module):
         h = h * 0.9990000128746033
         codes = (h.round() + 1.0).to(dtype=torch.int32)
 
-        indices = (codes * self.powers).sum(dim=-1, dtype=torch.int32)
+        indices = codes[:, 0] * self.powers[0]
+        for i in range(1, 8):
+            indices = indices + codes[:, i] * self.powers[i]
         return indices.reshape(*x_shape[:-1])
 
     def decode(self, embed_ind: Tensor) -> Tensor:
