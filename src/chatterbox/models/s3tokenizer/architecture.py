@@ -15,7 +15,7 @@ class ModelConfig:
     n_audio_layer: int = 6
     n_codebook_size: int = 3**8
 
-    use_sdpa: bool = True
+    use_sdpa: bool = False
 
 
 class LayerNorm(nn.LayerNorm):

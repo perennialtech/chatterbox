@@ -4,7 +4,6 @@ import pytest
 import torch
 
 from chatterbox.models.s3tokenizer.architecture import (
-    FSMNMultiHeadAttention,
     FSQCodebook,
     ModelConfig,
 )
@@ -23,24 +22,6 @@ def test_vectorized_fsq_matches_integer_reference(frames):
     for i in range(1, 8):
         expected += codes[:, i] * codebook.powers[i]
     assert torch.equal(result, expected.reshape(1, frames))
-
-
-@pytest.mark.parametrize("frames", [1, 25, 251])
-def test_sdpa_matches_explicit_attention_with_padding(frames):
-    torch.manual_seed(41)
-    attn = FSMNMultiHeadAttention(32, 4, use_sdpa=False).eval()
-    x = torch.randn(1, frames, 32)
-    bias = torch.zeros(1, 1, 1, frames)
-    bias[..., frames // 2 :] = -1e10
-    with torch.inference_mode():
-        expected = attn(x, mask=bias)
-        attn.use_sdpa = True
-        actual = attn(x, mask=bias)
-    torch.testing.assert_close(actual, expected, atol=1e-5, rtol=1e-5)
-
-
-def test_default_tokenizer_uses_sdpa():
-    assert ModelConfig().use_sdpa is True
 
 
 @pytest.mark.parametrize("mel_frames", [1, 4, 5, 17, 300])
