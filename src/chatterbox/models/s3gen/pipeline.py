@@ -504,7 +504,7 @@ class S3Token2Wav(S3Token2Mel):
     def compile_for_inference(self) -> "S3Token2Wav":
         self.eval()
         self._use_cuda_graphs = torch.device(self.device).type == "cuda" and os.getenv(
-            "CHATTERBOX_CUDA_GRAPHS", "1"
+            "CHATTERBOX_CUDA_GRAPHS", "0"
         ).lower() in ("1", "true", "yes", "on")
         # Flow shapes are bucketed; the variable-length vocoder stays graph-free.
         mode = "reduce-overhead" if self._use_cuda_graphs else "default"

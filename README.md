@@ -68,7 +68,7 @@ Serialize calls on a shared `ChatterboxVC` instance, including target-voice chan
 
 Compilation and new input shapes can make initial calls slow. `warmup()` prepares representative flow and vocoder shapes with the active target voice; it does not guarantee that every possible input shape is already compiled.
 
-CUDA conversion uses FP16 autocast for the flow model, with FP32 solver state. Tokenization, reference preparation, and vocoding stay in FP32. Set `CHATTERBOX_FLOW_FP16=0` to use FP32 flow execution. With `compile=True`, the bucketed flow modules also use CUDA graph replay; set `CHATTERBOX_CUDA_GRAPHS=0` to disable replay without disabling compilation. CPU execution does not use these CUDA optimizations.
+CUDA conversion uses FP16 autocast for the flow model, with FP32 solver state. Tokenization, reference preparation, and vocoding stay in FP32. Set `CHATTERBOX_FLOW_FP16=0` to use FP32 flow execution. With `compile=True`, the flow modules use TorchInductor without CUDA graph replay by default. Set `CHATTERBOX_CUDA_GRAPHS=1` to opt into CUDA graph replay. CPU execution does not use these CUDA optimizations.
 
 ## Gradio app
 

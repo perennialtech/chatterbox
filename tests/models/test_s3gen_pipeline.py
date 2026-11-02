@@ -275,6 +275,7 @@ def test_apply_output_fades_uses_non_overlapping_short_fades():
         ("cpu", "1", "default"),
         ("cuda", "1", "reduce-overhead"),
         ("cuda", "0", "default"),
+        ("cuda", None, "default"),
     ],
 )
 def test_compile_uses_cuda_graphs_only_for_bucketed_cuda_flow(
@@ -287,7 +288,10 @@ def test_compile_uses_cuda_graphs_only_for_bucketed_cuda_flow(
     monkeypatch.setattr(
         DummyToken2Wav, "device", property(lambda self: torch.device(device))
     )
-    monkeypatch.setenv("CHATTERBOX_CUDA_GRAPHS", env)
+    if env is None:
+        monkeypatch.delenv("CHATTERBOX_CUDA_GRAPHS", raising=False)
+    else:
+        monkeypatch.setenv("CHATTERBOX_CUDA_GRAPHS", env)
     calls = []
 
     def compile(module, **kwargs):
